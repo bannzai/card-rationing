@@ -3,6 +3,10 @@ extends SceneTree
 ## 検証の失敗の記録と、結果を exit code と完了の行で返す終わり方を持つ。
 ## release ビルドでは assert が消えるため、assert ではなく _check() と _finish() で結果を返す。
 
+## 契約切れだけのデッキで戦闘を終わらせる時の、もがく + ターン終了の上限 (詰んだら検証を止めるため)。
+## 野犬 (体力 14) をもがく (2 ダメージ) で倒すには 7 回 + ターン終了 3 回の 10 手で、その 6 倍
+const EXHAUSTED_BATTLE_STEP_LIMIT: int = 60
+
 ## 検証が 1 件でも失敗したか。true なら exit code 1 で終わる
 var failed: bool = false
 

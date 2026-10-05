@@ -1,9 +1,18 @@
 extends "res://scripts/dev/headless_check.gd"
 ## メインシーンを tree に置いて動かす入力統合テスト (headless)。画面の遷移やキー・クリックで変わる振る舞いを
 ## 足したら、ここに検証を足す。実行方法は AGENTS.md「検証方法」を参照。
+## キーは root.push_input() に InputEventKey を、クリックはボタンの中心への InputEventMouseButton を渡して起こす。
+
+const BattleScript := preload("res://scripts/battle.gd")
+const BattleUiScript := preload("res://scripts/battle_ui.gd")
+const MainScript := preload("res://scripts/main.gd")
+const RunStateScript := preload("res://scripts/run_state.gd")
 
 ## 起動時に表示するメインシーン
 const MAIN_SCENE: PackedScene = preload("res://scenes/main.tscn")
+
+## autoload RunState (ラン単位の状態)
+var run_state: RunStateScript = null
 
 
 ## tree の準備が終わってから _run() を始める (シーンの追加は _initialize() の後でないとできない)
@@ -13,13 +22,148 @@ func _initialize() -> void:
 
 ## フレームを進めながら検証するため、同じ実行中に重ねて呼び出さない
 func _run() -> void:
-	var main: Control = MAIN_SCENE.instantiate()
+	run_state = root.get_node_or_null("RunState")
+	_check(run_state != null, "autoload RunState がある")
+	var main: MainScript = MAIN_SCENE.instantiate()
 	root.add_child(main)
 	current_scene = main
-	await process_frame
-	await process_frame
+	await _settle()
 	_check(main.is_inside_tree(), "メインシーンが tree に入る")
 	_check(main.get_node("Title").is_visible_in_tree(), "タイトルが表示される")
+	await _check_enter_and_win(main)
+	await _check_next_battle_keeps_uses(main)
+	await _check_target_selection(main)
+	await _check_exhausted_deck_battle(main)
 	main.queue_free()
 	await process_frame
 	_finish()
+
+
+## Enter で戦闘に入り、クリックと数字キーでカードを使って敵を倒す (使うたびに残り使用回数が減る)
+func _check_enter_and_win(main: MainScript) -> void:
+	# 5 枚のデッキにして、シードによらず全カードが手札に来るようにする
+	run_state.new_run(["slash", "slash", "guard", "breath", "spirit_arrow"])
+	await _press_key(KEY_ENTER)
+	var battle_ui: BattleUiScript = main.battle
+	_check(battle_ui != null, "Enter で戦闘に入る")
+	_check(not main.get_node("Title").visible, "戦闘に入るとタイトルが消える")
+	if battle_ui == null:
+		return
+	_check(_hand_buttons(battle_ui).size() == 5, "手札のボタンが 5 枚")
+	var slash_hand: int = _hand_index_of(battle_ui, "slash")
+	var slash_deck: int = battle_ui.battle.hand[slash_hand]
+	await _click(_hand_buttons(battle_ui)[slash_hand])
+	_check(run_state.uses_left(slash_deck) == 3, "クリックで斬撃を使うと残り使用回数が 3")
+	_check(battle_ui.battle.hand.size() == 4, "使ったカードが手札から消える")
+	_check(battle_ui.battle.enemies[0]["hp"] == 8, "野犬の体力 8")
+	var second_slash: int = _hand_index_of(battle_ui, "slash")
+	await _press_key(KEY_1 + second_slash)
+	_check(battle_ui.battle.enemies[0]["hp"] == 2, "数字キーで斬撃を使うと野犬の体力 2")
+	await _press_key(KEY_1 + _hand_index_of(battle_ui, "spirit_arrow"))
+	_check(battle_ui.battle.outcome == BattleScript.Outcome.WIN, "精霊の矢で倒して勝利")
+	_check(battle_ui.next_button.visible, "勝利で「次の戦闘へ」が出る")
+
+
+## 「次の戦闘へ」で始めた戦闘でも、使ったカードの残り使用回数が減ったまま
+func _check_next_battle_keeps_uses(main: MainScript) -> void:
+	var battle_ui: BattleUiScript = main.battle
+	if battle_ui == null:
+		return
+	var before: Array[Dictionary] = run_state.deck.duplicate(true)
+	_check(before[0]["uses_left"] < 4 or before[1]["uses_left"] < 4, "勝利の時点で斬撃の残りが減っている")
+	await _click(battle_ui.next_button)
+	_check(run_state.floor_index == 1, "次の戦闘で階層が進む")
+	var battle: BattleScript = battle_ui.battle
+	_check(battle.turn == 1 and battle.outcome == BattleScript.Outcome.NONE, "新しい戦闘")
+	_check(run_state.deck == before, "次の戦闘でも残り使用回数が減ったまま")
+	_check(battle_ui.battle.enemies.size() == 2, "2 階は敵が 2 体")
+
+
+## 敵が 2 体いる時、攻撃は対象を選んでから使う (数字キーで敵を選ぶ)
+func _check_target_selection(main: MainScript) -> void:
+	var battle_ui: BattleUiScript = main.battle
+	if battle_ui == null:
+		return
+	var slash_hand: int = _hand_index_of(battle_ui, "slash")
+	await _press_key(KEY_1 + slash_hand)
+	_check(battle_ui.pending_hand_index == slash_hand, "攻撃を選ぶと対象の選択に入る")
+	_check(battle_ui.message_label.text.contains("対象"), "対象を選ぶ案内が出る")
+	_check(battle_ui.battle.enemies[1]["hp"] == 22, "まだ骸骨兵の体力 22")
+	await _press_key(KEY_2)
+	_check(battle_ui.battle.enemies[1]["hp"] == 16, "2 を押すと骸骨兵に 6 ダメージ")
+	_check(battle_ui.pending_hand_index == -1, "使ったら対象の選択が終わる")
+	await _press_key(KEY_ESCAPE)
+	await _press_key(KEY_ENTER)
+	_check(battle_ui.battle.turn == 2, "Enter でターン終了")
+
+
+## デッキの全カードが契約切れでも、もがく (S) とターン終了 (Enter) で戦闘が勝敗まで進む
+func _check_exhausted_deck_battle(main: MainScript) -> void:
+	var battle_ui: BattleUiScript = main.battle
+	if battle_ui == null:
+		return
+	run_state.new_run(["slash", "guard", "breath"])
+	for index: int in range(run_state.deck.size()):
+		while run_state.use_card(index):
+			pass
+	battle_ui.start_battle(11)
+	await _settle()
+	_check(battle_ui.battle.hand.size() == 3, "契約切れのカードも手札に来る")
+	for button: Button in _hand_buttons(battle_ui):
+		_check(button.disabled and button.text.contains("契約切れ"), "契約切れのカードは押せず、そう表示される")
+	_check(battle_ui.message_label.text.contains("使えるカードが無い"), "使えるカードが無い案内が出る")
+	var steps: int = 0
+	var battle: BattleScript = battle_ui.battle
+	while battle.outcome == BattleScript.Outcome.NONE and steps < EXHAUSTED_BATTLE_STEP_LIMIT:
+		if battle.energy >= BattleScript.STRUGGLE_COST:
+			await _press_key(KEY_S)
+		else:
+			await _press_key(KEY_ENTER)
+		steps += 1
+	_check(battle_ui.battle.outcome != BattleScript.Outcome.NONE, "契約切れだけのデッキでも勝敗まで進む")
+	_check(run_state.uses_left(0) == 0, "もがくは残り使用回数を変えない")
+
+
+## 戦闘画面の手札のボタン (表示中のものだけ)
+func _hand_buttons(battle_ui: BattleUiScript) -> Array[Button]:
+	var buttons: Array[Button] = []
+	for child: Button in battle_ui.hand_row.get_children():
+		if child.visible:
+			buttons.append(child)
+	return buttons
+
+
+## 手札の中で card_id のカードがある位置 (無ければ -1)
+func _hand_index_of(battle_ui: BattleUiScript, card_id: String) -> int:
+	for hand_index: int in range(battle_ui.battle.hand.size()):
+		if run_state.deck[battle_ui.battle.hand[hand_index]]["id"] == card_id:
+			return hand_index
+	return -1
+
+
+## keycode のキーを押して、画面の更新とレイアウトが終わるまで待つ
+func _press_key(keycode: int) -> void:
+	var event: InputEventKey = InputEventKey.new()
+	event.keycode = keycode as Key
+	event.pressed = true
+	root.push_input(event)
+	await _settle()
+
+
+## control の中心を左クリック (押して離す) して、画面の更新とレイアウトが終わるまで待つ
+func _click(control: Control) -> void:
+	var center: Vector2 = control.get_global_rect().get_center()
+	for pressed: bool in [true, false]:
+		var event: InputEventMouseButton = InputEventMouseButton.new()
+		event.button_index = MOUSE_BUTTON_LEFT
+		event.pressed = pressed
+		event.position = center
+		event.global_position = center
+		root.push_input(event)
+	await _settle()
+
+
+## 画面の更新とコンテナのレイアウト (次のフレームに遅延する) が終わるまで 2 フレーム待つ
+func _settle() -> void:
+	await process_frame
+	await process_frame

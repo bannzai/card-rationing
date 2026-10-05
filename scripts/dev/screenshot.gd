@@ -21,6 +21,8 @@ func _initialize() -> void:
 ## フレームを進めながら撮影するため、同じ実行中に重ねて呼び出さない
 func _run() -> void:
 	if await _capture_scenes():
+		# #4 の実験 B: push_error の ERROR の行を出しつつ、OK の行と exit 0 で終える (ログの検査だけで失敗する状態)
+		push_error("deliberate push_error for #4 experiment B")
 		print("screenshot OK")
 		quit(0)
 

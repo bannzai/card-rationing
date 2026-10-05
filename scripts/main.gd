@@ -6,13 +6,17 @@ extends Control
 const BOOT_MESSAGE: String = "card-rationing boot"
 const BATTLE_SCENE: PackedScene = preload("res://scenes/battle.tscn")
 const BattleUiScript := preload("res://scripts/battle_ui.gd")
+## 全画面の既定フォント (日本語の字形を持つ。出典は assets/CREDITS.md)。project.godot の gui/theme/custom_font
+## で指定すると、初回の import でフォントの import より先に読もうとして ERROR になるため、起動後にここで設定する
+const DEFAULT_FONT: Font = preload("res://assets/fonts/NotoSansJP-Variable.ttf")
 
 ## 進行中の戦闘画面 (入る前は null)
 var battle: BattleUiScript = null
 
 
-## 標準出力に BOOT_MESSAGE を 1 行出す (make check がメインシーンのロードと _ready の実行を確かめる印)
+## 起動の入口。BOOT_MESSAGE は make check がメインシーンのロードと _ready の実行を確かめる印
 func _ready() -> void:
+	ThemeDB.fallback_font = DEFAULT_FONT
 	print(BOOT_MESSAGE)
 
 

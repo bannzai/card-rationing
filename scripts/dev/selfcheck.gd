@@ -168,7 +168,13 @@ func _check_save_and_load() -> void:
 ## 壊れた保存データ (JSON でない・形が合わない) は読み込まずに .corrupt へ退避し、新しいランになる
 func _check_corrupt_save() -> void:
 	var corrupt_path: String = SELFCHECK_SAVE_PATH + ".corrupt"
-	for text: String in ["{not json", '{"version": 1, "deck": "x"}', '{"version": 99}']:
+	var texts: Array[String] = [
+		"{not json",
+		'{"version": 1, "deck": "x"}',
+		'{"version": 99}',
+		'{"version": [], "deck": [], "hp": 1, "max_hp": 1, "gold": 0, "act": 1, "floor_index": 0}',
+	]
+	for text: String in texts:
 		_remove_user_file(SELFCHECK_SAVE_PATH)
 		_remove_user_file(corrupt_path)
 		var file: FileAccess = FileAccess.open(SELFCHECK_SAVE_PATH, FileAccess.WRITE)

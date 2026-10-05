@@ -157,11 +157,11 @@ func _is_valid_save(data: Variant) -> bool:
 	for key: String in ["version", "deck", "hp", "max_hp", "gold", "act", "floor_index"]:
 		if not data.has(key):
 			return false
-	if int(data["version"]) != SAVE_VERSION or typeof(data["deck"]) != TYPE_ARRAY:
-		return false
-	for key: String in ["hp", "max_hp", "gold", "act", "floor_index"]:
+	for key: String in ["version", "hp", "max_hp", "gold", "act", "floor_index"]:
 		if typeof(data[key]) != TYPE_FLOAT and typeof(data[key]) != TYPE_INT:
 			return false
+	if int(data["version"]) != SAVE_VERSION or typeof(data["deck"]) != TYPE_ARRAY:
+		return false
 	for entry: Variant in data["deck"]:
 		if not _is_valid_deck_entry(entry):
 			return false

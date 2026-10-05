@@ -102,7 +102,16 @@ func _check_target_selection(main: MainScript) -> void:
 	await _press_key(KEY_2)
 	_check(battle_ui.battle.enemies[1]["hp"] == 16, "2 を押すと骸骨兵に 6 ダメージ")
 	_check(battle_ui.pending_hand_index == -1, "使ったら対象の選択が終わる")
+	var other_slash: int = _hand_index_of(battle_ui, "slash")
+	var other_slash_uses: int = run_state.uses_left(battle_ui.battle.hand[other_slash])
+	await _press_key(KEY_1 + other_slash)
+	_check(battle_ui.pending_hand_index == other_slash, "2 枚目の斬撃で対象の選択に入る")
 	await _press_key(KEY_ESCAPE)
+	_check(battle_ui.pending_hand_index == -1, "Esc で対象の選択をやめる")
+	_check(
+		run_state.uses_left(battle_ui.battle.hand[other_slash]) == other_slash_uses,
+		"やめたカードは使われない"
+	)
 	await _press_key(KEY_ENTER)
 	_check(battle_ui.battle.turn == 2, "Enter でターン終了")
 

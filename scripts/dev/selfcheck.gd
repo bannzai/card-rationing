@@ -23,9 +23,6 @@ const SELFCHECK_SAVE_PATH: String = "user://selfcheck_save.json"
 ## すべての検証を順に行い、結果を exit code と「selfcheck OK」の行で返して終える (シーンを tree に置かないため
 ## _initialize() の中で完結する)
 func _initialize() -> void:
-	# #4 の実験 A: わざと実行時エラー (null のメソッド呼び出し) を起こし、quit() に届かず Godot が終わらない状態を作る
-	var nothing: Node = null
-	nothing.get_name()
 	_check_project_settings()
 	_check_scenes_load()
 	_check_cards()

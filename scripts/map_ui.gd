@@ -27,8 +27,11 @@ const KIND_COLORS: Dictionary = {
 const EDGE_COLOR: Color = Color(0.45, 0.43, 0.5)
 const PATH_EDGE_COLOR: Color = Color(1, 0.85, 0.3)
 const EDGE_WIDTH: float = 2.0
-## 通った節点と、進めない節点の明るさ
-const VISITED_MODULATE: Color = Color(1, 1, 1, 0.55)
+## 通った節点の明るさ (不透明のまま暗くし、辺が文字に透けないようにする)
+const VISITED_MODULATE: Color = Color(0.6, 0.6, 0.6, 1)
+## 節点のボタンの背景 (不透明にして、節点を通る辺を文字の下に隠す) と、次に進める節点の枠の太さ
+const NODE_BG_COLOR: Color = Color(0.15, 0.14, 0.18, 1)
+const SELECTABLE_BORDER_WIDTH: int = 2
 
 ## ラン単位の状態 (autoload RunState)
 var run_state: RunStateScript = null
@@ -101,6 +104,14 @@ func _add_node_button(row: int, node: Dictionary) -> void:
 	button.focus_mode = Control.FOCUS_ALL if selectable else Control.FOCUS_NONE
 	for color_name: String in ["font_color", "font_disabled_color", "font_hover_color"]:
 		button.add_theme_color_override(color_name, KIND_COLORS[kind])
+	var background: StyleBoxFlat = StyleBoxFlat.new()
+	background.bg_color = NODE_BG_COLOR
+	background.set_corner_radius_all(6)
+	if selectable:
+		background.set_border_width_all(SELECTABLE_BORDER_WIDTH)
+		background.border_color = KIND_COLORS[kind]
+	for style_name: String in ["normal", "disabled", "hover", "pressed"]:
+		button.add_theme_stylebox_override(style_name, background)
 	if visited:
 		button.modulate = VISITED_MODULATE
 	button.tooltip_text = ActMap.KIND_NAMES[kind]

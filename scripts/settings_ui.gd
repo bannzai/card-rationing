@@ -51,7 +51,9 @@ func _add_volume_row(
 	var row: HBoxContainer = HBoxContainer.new()
 	row.add_theme_constant_override("separation", 16)
 	parent.add_child(row)
+	# 行の中のラベルは折り返さない (幅の決まらない横並びでは 1 文字ずつ折り返してしまう)
 	var name_label: Label = UiKit.add_label(row, title)
+	name_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 	name_label.custom_minimum_size = Vector2(200, 0)
 	var slider: HSlider = HSlider.new()
 	slider.min_value = 0
@@ -59,8 +61,10 @@ func _add_volume_row(
 	slider.step = SettingsScript.VOLUME_STEP
 	slider.value = value
 	slider.custom_minimum_size = Vector2(480, 32)
+	slider.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(slider)
 	var value_label: Label = UiKit.add_label(row, str(value))
+	value_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 	slider.value_changed.connect(on_changed)
 	slider.value_changed.connect(
 		func(new_value: float) -> void: value_label.text = str(int(new_value))

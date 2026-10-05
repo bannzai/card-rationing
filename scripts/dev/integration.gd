@@ -364,6 +364,11 @@ func _check_deck_list(main: MainScript) -> void:
 	)
 	await _press_key(KEY_ESCAPE)
 	_check(main.deck_list == null, "Esc で契約の一覧が閉じる")
+	var map_ui: MapUiScript = main.screen as MapUiScript
+	_check(
+		root.gui_get_focus_owner() == map_ui.node_button(run_state.path.size(), map_ui.choices[0]),
+		"契約の一覧を閉じると、開く前の地図の節点にフォーカスが戻る"
+	)
 
 
 ## 地図で終了して「続きから」で再開すると、同じ状態 (デッキ・体力・所持金・道・局面) に戻る

@@ -164,7 +164,9 @@ func refresh() -> void:
 ## 戦闘を終える (画面の切り替えは scripts/main.gd が局面の変化で行う)。画面を更新する
 func _after_action() -> void:
 	if battle.outcome == Battle.Outcome.NONE:
-		run_state.autosave()
+		var status: Error = run_state.autosave()
+		if status != OK:
+			push_error("自動保存に失敗: %s (%s)" % [run_state.save_path, error_string(status)])
 	else:
 		RunFlow.finish_battle(run_state, battle.outcome == Battle.Outcome.WIN)
 	refresh()

@@ -35,6 +35,8 @@ var screen: Control = null
 var deck_list: DeckListUiScript = null
 ## 契約の一覧を開くボタン (ランの画面でだけ見せる)
 var deck_button: Button = null
+## 契約の一覧を開く前にフォーカスがあった下の画面のコントロール (閉じる時に戻す。無ければ null)
+var focus_before_deck_list: Control = null
 
 
 ## 起動の入口。BOOT_MESSAGE は make check がメインシーンのロードと _ready の実行を確かめる印
@@ -140,17 +142,21 @@ func show_run_phase() -> void:
 func open_deck_list() -> void:
 	if deck_list != null:
 		return
+	focus_before_deck_list = get_viewport().gui_get_focus_owner()
 	deck_list = DeckListUiScript.new()
 	deck_list.closed.connect(close_deck_list)
 	add_child(deck_list)
 
 
-## 契約の一覧を閉じる
+## 契約の一覧を閉じ、開く前にフォーカスがあった下の画面のボタンへフォーカスを戻す (Enter で続けて選べるように)
 func close_deck_list() -> void:
 	if deck_list == null:
 		return
 	_discard(deck_list)
 	deck_list = null
+	if is_instance_valid(focus_before_deck_list) and focus_before_deck_list.is_visible_in_tree():
+		focus_before_deck_list.grab_focus()
+	focus_before_deck_list = null
 
 
 ## 表示する画面を next にする。前の画面は入力を止めて隠し、フレームの終わりに解放する (前の画面の入力の

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+{% comment %}
+GitHub Pages の既定テーマ jekyll-theme-primer v0.6.0 の _layouts/default.html の写し。違いは <html lang> だけで、
+v0.6.0 は site.lang しか見ないため、ページの front matter の lang (英語の規約・プライバシーポリシーの lang: en) を
+優先するように変えた (primer の master は同じ変更を入れているが、GitHub Pages が使う v0.6.0 には無い)。
+元: https://github.com/pages-themes/primer/blob/v0.6.0/_layouts/default.html
+{% endcomment %}
+<html lang="{{ page.lang | default: site.lang | default: "en-US" }}">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+{% seo %}
+    <link rel="stylesheet" href="{{ "/assets/css/style.css?v=" | append: site.github.build_revision | relative_url }}">
+    {% include head-custom.html %}
+  </head>
+  <body>
+    <div class="container-lg px-3 my-5 markdown-body">
+      {% if site.title and site.title != page.title %}
+      <h1><a href="{{ "/" | absolute_url }}">{{ site.title }}</a></h1>
+      {% endif %}
+
+      {{ content }}
+
+      {% if site.github.private != true and site.github.license %}
+      <div class="footer border-top border-gray-light mt-5 pt-3 text-right text-gray">
+        This site is open source. {% github_edit_link "Improve this page" %}.
+      </div>
+      {% endif %}
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/anchor-js/4.1.0/anchor.min.js" integrity="sha256-lZaRhKri35AyJSypXXs4o6OPFTbTmUoltBbDCbdzegg=" crossorigin="anonymous"></script>
+    <script>anchors.add();</script>
+  </body>
+</html>

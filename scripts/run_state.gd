@@ -150,7 +150,7 @@ func load_from(path: String) -> LoadResult:
 	return LoadResult.CORRUPT
 
 
-## 保存データの形が合っているか (版・各項目の型・デッキの各カードが定義済みで残り回数が 0〜最大)
+## 保存データの形が合っているか (版・各項目が整数で範囲内・デッキの各カードが定義済みで残り回数が 0〜最大)
 func _is_valid_save(data: Variant) -> bool:
 	if typeof(data) != TYPE_DICTIONARY:
 		return false
@@ -158,14 +158,17 @@ func _is_valid_save(data: Variant) -> bool:
 		if not data.has(key):
 			return false
 	for key: String in ["version", "hp", "max_hp", "gold", "act", "floor_index"]:
-		if typeof(data[key]) != TYPE_FLOAT and typeof(data[key]) != TYPE_INT:
+		if not _is_integer(data[key]):
 			return false
 	if int(data["version"]) != SAVE_VERSION or typeof(data["deck"]) != TYPE_ARRAY:
 		return false
-	for entry: Variant in data["deck"]:
-		if not _is_valid_deck_entry(entry):
-			return false
-	return true
+	var hp: int = int(data["hp"])
+	var max_hp: int = int(data["max_hp"])
+	var hp_ok: bool = max_hp >= 1 and hp >= 0 and hp <= max_hp
+	var progress_ok: bool = (
+		int(data["gold"]) >= 0 and int(data["act"]) >= 1 and int(data["floor_index"]) >= 0
+	)
+	return hp_ok and progress_ok and data["deck"].all(_is_valid_deck_entry)
 
 
 ## 保存データのデッキの 1 要素の形が合っているか
@@ -174,7 +177,14 @@ func _is_valid_deck_entry(entry: Variant) -> bool:
 		return false
 	if typeof(entry["id"]) != TYPE_STRING or not Cards.CARDS.has(entry["id"]):
 		return false
-	if typeof(entry["uses_left"]) != TYPE_FLOAT and typeof(entry["uses_left"]) != TYPE_INT:
+	if not _is_integer(entry["uses_left"]):
 		return false
 	var uses: int = int(entry["uses_left"])
 	return uses >= 0 and uses <= Cards.CARDS[entry["id"]]["max_uses"]
+
+
+## 値が整数か (JSON は数をすべて float で読むため、小数部の無い float も整数として受ける)
+func _is_integer(value: Variant) -> bool:
+	if typeof(value) == TYPE_INT:
+		return true
+	return typeof(value) == TYPE_FLOAT and is_equal_approx(value, roundf(value))

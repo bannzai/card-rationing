@@ -16,7 +16,8 @@ ENGINE_LOG = --log-file "$(CURDIR)/$(LOG_DIR)/$@.godot.log"
 # macOS には timeout コマンドが無い)。上限で終わると exit code は 0 だが、各 target は完了の行 (`selfcheck OK` /
 # `integration OK` / `screenshot OK`) も検査するので失敗になる。
 # 6000 の根拠: headless は 1 フレームが数 ms で、正常な検証は数十フレームで終わる。描画付きの screenshot は
-# llvmpipe の fps が読めず (数十〜数千 fps)、0.3 秒の待ちを 2 回挟むため、速い環境でも数千フレームに収まる値にした。
+# llvmpipe の fps が読めず (数十〜数千 fps)、0.3 秒の待ちを撮影ごと (今は 3 回) に挟むため、速い環境でも数千
+# フレームに収まる値にした (撮影を足して待ちの合計が 1 秒を超えるなら上限も見直す)。
 # GDScript の無限ループはフレームが進まず止められないため、そちらは CI の timeout-minutes が最後の砦
 SCRIPT_FRAME_LIMIT ?= 6000
 SCRIPT_FLAGS = --quit-after $(SCRIPT_FRAME_LIMIT)

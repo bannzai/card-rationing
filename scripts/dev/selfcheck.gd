@@ -79,6 +79,8 @@ func _check_cards() -> void:
 			card.has("damage") or card.has("block") or card.has("draw"), "効果がある: %s" % card_id
 		)
 		_check(not Cards.effect_text(card_id).is_empty(), "効果の文がある: %s" % card_id)
+		# battle.play() は対象の有無を needs_target で、ダメージの適用を damage の有無で見るため、両者を一致させる
+		_check(card.has("damage") == Cards.needs_target(card_id), "ダメージを持つのは攻撃だけ: %s" % card_id)
 		kinds[card["kind"]] = true
 	for kind: int in [Cards.Kind.ATTACK, Cards.Kind.GUARD, Cards.Kind.SKILL]:
 		_check(kinds.has(kind), "種別 %d のカードがある" % kind)
@@ -168,12 +170,33 @@ func _check_save_and_load() -> void:
 ## 壊れた保存データ (JSON でない・形が合わない) は読み込まずに .corrupt へ退避し、新しいランになる
 func _check_corrupt_save() -> void:
 	var corrupt_path: String = SELFCHECK_SAVE_PATH + ".corrupt"
-	var texts: Array[String] = [
-		"{not json",
-		'{"version": 1, "deck": "x"}',
-		'{"version": 99}',
-		'{"version": [], "deck": [], "hp": 1, "max_hp": 1, "gold": 0, "act": 1, "floor_index": 0}',
+	# 全キーが揃った正しい形を土台に、欠陥を 1 つだけ入れる (検査の各分岐を 1 つずつ通す)
+	var base: Dictionary = {
+		"version": 1, "deck": [], "hp": 1, "max_hp": 1, "gold": 0, "act": 1, "floor_index": 0
+	}
+	var broken: Array[Dictionary] = [
+		{"version": 99},
+		{"version": []},
+		{"hp": "x"},
+		{"hp": 1.5},
+		{"hp": 2},
+		{"hp": -1},
+		{"max_hp": 0},
+		{"gold": -1},
+		{"act": 0},
+		{"floor_index": -1},
+		{"deck": "x"},
+		{"deck": [1]},
+		{"deck": [{"id": "nope", "uses_left": 1}]},
+		{"deck": [{"id": "slash", "uses_left": 99}]},
+		{"deck": [{"id": "slash", "uses_left": -1}]},
+		{"deck": [{"id": "slash"}]},
 	]
+	var texts: Array[String] = ["{not json", '{"version": 1, "deck": "x"}']
+	for defect: Dictionary in broken:
+		var data: Dictionary = base.duplicate(true)
+		data.merge(defect, true)
+		texts.append(JSON.stringify(data))
 	for text: String in texts:
 		_remove_user_file(SELFCHECK_SAVE_PATH)
 		_remove_user_file(corrupt_path)
@@ -191,6 +214,14 @@ func _check_corrupt_save() -> void:
 		_check(FileAccess.file_exists(corrupt_path), "壊れた保存データは .corrupt へ退避される")
 		_check(state.uses_left(0) == Cards.CARDS["slash"]["max_uses"], "壊れた保存データの後は新しいラン")
 		state.free()
+	# 欠陥の無い土台はそのまま読み込める (上の検査が壊れたデータだけを弾いていることの対照)
+	var file: FileAccess = FileAccess.open(SELFCHECK_SAVE_PATH, FileAccess.WRITE)
+	file.store_string(JSON.stringify(base))
+	file.close()
+	var state: RunStateScript = RunStateScript.new()
+	_check(state.load_from(SELFCHECK_SAVE_PATH) == RunStateScript.LoadResult.LOADED, "土台の保存データは読み込める")
+	_check(state.hp == 1 and state.deck.is_empty(), "土台の保存データの値が入る")
+	state.free()
 	_remove_user_file(SELFCHECK_SAVE_PATH)
 	_remove_user_file(corrupt_path)
 
@@ -208,6 +239,11 @@ func _check_battle_turn() -> void:
 	_check(battle.play(_hand_index_of(battle, state, "slash"), 0), "斬撃を使える")
 	_check(battle.enemies[0]["hp"] == 12 and battle.enemies[0]["block"] == 0, "防御 4 が先に受けて体力 12")
 	_check(battle.energy == 2 and state.uses_left(0) == 3, "コスト 1 を払い残り使用回数が 3")
+	var deck_before_struggle: Array[Dictionary] = state.deck.duplicate(true)
+	_check(battle.struggle(0) and battle.enemies[0]["hp"] == 10, "もがくで 2 ダメージ")
+	_check(state.deck == deck_before_struggle, "もがくは残りのあるカードの残り使用回数も減らさない")
+	_check(battle.energy == 1, "もがくのコスト 1")
+	battle.energy = 2
 	_check(battle.hand.size() == 4 and battle.discard_pile.size() == 1, "使ったカードは捨て札へ")
 	_check(battle.play(_hand_index_of(battle, state, "guard")), "守りを使える")
 	_check(battle.block == 5 and battle.energy == 1, "防御 5・エネルギー 1")
@@ -215,14 +251,15 @@ func _check_battle_turn() -> void:
 	_check(battle.play(_hand_index_of(battle, state, "breath")), "深呼吸を使える")
 	_check(battle.hand.size() == 4 and battle.discard_pile.is_empty(), "捨て札を混ぜ直して 2 枚引く")
 	_check(battle.play(_hand_index_of(battle, state, "spirit_arrow"), 0), "精霊の矢を使える")
-	_check(battle.enemies[0]["hp"] == 9, "体力 9")
-	var intent: Dictionary = battle.enemies[0]["intent"]
+	_check(battle.enemies[0]["hp"] == 7, "体力 7")
+	# 予告を固定して、防御 5 を超えた攻撃 7 の分だけ体力が減ることを確かめる
+	battle.enemies[0]["intent"] = {"move": Enemies.Move.ATTACK, "value": 7}
 	battle.end_turn()
-	if intent["move"] == Enemies.Move.ATTACK:
-		_check(state.hp == 50 - maxi(0, intent["value"] - 5), "予告どおりの攻撃を防御 5 が受ける")
-	else:
-		_check(state.hp == 50 and battle.enemies[0]["block"] == intent["value"], "予告どおりに防御する")
+	_check(state.hp == 48, "攻撃 7 を防御 5 が受けて体力が 2 減る")
 	_check(battle.turn == 2 and battle.energy == 3 and battle.block == 0, "次のターン: エネルギー 3・防御 0")
+	battle.enemies[0]["intent"] = {"move": Enemies.Move.GUARD, "value": 4}
+	battle.end_turn()
+	_check(state.hp == 48 and battle.enemies[0]["block"] == 4, "予告どおりに防御する (体力は減らない)")
 	_check(battle.hand.size() == 5 and battle.discard_pile.is_empty(), "手札を捨てて 5 枚引く")
 	state.free()
 
@@ -298,7 +335,6 @@ func _check_exhausted_deck_battle() -> void:
 	_check(not battle.play(0, 0), "契約切れのカードを使おうとしても false")
 	_check(battle.struggle(0), "もがける")
 	_check(battle.enemies[0]["hp"] == 12 and battle.energy == 2, "もがくで 2 ダメージ・コスト 1")
-	_check(state.uses_left(0) == 0, "もがくは残り使用回数を使わない")
 	var steps: int = 0
 	while battle.outcome == BattleScript.Outcome.NONE and steps < EXHAUSTED_BATTLE_STEP_LIMIT:
 		if not battle.struggle(0):

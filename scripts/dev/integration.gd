@@ -42,6 +42,7 @@ func _run() -> void:
 	await _check_target_selection(main)
 	await _check_hand_fits_after_draw(main)
 	await _check_exhausted_deck_battle(main)
+	await _check_defeat_starts_new_run(main)
 	main.queue_free()
 	await process_frame
 	_finish()
@@ -164,6 +165,30 @@ func _check_exhausted_deck_battle(main: MainScript) -> void:
 		steps += 1
 	_check(battle_ui.battle.outcome != BattleScript.Outcome.NONE, "契約切れだけのデッキでも勝敗まで進む")
 	_check(run_state.uses_left(0) == 0, "もがくは残り使用回数を変えない")
+
+
+## 敗北の後は Enter で新しいラン (初期デッキ・体力・最初の階層) の戦闘が始まる
+func _check_defeat_starts_new_run(main: MainScript) -> void:
+	var battle_ui: BattleUiScript = main.battle
+	if battle_ui == null:
+		return
+	run_state.new_run(["guard"])
+	run_state.use_card(0)
+	run_state.take_damage(49)
+	run_state.advance_floor()
+	battle_ui.start_battle(13)
+	await _settle()
+	for _i: int in range(10):
+		if battle_ui.battle.outcome != BattleScript.Outcome.NONE:
+			break
+		await _press_key(KEY_ENTER)
+	_check(battle_ui.battle.outcome == BattleScript.Outcome.LOSE, "体力 1 のランは敗北で終わる")
+	_check(battle_ui.message_label.text.contains("敗北"), "敗北の案内が出る")
+	await _press_key(KEY_ENTER)
+	_check(run_state.hp == 50 and run_state.floor_index == 0, "敗北の後は新しいランの体力と最初の階層")
+	_check(run_state.deck.size() == 10 and run_state.uses_left(0) == 4, "敗北の後は初期デッキで残りが最大")
+	var battle: BattleScript = battle_ui.battle
+	_check(battle.turn == 1 and battle.outcome == BattleScript.Outcome.NONE, "敗北の後に新しい戦闘が始まる")
 
 
 ## 戦闘画面の手札のボタン (表示中のものだけ)

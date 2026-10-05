@@ -32,6 +32,7 @@ import: $(LOG_DIR)/.gdignore
 	"$(GODOT)" --headless $(ENGINE_LOG) --path . --import > $(LOG_DIR)/import.log 2>&1; \
 	echo "exit=$$?" >> $(LOG_DIR)/import.log; \
 	tail -n 1 $(LOG_DIR)/import.log | grep -q '^exit=0$$'
+	! grep -i -e 'WARNING' -e 'ERROR' $(LOG_DIR)/import.log
 
 # 起動検証。メインシーンとスクリプトがロードでき、_ready が走ることを boot 出力で確認する
 check: import

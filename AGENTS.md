@@ -19,7 +19,7 @@
 | 目的 | コマンド | 成功条件 |
 |---|---|---|
 | lint | `make lint` (`gdlint scripts/`) | exit 0 |
-| アセットインポート (初回・素材追加後) | `make import` | exit 0 (ログは `tmp/import.log`) |
+| アセットインポート (初回・素材追加後) | `make import` | exit 0 かつ `tmp/import.log` に WARNING / ERROR 行がない |
 | 起動検証 (メインシーン・スクリプトのロード) | `make check` | exit 0 かつ `tmp/check.log` に `card-rationing boot` が出力され、WARNING / ERROR 行がない |
 | ロジック検証 (ゲームのルールの計算・プロジェクト設定・全シーンのロード。一覧は `scripts/dev/selfcheck.gd`) | `make selfcheck` | exit 0 かつ `tmp/selfcheck.log` に `selfcheck OK` が出力され、WARNING / ERROR 行がない |
 | 入力統合テスト (メインシーンを動かし、画面の遷移と入力で変わる振る舞いを確かめる。一覧は `scripts/dev/integration.gd`) | `make integration` | exit 0 かつ `tmp/integration.log` に `integration OK` が出力され、WARNING / ERROR 行がない |

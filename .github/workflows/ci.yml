@@ -44,6 +44,10 @@ jobs:
         run: make integration GODOT="${{ steps.godot.outputs.godot }}"
       - name: Export desktop builds
         run: make build-all GODOT="${{ steps.godot.outputs.godot }}"
+      # upload-artifact はファイルの実行権限を保持しないため、Linux のバイナリと PCK は権限を保持する tar にまとめる
+      # (macOS は export 自体が zip、Windows は実行権限を使わない)
+      - name: Package Linux build
+        run: tar -czf build/card-rationing-linux.tar.gz -C build linux
       - name: Upload logs
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -59,7 +63,7 @@ jobs:
           path: |
             build/windows/
             build/macos/
-            build/linux/
+            build/card-rationing-linux.tar.gz
           retention-days: 7
 
   # 描画付きの検証。headless の check / selfcheck / integration では見た目の崩れを検出できないため、

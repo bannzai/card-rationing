@@ -20,6 +20,9 @@ func _initialize() -> void:
 
 ## フレームを進めながら撮影するため、同じ実行中に重ねて呼び出さない
 func _run() -> void:
+	# #4 の実験 A: わざと実行時エラー (null のメソッド呼び出し) を起こし、quit() に届かず Godot が終わらない状態を作る
+	var nothing: Node = null
+	nothing.get_name()
 	if await _capture_scenes():
 		print("screenshot OK")
 		quit(0)

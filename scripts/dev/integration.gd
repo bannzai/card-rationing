@@ -49,6 +49,7 @@ func _run() -> void:
 	await _check_hand_fits_after_draw(main)
 	await _check_exhausted_deck_battle(main)
 	await _check_defeat_starts_new_run(main)
+	await _check_boss_talk_consumes_keys(main)
 	main.queue_free()
 	await process_frame
 	# メインシーンを消してから確かめる (Enter を戦闘画面も受けてしまわないように)
@@ -246,6 +247,23 @@ func _check_boss_talk() -> void:
 	_check(finished_count[0] == 1, "「戦う」で finished が出る")
 	await _press_key(KEY_ENTER)
 	_check(finished_count[0] == 1, "finished は 1 度だけ出る")
+	talk.queue_free()
+	await process_frame
+
+
+## 会話の画面を戦闘画面と同じメインシーンの子に置いた時 (地図からボスの節点に入る形)、会話を進める Enter は
+## 会話の画面が消費し、戦闘画面のターン終了には届かない
+func _check_boss_talk_consumes_keys(main: MainScript) -> void:
+	var battle_ui: BattleUiScript = main.battle
+	if battle_ui == null:
+		return
+	var talk: BossTalkScript = BOSS_TALK_SCENE.instantiate()
+	main.add_child(talk)
+	await _settle()
+	var turn_before: int = battle_ui.battle.turn
+	await _press_key(KEY_ENTER)
+	_check(talk.line_index == 1, "会話の画面が Enter で次の台詞へ進む")
+	_check(battle_ui.battle.turn == turn_before, "会話中の Enter は戦闘画面のターン終了に届かない")
 	talk.queue_free()
 	await process_frame
 

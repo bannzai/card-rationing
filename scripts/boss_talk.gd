@@ -48,12 +48,13 @@ func advance() -> void:
 	finished.emit()
 
 
-## Enter / Space で次へ
+## Enter / Space で次へ。キーは消費し、同じメインシーンの子の戦闘画面に Enter (ターン終了) を届けない
 func _unhandled_key_input(event: InputEvent) -> void:
 	if not (event is InputEventKey) or not event.pressed or event.echo:
 		return
 	var key: Key = (event as InputEventKey).keycode
 	if key == KEY_ENTER or key == KEY_KP_ENTER or key == KEY_SPACE:
+		get_viewport().set_input_as_handled()
 		advance()
 
 
@@ -63,6 +64,7 @@ func _gui_input(event: InputEvent) -> void:
 		return
 	var click: InputEventMouseButton = event
 	if click.pressed and click.button_index == MOUSE_BUTTON_LEFT:
+		accept_event()
 		advance()
 
 

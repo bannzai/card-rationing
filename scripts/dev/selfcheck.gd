@@ -459,6 +459,21 @@ func _check_battle_effects() -> void:
 	var hp_before: int = state.hp
 	battle.end_turn()
 	_check(state.hp == hp_before - 3, "攻撃 2×3 を防御 3 が受けて体力が 3 減る")
+	# 境界: 複数回の攻撃は 1 回ごとに敵の防御が先に受け、全体攻撃は倒した敵を飛ばし、全員を倒したら勝利
+	state.new_run(["twin_flame", "ember_wave"])
+	var finisher: BattleScript = BattleScript.new()
+	finisher.start(state, ["wild_dog", "skeleton"], 2)
+	finisher.enemies[0]["hp"] = 0
+	finisher.enemies[1]["block"] = 3
+	_check(finisher.play(_hand_index_of(finisher, state, "twin_flame"), 1), "双つ灯を防御 3 の敵に使える")
+	_check(
+		finisher.enemies[1]["hp"] == 17 and finisher.enemies[1]["block"] == 0,
+		"双つ灯の 1 回目を防御 3 が受け、2 回目は体力に届く (22 → 17)"
+	)
+	finisher.enemies[1]["hp"] = 4
+	_check(finisher.play(_hand_index_of(finisher, state, "ember_wave")), "熾火の波を使える")
+	_check(finisher.enemies[0]["hp"] == 0 and finisher.enemies[1]["hp"] == 0, "倒した敵は 0 のまま")
+	_check(finisher.outcome == BattleScript.Outcome.WIN, "全体攻撃で全員を倒したら勝利")
 	state.free()
 
 

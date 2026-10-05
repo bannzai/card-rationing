@@ -7,7 +7,9 @@ const BOOT_MESSAGE: String = "card-rationing boot"
 const BATTLE_SCENE: PackedScene = preload("res://scenes/battle.tscn")
 const BattleUiScript := preload("res://scripts/battle_ui.gd")
 ## 全画面の既定フォント (日本語の字形を持つ。出典は assets/CREDITS.md)。project.godot の gui/theme/custom_font
-## で指定すると、初回の import でフォントの import より先に読もうとして ERROR になるため、起動後にここで設定する
+## で指定すると、初回の import でフォントの import より先に読もうとして ERROR になるため、起動後にこのノードの
+## theme の default_font として設定する (子の戦闘画面にも効く。ThemeDB.fallback_font は既定テーマがフォントを
+## 持つため効かなかった)
 const DEFAULT_FONT: Font = preload("res://assets/fonts/NotoSansJP-Variable.ttf")
 
 ## 進行中の戦闘画面 (入る前は null)
@@ -16,7 +18,9 @@ var battle: BattleUiScript = null
 
 ## 起動の入口。BOOT_MESSAGE は make check がメインシーンのロードと _ready の実行を確かめる印
 func _ready() -> void:
-	ThemeDB.fallback_font = DEFAULT_FONT
+	var app_theme: Theme = Theme.new()
+	app_theme.default_font = DEFAULT_FONT
+	theme = app_theme
 	print(BOOT_MESSAGE)
 
 

@@ -56,7 +56,15 @@ custom_minimum_size = Vector2(0, 160)
 layout_mode = 2
 mouse_filter = 2
 
-[node name="LineLabel" type="Label" parent="Layout/LinePanel"]
+[node name="LineMargin" type="MarginContainer" parent="Layout/LinePanel"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 32
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 32
+theme_override_constants/margin_bottom = 16
+
+[node name="LineLabel" type="Label" parent="Layout/LinePanel/LineMargin"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 26
 text = ""

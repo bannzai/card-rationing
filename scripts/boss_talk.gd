@@ -18,7 +18,7 @@ var done: bool = false
 
 ## scenes/boss_talk.tscn のノード
 @onready var boss_name_label: Label = $Layout/BossNameLabel
-@onready var line_label: Label = $Layout/LinePanel/LineLabel
+@onready var line_label: Label = $Layout/LinePanel/LineMargin/LineLabel
 @onready var hint_label: Label = $Layout/BottomRow/HintLabel
 @onready var fight_button: Button = $Layout/BottomRow/FightButton
 

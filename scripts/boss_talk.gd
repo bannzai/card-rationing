@@ -28,7 +28,7 @@ func _ready() -> void:
 	refresh()
 
 
-## boss_id のボスとの会話を最初の台詞から始める
+## boss_id のボスとの会話を最初の台詞から始める。@onready のノードを使うため、tree に入れた後に呼ぶ
 func start(boss: String) -> void:
 	boss_id = boss
 	line_index = 0

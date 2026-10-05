@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>契約の一覧</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 1280px; height: 720px; box-sizing: border-box; overflow: hidden; position: relative; font-family: 'Zen Kaku Gothic New', sans-serif; color: #e9e6de; background: #11151c">
+
+  <svg aria-hidden="true" width="640" height="640" viewBox="0 0 640 640" fill="none" stroke="#2c3542" stroke-width="1" style="position: absolute; right: -200px; bottom: -230px;">
+    <circle cx="320" cy="320" r="310"></circle>
+    <circle cx="320" cy="320" r="288"></circle>
+    <path d="M320 32 L608 320 L320 608 L32 320 Z"></path>
+    <circle cx="320" cy="320" r="204"></circle>
+    <path d="M320 116 L524 320 L320 524 L116 320 Z"></path>
+    <circle cx="320" cy="320" r="144"></circle>
+    <path d="M320 176 L464 320 L320 464 L176 320 Z"></path>
+    <path d="M320 280 L360 320 L320 360 L280 320 Z"></path>
+    <circle cx="320" cy="320" r="10"></circle>
+    <path d="M531 103 L537 109 L531 115 L525 109 Z"></path>
+    <path d="M109 103 L115 109 L109 115 L103 109 Z"></path>
+    <path d="M531 525 L537 531 L531 537 L525 531 Z"></path>
+    <path d="M109 525 L115 531 L109 537 L103 531 Z"></path>
+  </svg>
+
+  <div style="position: relative; z-index: 1; box-sizing: border-box; height: 720px; padding: 44px 120px 32px; display: flex; flex-direction: column;">
+
+    <header style="display: flex; align-items: center; justify-content: space-between; padding-bottom: 22px; border-bottom: 1px solid #2c3542;">
+      <div style="display: flex; align-items: baseline; gap: 16px;">
+        <h1 style="margin: 0; font-family: 'Shippori Mincho', serif; font-size: 30px; font-weight: 700; line-height: 1.2; letter-spacing: 0.04em;">契約の一覧</h1>
+        <span style="font-size: 13px; color: #a7adb6;">カード 12 枚</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 28px;">
+        <div style="display: flex; align-items: baseline; gap: 10px;">
+          <span style="font-size: 13px; color: #a7adb6;">命令できる残り回数 合計</span>
+          <span style="font-family: 'Shippori Mincho', serif; font-size: 28px; font-weight: 700; line-height: 1;">46</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span id="deck-sort-label" style="font-size: 12px; color: #a7adb6;">並べ替え</span>
+          <div role="tablist" aria-labelledby="deck-sort-label" style="display: flex; border: 1px solid #2c3542; border-radius: 6px; overflow: hidden; background: #1a2029;">
+            <button type="button" role="tab" aria-selected="false" style="height: 38px; padding: 0 16px; margin: 0; background: transparent; border: none; border-top: 2px solid transparent; border-bottom: 2px solid transparent; border-right: 1px solid #2c3542; color: #a7adb6; font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer;">強さ順</button>
+            <button type="button" role="tab" aria-selected="true" style="height: 38px; padding: 0 16px; margin: 0; background: #222a35; border: none; border-top: 2px solid transparent; border-bottom: 2px solid #d4553a; color: #e9e6de; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer;">残り回数順</button>
+          </div>
+        </div>
+        <button type="button" aria-label="閉じる" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; padding: 0; margin: 0; background: #1a2029; border: 1px solid #2c3542; border-radius: 6px; color: #e9e6de; cursor: pointer;">
+          <svg aria-hidden="true" width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 4 L14 14 M14 4 L4 14"></path></svg>
+        </button>
+      </div>
+    </header>
+
+    <ul style="list-style: none; margin: 36px 0 0; padding: 0; display: grid; grid-template-columns: repeat(6, 150px); grid-auto-rows: 210px; gap: 20px 28px;">
+
+      <li style="position: relative; width: 150px; height: 210px;">
+        <div style="box-sizing: border-box; width: 150px; height: 210px; background: #1f2733; border: 1px solid #3a4554; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; opacity: 0.8;">
+          <div style="display: flex; align-items: center; justify-content: space-between; height: 28px;">
+            <span style="width: 28px; height: 28px; border-radius: 50%; background: #d4553a; color: #ffffff; display: flex; align-items: center; justify-content: center; font-family: 'Shippori Mincho', serif; font-size: 24px; font-weight: 700; line-height: 1;">1</span>
+          </div>
+          <h2 style="margin: 12px 0 0; font-family: 'Shippori Mincho', serif; font-size: 17px; font-weight: 700; line-height: 1.3;">灯の精</h2>
+          <p style="margin: 2px 0 0; font-size: 11px; line-height: 1.4; color: #a7adb6;">技能 精霊</p>
+          <p style="margin: 10px 0 0; font-size: 13px; line-height: 1.55;"><span style="display: block;">カードを 2 枚引く</span><span style="display: block;">気力を 1 得る</span></p>
+          <div style="margin-top: auto; padding-top: 10px; border-top: 1px solid #2c3542;">
+            <div aria-hidden="true" style="display: flex; align-items: center; gap: 5px; height: 14px; padding-left: 2px;">
+              <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; border: 1px solid #5a6472; transform: rotate(45deg);"></span>
+              <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; border: 1px solid #5a6472; transform: rotate(45deg);"></span>
+              <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; border: 1px solid #5a6472; transform: rotate(45deg);"></span>
+            </div>
+            <p style="margin: 6px 0 0; font-size: 11px; line-height: 1.4; color: #a7adb6;">残り <span style="color: #e9e6de; font-weight: 700;">0</span> / 3</p>
+          </div>
+        </div>
+        <span style="position: absolute; top: 16px; right: 13px; font-size: 11px; font-weight: 700; line-height: 1; padding: 4px 6px; background: #11151c; border: 1px solid #a7adb6; border-radius: 3px; color: #e9e6de;">契約切れ</span>
+      </li>
+
+      <li style="box-sizing: border-box; width: 150px; height: 210px; background: #1f2733; border: 2px solid #d4553a; border-radius: 8px; padding: 11px; display: flex; flex-direction: column;">
+        <div style="display: flex; align-items: center; justify-content: space-between; height: 28px;">
+          <span style="width: 28px; height: 28px; border-radius: 50%; background: #d4553a; color: #ffffff; display: flex; align-items: center; justify-content: center; font-family: 'Shippori Mincho', serif; font-size: 24px; font-weight: 700; line-height: 1;">3</span>
+          <span style="font-size: 11px; font-weight: 500; line-height: 1; padding: 4px 6px; border: 1px solid #d4553a; border-radius: 3px; color: #e9e6de;">最後の 1 回</span>
+        </div>
+        <h2 style="margin: 12px 0 0; font-family: 'Shippori Mincho', serif; font-size: 17px; font-weight: 700; line-height: 1.3;">古王の宣告</h2>
+        <p style="margin: 2px 0 0; font-size: 11px; line-height: 1.4; color: #a7adb6;">攻撃 英霊</p>
+        <p style="margin: 10px 0 0; font-size: 13px; line-height: 1.55;"><span style="display: block;">敵すべてに</span><span style="display: block;">20 ダメージ</span></p>
+        <div style="margin-top: auto; padding-top: 10px; border-top: 1px solid #2c3542;">
+          <div aria-hidden="true" style="display: flex; align-items: center; gap: 5px; height: 14px; padding-left: 2px;">
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+          </div>
+          <p style="margin: 6px 0 0; font-size: 11px; line-height: 1.4; color: #a7adb6;">残り <span style="color: #e9e6de; font-weight: 700;">1</span> / 1</p>
+        </div>
+      </li>
+
+      <li style="box-sizing: border-box; width: 150px; height: 210px; background: #1f2733; border: 2px solid #d4553a; border-radius: 8px; padding: 11px; display: flex; flex-direction: column;">
+        <div style="display: flex; align-items: center; justify-content: space-between; height: 28px;">
+          <span style="width: 28px; height: 28px; border-radius: 50%; background: #d4553a; color: #ffffff; display: flex; align-items: center; justify-content: center; font-family: 'Shippori Mincho', serif; font-size: 24px; font-weight: 700; line-height: 1;">2</span>
+          <span style="font-size: 11px; font-weight: 500; line-height: 1; padding: 4px 6px; border: 1px solid #d4553a; border-radius: 3px; color: #e9e6de;">最後の 1 回</span>
+        </div>
+        <h2 style="margin: 12px 0 0; font-family: 'Shippori Mincho', serif; font-size: 17px; font-weight: 700; line-height: 1.3;">雷槍の英霊</h2>
+        <p style="margin: 2px 0 0; font-size: 11px; line-height: 1.4; color: #a7adb6;">攻撃 英霊</p>
+        <p style="margin: 10px 0 0; font-size: 13px; line-height: 1.55;"><span style="display: block;">敵 1 体に</span><span style="display: block;">14 ダメージ</span></p>
+        <div style="margin-top: auto; padding-top: 10px; border-top: 1px solid #2c3542;">
+          <div aria-hidden="true" style="display: flex; align-items: center; gap: 5px; height: 14px; padding-left: 2px;">
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; border: 1px solid #5a6472; transform: rotate(45deg);"></span>
+          </div>
+          <p style="margin: 6px 0 0; font-size: 11px; line-height: 1.4; color: #a7adb6;">残り <span style="color: #e9e6de; font-weight: 700;">1</span> / 2</p>
+        </div>
+      </li>
+
+      <li style="box-sizing: border-box; width: 150px; height: 210px; background: #1f2733; border: 1px solid #3a4554; border-radius: 8px; padding: 12px; display: flex; flex-direction: column;">
+        <div style="display: flex; align-items: center; justify-content: space-between; height: 28px;">
+          <span style="width: 28px; height: 28px; border-radius: 50%; background: #d4553a; color: #ffffff; display: flex; align-items: center; justify-content: center; font-family: 'Shippori Mincho', serif; font-size: 24px; font-weight: 700; line-height: 1;">2</span>
+        </div>
+        <h2 style="margin: 12px 0 0; font-family: 'Shippori Mincho', serif; font-size: 17px; font-weight: 700; line-height: 1.3;">星読みの英霊</h2>
+        <p style="margin: 2px 0 0; font-size: 11px; line-height: 1.4; color: #a7adb6;">技能 英霊</p>
+        <p style="margin: 10px 0 0; font-size: 13px; line-height: 1.55;"><span style="display: block;">敵の次の行動を見る</span><span style="display: block;">防御 8 を得る</span></p>
+        <div style="margin-top: auto; padding-top: 10px; border-top: 1px solid #2c3542;">
+          <div aria-hidden="true" style="display: flex; align-items: center; gap: 5px; height: 14px; padding-left: 2px;">
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; border: 1px solid #5a6472; transform: rotate(45deg);"></span>
+          </div>
+          <p style="margin: 6px 0 0; font-size: 11px; line-height: 1.4; color: #a7adb6;">残り <span style="color: #e9e6de; font-weight: 700;">2</span> / 3</p>
+        </div>
+      </li>
+
+      <li style="box-sizing: border-box; width: 150px; height: 210px; background: #1f2733; border: 1px solid #3a4554; border-radius: 8px; padding: 12px; display: flex; flex-direction: column;">
+        <div style="display: flex; align-items: center; justify-content: space-between; height: 28px;">
+          <span style="width: 28px; height: 28px; border-radius: 50%; background: #d4553a; color: #ffffff; display: flex; align-items: center; justify-content: center; font-family: 'Shippori Mincho', serif; font-size: 24px; font-weight: 700; line-height: 1;">2</span>
+        </div>
+        <h2 style="margin: 12px 0 0; font-family: 'Shippori Mincho', serif; font-size: 17px; font-weight: 700; line-height: 1.3;">鉄の英霊</h2>
+        <p style="margin: 2px 0 0; font-size: 11px; line-height: 1.4; color: #a7adb6;">防御 英霊</p>
+        <p style="margin: 10px 0 0; font-size: 13px; line-height: 1.55;"><span style="display: block;">防御 12 を得る</span><span style="display: block;">次の手番まで残る</span></p>
+        <div style="margin-top: auto; padding-top: 10px; border-top: 1px solid #2c3542;">
+          <div aria-hidden="true" style="display: flex; align-items: center; gap: 5px; height: 14px; padding-left: 2px;">
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; border: 1px solid #5a6472; transform: rotate(45deg);"></span>
+          </div>
+          <p style="margin: 6px 0 0; font-size: 11px; line-height: 1.4; color: #a7adb6;">残り <span style="color: #e9e6de; font-weight: 700;">3</span> / 4</p>
+        </div>
+      </li>
+
+      <li style="box-sizing: border-box; width: 150px; height: 210px; background: #1f2733; border: 1px solid #3a4554; border-radius: 8px; padding: 12px; display: flex; flex-direction: column;">
+        <div style="display: flex; align-items: center; justify-content: space-between; height: 28px;">
+          <span style="width: 28px; height: 28px; border-radius: 50%; background: #d4553a; color: #ffffff; display: flex; align-items: center; justify-content: center; font-family: 'Shippori Mincho', serif; font-size: 24px; font-weight: 700; line-height: 1;">1</span>
+        </div>
+        <h2 style="margin: 12px 0 0; font-family: 'Shippori Mincho', serif; font-size: 17px; font-weight: 700; line-height: 1.3;">影の精</h2>
+        <p style="margin: 2px 0 0; font-size: 11px; line-height: 1.4; color: #a7adb6;">攻撃 精霊</p>
+        <p style="margin: 10px 0 0; font-size: 13px; line-height: 1.55;"><span style="display: block;">敵 1 体に</span><span style="display: block;">4 ダメージを 2 回</span></p>
+        <div style="margin-top: auto; padding-top: 10px; border-top: 1px solid #2c3542;">
+          <div aria-hidden="true" style="display: flex; align-items: center; gap: 5px; height: 14px; padding-left: 2px;">
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; border: 1px solid #5a6472; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; border: 1px solid #5a6472; transform: rotate(45deg);"></span>
+          </div>
+          <p style="margin: 6px 0 0; font-size: 11px; line-height: 1.4; color: #a7adb6;">残り <span style="color: #e9e6de; font-weight: 700;">4</span> / 6</p>
+        </div>
+      </li>
+
+      <li style="box-sizing: border-box; width: 150px; height: 210px; background: #1f2733; border: 1px solid #3a4554; border-radius: 8px; padding: 12px; display: flex; flex-direction: column;">
+        <div style="display: flex; align-items: center; justify-content: space-between; height: 28px;">
+          <span style="width: 28px; height: 28px; border-radius: 50%; background: #d4553a; color: #ffffff; display: flex; align-items: center; justify-content: center; font-family: 'Shippori Mincho', serif; font-size: 24px; font-weight: 700; line-height: 1;">1</span>
+        </div>
+        <h2 style="margin: 12px 0 0; font-family: 'Shippori Mincho', serif; font-size: 17px; font-weight: 700; line-height: 1.3;">樹の英霊</h2>
+        <p style="margin: 2px 0 0; font-size: 11px; line-height: 1.4; color: #a7adb6;">技能 英霊</p>
+        <p style="margin: 10px 0 0; font-size: 13px; line-height: 1.55;"><span style="display: block;">体力を 5 回復する</span></p>
+        <div style="margin-top: auto; padding-top: 10px; border-top: 1px solid #2c3542;">
+          <div aria-hidden="true" style="display: flex; align-items: center; gap: 5px; height: 14px; padding-left: 2px;">
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; border: 1px solid #5a6472; transform: rotate(45deg);"></span>
+          </div>
+          <p style="margin: 6px 0 0; font-size: 11px; line-height: 1.4; color: #a7adb6;">残り <span style="color: #e9e6de; font-weight: 700;">5</span> / 6</p>
+        </div>
+      </li>
+
+      <li style="box-sizing: border-box; width: 150px; height: 210px; background: #1f2733; border: 1px solid #3a4554; border-radius: 8px; padding: 12px; display: flex; flex-direction: column;">
+        <div style="display: flex; align-items: center; justify-content: space-between; height: 28px;">
+          <span style="width: 28px; height: 28px; border-radius: 50%; background: #d4553a; color: #ffffff; display: flex; align-items: center; justify-content: center; font-family: 'Shippori Mincho', serif; font-size: 24px; font-weight: 700; line-height: 1;">1</span>
+        </div>
+        <h2 style="margin: 12px 0 0; font-family: 'Shippori Mincho', serif; font-size: 17px; font-weight: 700; line-height: 1.3;">雪の精</h2>
+        <p style="margin: 2px 0 0; font-size: 11px; line-height: 1.4; color: #a7adb6;">技能 精霊</p>
+        <p style="margin: 10px 0 0; font-size: 13px; line-height: 1.55;"><span style="display: block;">敵 1 体を</span><span style="display: block;">1 手番 凍らせる</span></p>
+        <div style="margin-top: auto; padding-top: 10px; border-top: 1px solid #2c3542;">
+          <div aria-hidden="true" style="display: flex; align-items: center; gap: 5px; height: 14px; padding-left: 2px;">
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; border: 1px solid #5a6472; transform: rotate(45deg);"></span>
+          </div>
+          <p style="margin: 6px 0 0; font-size: 11px; line-height: 1.4; color: #a7adb6;">残り <span style="color: #e9e6de; font-weight: 700;">5</span> / 6</p>
+        </div>
+      </li>
+
+      <li style="box-sizing: border-box; width: 150px; height: 210px; background: #1f2733; border: 1px solid #3a4554; border-radius: 8px; padding: 12px; display: flex; flex-direction: column;">
+        <div style="display: flex; align-items: center; justify-content: space-between; height: 28px;">
+          <span style="width: 28px; height: 28px; border-radius: 50%; background: #d4553a; color: #ffffff; display: flex; align-items: center; justify-content: center; font-family: 'Shippori Mincho', serif; font-size: 24px; font-weight: 700; line-height: 1;">1</span>
+        </div>
+        <h2 style="margin: 12px 0 0; font-family: 'Shippori Mincho', serif; font-size: 17px; font-weight: 700; line-height: 1.3;">守りの風</h2>
+        <p style="margin: 2px 0 0; font-size: 11px; line-height: 1.4; color: #a7adb6;">防御 精霊</p>
+        <p style="margin: 10px 0 0; font-size: 13px; line-height: 1.55;"><span style="display: block;">防御 6 を得る</span></p>
+        <div style="margin-top: auto; padding-top: 10px; border-top: 1px solid #2c3542;">
+          <div aria-hidden="true" style="display: flex; align-items: center; gap: 5px; height: 14px; padding-left: 2px;">
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; border: 1px solid #5a6472; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; border: 1px solid #5a6472; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; border: 1px solid #5a6472; transform: rotate(45deg);"></span>
+          </div>
+          <p style="margin: 6px 0 0; font-size: 11px; line-height: 1.4; color: #a7adb6;">残り <span style="color: #e9e6de; font-weight: 700;">5</span> / 8</p>
+        </div>
+      </li>
+
+      <li style="box-sizing: border-box; width: 150px; height: 210px; background: #1f2733; border: 1px solid #3a4554; border-radius: 8px; padding: 12px; display: flex; flex-direction: column;">
+        <div style="display: flex; align-items: center; justify-content: space-between; height: 28px;">
+          <span style="width: 28px; height: 28px; border-radius: 50%; background: #d4553a; color: #ffffff; display: flex; align-items: center; justify-content: center; font-family: 'Shippori Mincho', serif; font-size: 24px; font-weight: 700; line-height: 1;">1</span>
+        </div>
+        <h2 style="margin: 12px 0 0; font-family: 'Shippori Mincho', serif; font-size: 17px; font-weight: 700; line-height: 1.3;">霧の精</h2>
+        <p style="margin: 2px 0 0; font-size: 11px; line-height: 1.4; color: #a7adb6;">防御 精霊</p>
+        <p style="margin: 10px 0 0; font-size: 13px; line-height: 1.55;"><span style="display: block;">防御 4 を得る</span><span style="display: block;">次の攻撃をかわす</span></p>
+        <div style="margin-top: auto; padding-top: 10px; border-top: 1px solid #2c3542;">
+          <div aria-hidden="true" style="display: flex; align-items: center; gap: 5px; height: 14px; padding-left: 2px;">
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+          </div>
+          <p style="margin: 6px 0 0; font-size: 11px; line-height: 1.4; color: #a7adb6;">残り <span style="color: #e9e6de; font-weight: 700;">6</span> / 6</p>
+        </div>
+      </li>
+
+      <li style="box-sizing: border-box; width: 150px; height: 210px; background: #1f2733; border: 1px solid #3a4554; border-radius: 8px; padding: 12px; display: flex; flex-direction: column;">
+        <div style="display: flex; align-items: center; justify-content: space-between; height: 28px;">
+          <span style="width: 28px; height: 28px; border-radius: 50%; background: #d4553a; color: #ffffff; display: flex; align-items: center; justify-content: center; font-family: 'Shippori Mincho', serif; font-size: 24px; font-weight: 700; line-height: 1;">0</span>
+        </div>
+        <h2 style="margin: 12px 0 0; font-family: 'Shippori Mincho', serif; font-size: 17px; font-weight: 700; line-height: 1.3;">泉の精</h2>
+        <p style="margin: 2px 0 0; font-size: 11px; line-height: 1.4; color: #a7adb6;">技能 精霊</p>
+        <p style="margin: 10px 0 0; font-size: 13px; line-height: 1.55;"><span style="display: block;">体力を 2 回復する</span></p>
+        <div style="margin-top: auto; padding-top: 10px; border-top: 1px solid #2c3542;">
+          <div aria-hidden="true" style="display: flex; align-items: center; gap: 5px; height: 14px; padding-left: 2px;">
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+          </div>
+          <p style="margin: 6px 0 0; font-size: 11px; line-height: 1.4; color: #a7adb6;">残り <span style="color: #e9e6de; font-weight: 700;">7</span> / 7</p>
+        </div>
+      </li>
+
+      <li style="box-sizing: border-box; width: 150px; height: 210px; background: #1f2733; border: 1px solid #3a4554; border-radius: 8px; padding: 12px; display: flex; flex-direction: column;">
+        <div style="display: flex; align-items: center; justify-content: space-between; height: 28px;">
+          <span style="width: 28px; height: 28px; border-radius: 50%; background: #d4553a; color: #ffffff; display: flex; align-items: center; justify-content: center; font-family: 'Shippori Mincho', serif; font-size: 24px; font-weight: 700; line-height: 1;">1</span>
+        </div>
+        <h2 style="margin: 12px 0 0; font-family: 'Shippori Mincho', serif; font-size: 17px; font-weight: 700; line-height: 1.3;">斬火</h2>
+        <p style="margin: 2px 0 0; font-size: 11px; line-height: 1.4; color: #a7adb6;">攻撃 精霊</p>
+        <p style="margin: 10px 0 0; font-size: 13px; line-height: 1.55;"><span style="display: block;">敵 1 体に</span><span style="display: block;">6 ダメージ</span></p>
+        <div style="margin-top: auto; padding-top: 10px; border-top: 1px solid #2c3542;">
+          <div aria-hidden="true" style="display: flex; align-items: center; gap: 5px; height: 14px; padding-left: 2px;">
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+            <span style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; border: 1px solid #5a6472; transform: rotate(45deg);"></span>
+          </div>
+          <p style="margin: 6px 0 0; font-size: 11px; line-height: 1.4; color: #a7adb6;">残り <span style="color: #e9e6de; font-weight: 700;">7</span> / 8</p>
+        </div>
+      </li>
+
+    </ul>
+
+    <footer style="margin-top: auto; padding-top: 16px; border-top: 1px solid #2c3542; display: flex; align-items: center; justify-content: space-between; font-size: 13px; line-height: 1.5; color: #a7adb6;">
+      <div style="display: flex; align-items: center; gap: 24px;">
+        <span style="display: flex; align-items: center; gap: 10px;">
+          <span aria-hidden="true" style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg);"></span>
+          命令できる回数
+        </span>
+        <span style="display: flex; align-items: center; gap: 10px;">
+          <span aria-hidden="true" style="display: block; flex: none; width: 10px; height: 10px; box-sizing: border-box; border: 1px solid #5a6472; transform: rotate(45deg);"></span>
+          使った回数
+        </span>
+      </div>
+      <p style="margin: 0;">戦闘が終わっても回数は戻りません。祠で契約を更新すると戻ります。</p>
+    </footer>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":720}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

@@ -179,6 +179,8 @@ func _check_corrupt_save() -> void:
 		{"version": []},
 		{"hp": "x"},
 		{"hp": 1.5},
+		{"gold": 123456.5},
+		{"gold": 1e20},
 		{"hp": 2},
 		{"hp": -1},
 		{"max_hp": 0},

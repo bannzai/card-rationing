@@ -183,8 +183,9 @@ func _is_valid_deck_entry(entry: Variant) -> bool:
 	return uses >= 0 and uses <= Cards.CARDS[entry["id"]]["max_uses"]
 
 
-## 値が整数か (JSON は数をすべて float で読むため、小数部の無い float も整数として受ける)
+## 値が整数か (JSON は数をすべて float で読むため、小数部の無い float も整数として受ける)。float は
+## 整数を正確に表せる 2^53 未満だけを受ける (それ以上は int() の結果が環境で変わり得る)
 func _is_integer(value: Variant) -> bool:
 	if typeof(value) == TYPE_INT:
 		return true
-	return typeof(value) == TYPE_FLOAT and is_equal_approx(value, roundf(value))
+	return typeof(value) == TYPE_FLOAT and value == floorf(value) and absf(value) < 9007199254740992.0

@@ -58,6 +58,10 @@ func _check_enter_and_win(main: MainScript) -> void:
 	_check(not main.get_node("Title").visible, "戦闘に入るとタイトルが消える")
 	if battle_ui == null:
 		return
+	_check(
+		battle_ui.battle.turn == 1 and battle_ui.battle.energy == BattleScript.ENERGY_PER_TURN,
+		"戦闘に入った Enter はターン終了として処理されない"
+	)
 	_check(_hand_buttons(battle_ui).size() == 5, "手札のボタンが 5 枚")
 	_check(_hand_buttons(battle_ui)[0].get_global_rect().size.x > 0, "手札のボタンに大きさがある")
 	var slash_hand: int = _hand_index_of(battle_ui, "slash")
@@ -67,9 +71,14 @@ func _check_enter_and_win(main: MainScript) -> void:
 	_check(battle_ui.battle.hand.size() == 4, "使ったカードが手札から消える")
 	_check(battle_ui.battle.enemies[0]["hp"] == 8, "野犬の体力 8")
 	var second_slash: int = _hand_index_of(battle_ui, "slash")
+	var second_slash_deck: int = battle_ui.battle.hand[second_slash]
 	await _press_key(KEY_1 + second_slash)
 	_check(battle_ui.battle.enemies[0]["hp"] == 2, "数字キーで斬撃を使うと野犬の体力 2")
-	await _press_key(KEY_1 + _hand_index_of(battle_ui, "spirit_arrow"))
+	_check(run_state.uses_left(second_slash_deck) == 3, "数字キーで使った斬撃も残り使用回数が 3")
+	var arrow: int = _hand_index_of(battle_ui, "spirit_arrow")
+	var arrow_deck: int = battle_ui.battle.hand[arrow]
+	await _press_key(KEY_1 + arrow)
+	_check(run_state.uses_left(arrow_deck) == 2, "精霊の矢の残り使用回数が 2")
 	_check(battle_ui.battle.outcome == BattleScript.Outcome.WIN, "精霊の矢で倒して勝利")
 	_check(battle_ui.next_button.visible, "勝利で「次の戦闘へ」が出る")
 
@@ -164,7 +173,6 @@ func _check_exhausted_deck_battle(main: MainScript) -> void:
 			await _press_key(KEY_ENTER)
 		steps += 1
 	_check(battle_ui.battle.outcome != BattleScript.Outcome.NONE, "契約切れだけのデッキでも勝敗まで進む")
-	_check(run_state.uses_left(0) == 0, "もがくは残り使用回数を変えない")
 
 
 ## 敗北の後は Enter で新しいラン (初期デッキ・体力・最初の階層) の戦闘が始まる

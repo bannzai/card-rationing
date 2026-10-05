@@ -57,14 +57,17 @@ jobs:
         id: generated
         if: always()
         run: |
-          untracked=$(git ls-files --others --exclude-standard -- '*.uid' '*.import')
+          # 未追跡のものに加え、commit 済みで Godot が書き換えたもの (版の更新で中身が変わる等) も対象にする
+          untracked=$(git ls-files --others --modified --exclude-standard -- '*.uid' '*.import' | sort -u)
           if [ -z "$untracked" ]; then
             echo "未 commit の .uid / .import はありません"
             exit 0
           fi
           mkdir -p tmp/generated
           printf '%s\n' "$untracked" | while IFS= read -r file; do
-            cp --parents "$file" tmp/generated/
+            if [ -f "$file" ]; then
+              cp --parents "$file" tmp/generated/
+            fi
           done
           printf '%s\n' "$untracked"
           echo "::error::未 commit の .uid / .import が $(printf '%s\n' "$untracked" | wc -l) 件あります。artifact card-rationing-generated を取り出して commit してください (AGENTS.md「検証方法」)"

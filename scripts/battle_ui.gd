@@ -183,9 +183,11 @@ func _message_text() -> String:
 		return "敗北。新しい巡礼を始める (Enter)"
 	if pending_hand_index != -1:
 		return "対象の敵を選ぶ (数字キー / クリック。Esc で戻る)"
-	if not battle.has_playable_card():
-		return "使えるカードが無い。もがく (S) かターン終了 (Enter)"
-	return ""
+	if battle.has_playable_card():
+		return ""
+	if battle.energy < Battle.STRUGGLE_COST:
+		return "エネルギーが尽きた。ターン終了 (Enter)"
+	return "今使えるカードが無い。もがく (S) かターン終了 (Enter)"
 
 
 ## 敵のボタンを敵の数だけ用意して、体力・防御・予告を表示する

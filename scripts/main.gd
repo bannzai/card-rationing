@@ -37,7 +37,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 func _gui_input(event: InputEvent) -> void:
 	if battle != null or not (event is InputEventMouseButton):
 		return
-	if (event as InputEventMouseButton).pressed:
+	var click: InputEventMouseButton = event
+	if click.pressed and click.button_index == MOUSE_BUTTON_LEFT:
 		enter_battle()
 
 

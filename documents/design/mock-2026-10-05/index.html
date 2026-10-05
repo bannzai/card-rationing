@@ -8,7 +8,14 @@
 <style>body{margin:0;padding:40px;background:#0b0e13}</style>
 </head>
 <body>
-<h1 style="margin: 0 0 32px; font-size: 28px; font-family: sans-serif; color: #e9e6de">Card Rationing 関門 2 モック</h1>
+<h1 style="margin: 0 0 24px; font-size: 28px; font-family: sans-serif; color: #e9e6de">Card Rationing 関門 2 モック</h1>
+<div style="margin: 0 0 40px; max-width: 960px">
+<p style="margin: 0 0 12px; white-space: pre-line; font-size: 16px; line-height: 1.7; font-family: sans-serif; color: #e9e6de">方向 A 墨と朱印</p>
+<p style="margin: 0 0 12px; white-space: pre-line; font-size: 16px; line-height: 1.7; font-family: sans-serif; color: #e9e6de">方向 B 星図と青銅 (比較用に戦闘画面だけ)
+
+残り回数を菱形の印の列ではなく、数字のバッジとカードの縁の線の長さで見せる案。方向 A と見比べて、見た目と残り回数の見せ方のどちらを採るかを決める</p>
+<p style="margin: 0; font-size: 16px; line-height: 1.7; font-family: sans-serif; color: #e9e6de">方向 B の戦闘以外の画面はすべて方向 A。canvas の注記をここに写した</p>
+</div>
 <section style="margin: 0 0 64px">
 <h2 style="margin: 0 0 16px; font-size: 20px; font-family: sans-serif; color: #e9e6de">戦闘 (方向 A)</h2>
 <div style="width: 1280px; height: 720px; box-sizing: border-box; overflow: hidden; position: relative; font-family: 'Zen Kaku Gothic New', sans-serif; color: #e9e6de; background: #11151c">
@@ -30,7 +37,7 @@
   <div style="position: relative; height: 48px; box-sizing: border-box; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 0 24px; background: #1a2029; border-bottom: 1px solid #2c3542;">
     <div style="display: flex; align-items: baseline; gap: 12px;">
       <span style="font-family: 'Shippori Mincho', serif; font-weight: 700; font-size: 17px;">第 1 幕</span>
-      <span style="font-size: 14px; color: #a7adb6;">6 / 15</span>
+      <span style="font-size: 14px; color: #a7adb6;">3 / 8</span>
     </div>
     <div style="display: flex; align-items: center; gap: 8px;">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: #e9e6de;">
@@ -136,7 +143,7 @@
           <rect x="8" y="3" width="12" height="16" rx="2"></rect>
           <path d="M5 7v12a2 2 0 0 0 2 2h9"></path>
         </svg>
-        <span style="font-size: 18px; font-weight: 700; line-height: 1.2;">12</span>
+        <span style="font-size: 18px; font-weight: 700; line-height: 1.2;">3</span>
         <span style="font-size: 11px; color: #a7adb6;">山札</span>
       </button>
     </div>
@@ -149,7 +156,7 @@
         </div>
         <div style="margin-top: 10px; font-family: 'Shippori Mincho', serif; font-weight: 700; font-size: 17px; line-height: 1.3;">斬火</div>
         <div style="margin-top: 2px; font-size: 11px; line-height: 1.4; color: #a7adb6;">攻撃 精霊</div>
-        <div style="margin-top: 10px; font-size: 13px; line-height: 1.5;">6 ダメージ</div>
+        <div style="margin-top: 10px; font-size: 13px; line-height: 1.5;">敵 1 体に 6 ダメージ</div>
         <div style="margin-top: auto; height: 14px; padding: 0 2px; display: flex; align-items: center; gap: 6px;">
           <span style="display: block; flex-shrink: 0; width: 10px; height: 10px; background: #d4553a; transform: rotate(45deg);"></span>
           <span style="display: block; flex-shrink: 0; width: 10px; height: 10px; background: #d4553a; transform: rotate(45deg);"></span>
@@ -253,6 +260,212 @@
 
   </div>
 
+</div>
+</section>
+<section style="margin: 0 0 64px">
+<h2 style="margin: 0 0 16px; font-size: 20px; font-family: sans-serif; color: #e9e6de">戦闘 (方向 B)</h2>
+<div style="width: 1280px; height: 720px; box-sizing: border-box; overflow: hidden; position: relative; font-family: 'M PLUS 2', sans-serif; color: #e6ecef; background: #0f1b22">
+
+  <svg width="1280" height="420" viewBox="0 0 1280 420" fill="none" aria-hidden="true" style="position: absolute; top: 48px; left: 0; pointer-events: none">
+    <path d="M304.3 340A360 360 0 0 1 975.7 340" stroke="#2a4250" stroke-width="1"></path>
+    <circle cx="640" cy="110" r="2.5" fill="#2a4250"></circle>
+    <circle cx="809" cy="152.2" r="2.5" fill="#2a4250"></circle>
+    <circle cx="809" cy="152.2" r="7" stroke="#2a4250" stroke-width="1"></circle>
+    <circle cx="408.6" cy="194.2" r="2.5" fill="#2a4250"></circle>
+    <circle cx="322.2" cy="301" r="2.5" fill="#2a4250"></circle>
+  </svg>
+
+  <header style="position: absolute; top: 0; left: 0; right: 0; height: 48px; box-sizing: border-box; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 0 20px; background: #16262f; border-bottom: 1px solid #2a4250">
+    <div style="display: flex; align-items: center; gap: 12px">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c0904f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M12 6l1.6 4.4L18 12l-4.4 1.6L12 18l-1.6-4.4L6 12l4.4-1.6z"></path></svg>
+      <span style="font-family: 'Zen Old Mincho', serif; font-weight: 700; font-size: 17px">第 1 幕</span>
+      <span style="font-size: 15px; font-weight: 500; color: #9fb3bd">3 / 8</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20C12 20 4.5 15.4 4.5 9.8A4.3 4.3 0 0 1 12 7.2A4.3 4.3 0 0 1 19.5 9.8C19.5 15.4 12 20 12 20z"></path></svg>
+      <span style="font-size: 17px; font-weight: 700">52 / 70</span>
+    </div>
+    <div style="display: flex; align-items: center; justify-content: flex-end; gap: 18px">
+      <div style="display: flex; align-items: center; gap: 6px">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c0904f" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="4"></circle></svg>
+        <span style="font-size: 17px; font-weight: 700">84</span>
+      </div>
+      <button type="button" aria-label="契約の一覧" style="width: 36px; height: 36px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; padding: 0; background: transparent; border: 1px solid #2a4250; border-radius: 6px; color: #e6ecef; font-family: inherit; cursor: pointer">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"></rect><path d="M9 8h6M9 12h6M9 16h3"></path></svg>
+      </button>
+    </div>
+  </header>
+
+  <div style="position: absolute; top: 48px; left: 0; right: 0; height: 352px; box-sizing: border-box; display: flex; align-items: flex-end; justify-content: space-between; padding: 0 96px 24px 120px">
+
+    <div style="display: flex; flex-direction: column; align-items: center; gap: 12px; width: 240px">
+      <div style="width: 200px; height: 260px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; background: #16262f; border: 1px solid #2a4250; border-radius: 6px; font-family: 'Zen Old Mincho', serif; font-weight: 700; font-size: 22px; color: #9fb3bd">巡礼者</div>
+      <div style="display: flex; align-items: center; gap: 10px; width: 240px; height: 24px">
+        <div style="display: flex; align-items: center; gap: 4px; color: #7fb7c9">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5.5c0 4.2-2.9 7.6-7 9.5-4.1-1.9-7-5.3-7-9.5V6z"></path></svg>
+          <span style="font-size: 16px; font-weight: 700">6</span>
+        </div>
+        <div style="flex: 1; height: 10px; box-sizing: border-box; background: #0f1b22; border: 1px solid #2a4250; border-radius: 2px; overflow: hidden">
+          <div style="width: 74.3%; height: 100%; background: #c0904f"></div>
+        </div>
+        <span style="font-size: 14px; font-weight: 500">52 / 70</span>
+      </div>
+    </div>
+
+    <div style="display: flex; align-items: flex-end; gap: 48px">
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 12px; width: 200px">
+        <div style="display: flex; align-items: center; gap: 6px; height: 32px; box-sizing: border-box; padding: 0 10px; background: #16262f; border: 1px solid #2a4250; border-radius: 4px; color: #e6ecef">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 17.5L3 6V3h3l11.5 11.5"></path><path d="M13 19l6-6"></path><path d="M16 16l4 4"></path><path d="M19 21l2-2"></path></svg>
+          <span style="font-size: 18px; font-weight: 700">12</span>
+        </div>
+        <div style="width: 180px; height: 230px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; background: #16262f; border: 1px solid #2a4250; border-radius: 6px; font-family: 'Zen Old Mincho', serif; font-weight: 700; font-size: 20px; color: #9fb3bd">石の番人</div>
+        <div style="display: flex; align-items: center; gap: 10px; width: 200px; height: 24px">
+          <div style="flex: 1; height: 10px; box-sizing: border-box; background: #0f1b22; border: 1px solid #2a4250; border-radius: 2px; overflow: hidden">
+            <div style="width: 85%; height: 100%; background: #c0904f"></div>
+          </div>
+          <span style="font-size: 14px; font-weight: 500">34 / 40</span>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 12px; width: 220px">
+        <div style="display: flex; align-items: center; gap: 6px; height: 32px; box-sizing: border-box; padding: 0 10px; background: #16262f; border: 1px solid #2a4250; border-radius: 4px; color: #7fb7c9">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5.5c0 4.2-2.9 7.6-7 9.5-4.1-1.9-7-5.3-7-9.5V6z"></path></svg>
+          <span style="font-size: 16px; font-weight: 700">防御 8</span>
+        </div>
+        <div style="width: 210px; height: 170px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; background: #16262f; border: 1px solid #2a4250; border-radius: 6px; font-family: 'Zen Old Mincho', serif; font-weight: 700; font-size: 20px; color: #9fb3bd">灰の狼</div>
+        <div style="display: flex; align-items: center; gap: 10px; width: 220px; height: 24px">
+          <div style="flex: 1; height: 10px; box-sizing: border-box; background: #0f1b22; border: 1px solid #2a4250; border-radius: 2px; overflow: hidden">
+            <div style="width: 81.8%; height: 100%; background: #c0904f"></div>
+          </div>
+          <span style="font-size: 14px; font-weight: 500">18 / 22</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="position: absolute; left: 20px; right: 20px; bottom: 16px; display: grid; grid-template-columns: 210px 1fr 210px; column-gap: 12px; align-items: end">
+
+    <div style="display: flex; align-items: flex-end; justify-content: space-between">
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 6px">
+        <div style="width: 72px; height: 72px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 2px solid #c0904f; background: #16262f; font-size: 20px; font-weight: 700; color: #e6ecef">3 / 3</div>
+        <span style="font-size: 13px; font-weight: 500; color: #9fb3bd">力</span>
+      </div>
+      <button type="button" style="display: flex; flex-direction: column; align-items: center; gap: 2px; width: 68px; box-sizing: border-box; padding: 10px 0 8px; background: #16262f; border: 1px solid #2a4250; border-radius: 6px; color: #e6ecef; font-family: inherit; cursor: pointer">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="7" width="11" height="14" rx="1.5"></rect><path d="M5 17V4.5A1.5 1.5 0 0 1 6.5 3H15"></path></svg>
+        <span style="font-size: 18px; font-weight: 700; line-height: 1.2">3</span>
+        <span style="font-size: 12px; font-weight: 500; color: #9fb3bd">山札</span>
+      </button>
+    </div>
+
+    <div style="display: flex; justify-content: center; align-items: flex-end; gap: 12px">
+
+      <button type="button" style="position: relative; display: flex; flex-direction: column; width: 148px; height: 216px; box-sizing: border-box; margin: 0; padding: 10px; background: #16262f; border: none; border-radius: 7px; color: #e6ecef; font-family: inherit; text-align: left; cursor: pointer">
+        <svg width="148" height="216" viewBox="0 0 148 216" fill="none" aria-hidden="true" style="position: absolute; top: 0; left: 0; pointer-events: none">
+          <path d="M74 1H141A6 6 0 0 1 147 7V209A6 6 0 0 1 141 215H7A6 6 0 0 1 1 209V7A6 6 0 0 1 7 1H74" stroke="#4d6470" stroke-width="2"></path>
+          <path d="M74 1H141A6 6 0 0 1 147 7V209A6 6 0 0 1 141 215H7A6 6 0 0 1 1 209V7A6 6 0 0 1 7 1H74" stroke="#c0904f" stroke-width="2" stroke-dasharray="621 710"></path>
+        </svg>
+        <span style="position: relative; display: flex; justify-content: space-between; align-items: center">
+          <span style="width: 26px; height: 26px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border: 1.5px solid #c0904f; border-radius: 4px; color: #c0904f; font-size: 15px; font-weight: 700">1</span>
+          <span style="padding: 3px 7px; background: #c0904f; color: #10181d; border-radius: 4px; font-size: 13px; font-weight: 700; line-height: 1.2">7 / 8</span>
+        </span>
+        <span style="position: relative; margin-top: 8px; font-family: 'Zen Old Mincho', serif; font-weight: 700; font-size: 18px; line-height: 1.25">斬火</span>
+        <span style="position: relative; margin-top: 2px; font-size: 12px; font-weight: 500; color: #9fb3bd">攻撃 精霊</span>
+        <span style="position: relative; margin-top: 8px; height: 48px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; background: #0f1b22; border: 1px solid #2a4250; border-radius: 4px; color: #9fb3bd">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c.5 3 4.5 5 4.5 9.5a4.5 4.5 0 0 1-9 0c0-2.2 1-3.8 2.5-5 0 1.8.8 3 2 3.3C11.3 8.5 11.5 5.5 12 3z"></path></svg>
+        </span>
+        <span style="position: relative; flex: 1; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 14px; font-weight: 500; line-height: 1.4">敵 1 体に<br/>6 ダメージ</span>
+      </button>
+
+      <button type="button" style="position: relative; display: flex; flex-direction: column; width: 148px; height: 216px; box-sizing: border-box; margin: 0; padding: 10px; background: #16262f; border: none; border-radius: 7px; color: #e6ecef; font-family: inherit; text-align: left; cursor: pointer">
+        <svg width="148" height="216" viewBox="0 0 148 216" fill="none" aria-hidden="true" style="position: absolute; top: 0; left: 0; pointer-events: none">
+          <path d="M74 1H141A6 6 0 0 1 147 7V209A6 6 0 0 1 141 215H7A6 6 0 0 1 1 209V7A6 6 0 0 1 7 1H74" stroke="#4d6470" stroke-width="2"></path>
+          <path d="M74 1H141A6 6 0 0 1 147 7V209A6 6 0 0 1 141 215H7A6 6 0 0 1 1 209V7A6 6 0 0 1 7 1H74" stroke="#c0904f" stroke-width="2" stroke-dasharray="444 710"></path>
+        </svg>
+        <span style="position: relative; display: flex; justify-content: space-between; align-items: center">
+          <span style="width: 26px; height: 26px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border: 1.5px solid #c0904f; border-radius: 4px; color: #c0904f; font-size: 15px; font-weight: 700">1</span>
+          <span style="padding: 3px 7px; background: #c0904f; color: #10181d; border-radius: 4px; font-size: 13px; font-weight: 700; line-height: 1.2">5 / 8</span>
+        </span>
+        <span style="position: relative; margin-top: 8px; font-family: 'Zen Old Mincho', serif; font-weight: 700; font-size: 18px; line-height: 1.25">守りの風</span>
+        <span style="position: relative; margin-top: 2px; font-size: 12px; font-weight: 500; color: #9fb3bd">防御 精霊</span>
+        <span style="position: relative; margin-top: 8px; height: 48px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; background: #0f1b22; border: 1px solid #2a4250; border-radius: 4px; color: #9fb3bd">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h10a2.5 2.5 0 1 0-2.5-2.5"></path><path d="M3 12h15a2.5 2.5 0 1 1-2.5 2.5"></path><path d="M3 16h7"></path></svg>
+        </span>
+        <span style="position: relative; flex: 1; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 14px; font-weight: 500; line-height: 1.4; color: #7fb7c9">防御 5</span>
+      </button>
+
+      <button type="button" style="position: relative; display: flex; flex-direction: column; width: 148px; height: 216px; box-sizing: border-box; margin: 0; padding: 10px; background: #16262f; border: none; border-radius: 7px; color: #e6ecef; font-family: inherit; text-align: left; cursor: pointer">
+        <svg width="148" height="216" viewBox="0 0 148 216" fill="none" aria-hidden="true" style="position: absolute; top: 0; left: 0; pointer-events: none">
+          <path d="M74 1H141A6 6 0 0 1 147 7V209A6 6 0 0 1 141 215H7A6 6 0 0 1 1 209V7A6 6 0 0 1 7 1H74" stroke="#4d6470" stroke-width="2"></path>
+          <path d="M74 1H141A6 6 0 0 1 147 7V209A6 6 0 0 1 141 215H7A6 6 0 0 1 1 209V7A6 6 0 0 1 7 1H74" stroke="#c0904f" stroke-width="2" stroke-dasharray="355 710"></path>
+        </svg>
+        <span style="position: relative; display: flex; justify-content: space-between; align-items: center">
+          <span style="width: 26px; height: 26px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border: 1.5px solid #c0904f; border-radius: 4px; color: #c0904f; font-size: 15px; font-weight: 700">2</span>
+          <span style="padding: 3px 7px; background: #c0904f; color: #10181d; border-radius: 4px; font-size: 13px; font-weight: 700; line-height: 1.2">1 / 2</span>
+        </span>
+        <span style="position: relative; margin-top: 8px; font-family: 'Zen Old Mincho', serif; font-weight: 700; font-size: 18px; line-height: 1.25">雷槍の英霊</span>
+        <span style="position: relative; margin-top: 2px; font-size: 12px; font-weight: 500; color: #9fb3bd">攻撃 英霊</span>
+        <span style="position: relative; margin-top: 8px; height: 48px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; background: #0f1b22; border: 1px solid #2a4250; border-radius: 4px; color: #9fb3bd">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2L5 13.5h6L10 22l8-11.5h-6z"></path></svg>
+        </span>
+        <span style="position: relative; flex: 1; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 14px; font-weight: 500; line-height: 1.4">敵全体に<br/>12 ダメージ</span>
+        <span style="position: relative; padding-top: 5px; border-top: 1px solid #2a4250; text-align: center; font-size: 12px; font-weight: 700; color: #c0904f">最後の 1 回</span>
+      </button>
+
+      <div style="position: relative; transform: translateY(-14px)">
+        <div role="tooltip" style="position: absolute; left: 50%; bottom: calc(100% + 12px); z-index: 2; transform: translateX(-50%); width: 188px; box-sizing: border-box; padding: 8px 12px; background: #16262f; border: 1px solid #c0904f; border-radius: 6px; text-align: center; font-size: 13px; line-height: 1.5">
+          <span style="display: block; font-weight: 700; color: #c0904f">最後の 1 回</span>
+          <span style="display: block; color: #e6ecef">使うと この契約は終わる</span>
+          <span style="position: absolute; left: 50%; bottom: -6px; width: 10px; height: 10px; margin-left: -5px; box-sizing: border-box; background: #16262f; border-right: 1px solid #c0904f; border-bottom: 1px solid #c0904f; transform: rotate(45deg)"></span>
+        </div>
+        <button type="button" style="position: relative; display: flex; flex-direction: column; width: 148px; height: 216px; box-sizing: border-box; margin: 0; padding: 10px; background: #16262f; border: none; border-radius: 7px; color: #e6ecef; font-family: inherit; text-align: left; cursor: pointer">
+          <svg width="148" height="216" viewBox="0 0 148 216" fill="none" aria-hidden="true" style="position: absolute; top: 0; left: 0; pointer-events: none">
+            <path d="M74 1H141A6 6 0 0 1 147 7V209A6 6 0 0 1 141 215H7A6 6 0 0 1 1 209V7A6 6 0 0 1 7 1H74" stroke="#c0904f" stroke-width="2"></path>
+          </svg>
+          <span style="position: relative; display: flex; justify-content: space-between; align-items: center">
+            <span style="width: 26px; height: 26px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border: 1.5px solid #c0904f; border-radius: 4px; color: #c0904f; font-size: 15px; font-weight: 700">3</span>
+            <span style="padding: 3px 7px; background: #c0904f; color: #10181d; border-radius: 4px; font-size: 13px; font-weight: 700; line-height: 1.2">1 / 1</span>
+          </span>
+          <span style="position: relative; margin-top: 8px; font-family: 'Zen Old Mincho', serif; font-weight: 700; font-size: 18px; line-height: 1.25">古王の宣告</span>
+          <span style="position: relative; margin-top: 2px; font-size: 12px; font-weight: 500; color: #9fb3bd">攻撃 英霊</span>
+          <span style="position: relative; margin-top: 8px; height: 48px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; background: #0f1b22; border: 1px solid #2a4250; border-radius: 4px; color: #9fb3bd">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19h16"></path><path d="M5 16L4 7l4.5 3.5L12 4l3.5 6.5L20 7l-1 9z"></path></svg>
+          </span>
+          <span style="position: relative; flex: 1; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 14px; font-weight: 500; line-height: 1.4">敵 1 体に<br/>40 ダメージ</span>
+          <span style="position: relative; padding-top: 5px; border-top: 1px solid #2a4250; text-align: center; font-size: 12px; font-weight: 700; color: #c0904f">最後の 1 回</span>
+        </button>
+      </div>
+
+      <div style="position: relative">
+        <button type="button" disabled="disabled" style="position: relative; display: flex; flex-direction: column; width: 148px; height: 216px; box-sizing: border-box; margin: 0; padding: 10px; background: #16262f; border: none; border-radius: 7px; color: #e6ecef; font-family: inherit; text-align: left; cursor: default">
+          <svg width="148" height="216" viewBox="0 0 148 216" fill="none" aria-hidden="true" style="position: absolute; top: 0; left: 0; pointer-events: none">
+            <path d="M74 1H141A6 6 0 0 1 147 7V209A6 6 0 0 1 141 215H7A6 6 0 0 1 1 209V7A6 6 0 0 1 7 1H74" stroke="#4d6470" stroke-width="2"></path>
+          </svg>
+          <span style="position: relative; display: flex; justify-content: space-between; align-items: center">
+            <span style="width: 26px; height: 26px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border: 1.5px solid #4d6470; border-radius: 4px; color: #9fb3bd; font-size: 15px; font-weight: 700">0</span>
+            <span style="padding: 3px 7px; background: #4d6470; color: #e6ecef; border-radius: 4px; font-size: 13px; font-weight: 700; line-height: 1.2">0 / 3</span>
+          </span>
+          <span style="position: relative; margin-top: 8px; font-family: 'Zen Old Mincho', serif; font-weight: 700; font-size: 18px; line-height: 1.25; color: #9fb3bd">灯の精</span>
+          <span style="position: relative; margin-top: 2px; font-size: 12px; font-weight: 500; color: #9fb3bd">技 精霊</span>
+          <span style="position: relative; margin-top: 8px; height: 48px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; background: #0f1b22; border: 1px solid #2a4250; border-radius: 4px; color: #9fb3bd">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5c2.2 2.6 3.2 4.3 3.2 6.2a3.2 3.2 0 0 1-6.4 0c0-1.9 1-3.6 3.2-6.2z"></path><path d="M12 13v3"></path><path d="M8 16.5h8"></path><path d="M9.5 20h5"></path></svg>
+          </span>
+          <span style="position: relative; flex: 1; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 14px; font-weight: 500; line-height: 1.4; color: #9fb3bd">カードを<br/>1 枚引く</span>
+        </button>
+        <span style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 5px 12px; background: #0f1b22; border: 1px solid #4d6470; border-radius: 4px; font-size: 14px; font-weight: 700; color: #e6ecef; white-space: nowrap; pointer-events: none">契約切れ</span>
+      </div>
+
+    </div>
+
+    <div style="display: flex; align-items: flex-end; justify-content: space-between">
+      <button type="button" style="display: flex; flex-direction: column; align-items: center; gap: 2px; width: 68px; box-sizing: border-box; padding: 10px 0 8px; background: #16262f; border: 1px solid #2a4250; border-radius: 6px; color: #e6ecef; font-family: inherit; cursor: pointer">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="7" width="11" height="14" rx="1.5"></rect><path d="M19 17V4.5A1.5 1.5 0 0 0 17.5 3H9"></path></svg>
+        <span style="font-size: 18px; font-weight: 700; line-height: 1.2">4</span>
+        <span style="font-size: 12px; font-weight: 500; color: #9fb3bd">捨て札</span>
+      </button>
+      <button type="button" style="width: 128px; height: 52px; box-sizing: border-box; padding: 0; background: #16262f; border: 2px solid #c0904f; border-radius: 6px; color: #e6ecef; font-family: inherit; font-size: 17px; font-weight: 700; cursor: pointer">ターン終了</button>
+    </div>
+
+  </div>
 </div>
 </section>
 <section style="margin: 0 0 64px">
@@ -533,6 +746,22 @@
         <h2 style="margin: 0; font-family: 'Shippori Mincho', serif; font-weight: 700; font-size: 16px; line-height: 1.4">残りの少ない契約</h2>
         <div style="margin-top: 12px; display: flex; flex-direction: column; gap: 8px">
 
+          <div style="background: #1f2733; border: 1px solid #3a4554; border-radius: 6px; padding: 10px 12px">
+            <div style="display: flex; align-items: baseline; gap: 8px">
+              <span style="font-family: 'Shippori Mincho', serif; font-weight: 700; font-size: 16px">灯の精</span>
+              <span style="font-size: 11px; color: #a7adb6">技 精霊</span>
+              <span style="margin-left: auto; align-self: center; font-size: 11px; line-height: 1; padding: 3px 6px; border: 1px solid #5a6472; border-radius: 3px; color: #e9e6de; white-space: nowrap">契約切れ</span>
+            </div>
+            <div style="margin-top: 8px; display: flex; align-items: center">
+              <div style="display: flex; gap: 9px; padding: 0 2px" role="img" aria-label="契約の印 残り 0 使用 3">
+                <span style="display: block; width: 10px; height: 10px; box-sizing: border-box; border: 1.5px solid #5a6472; transform: rotate(45deg)"></span>
+                <span style="display: block; width: 10px; height: 10px; box-sizing: border-box; border: 1.5px solid #5a6472; transform: rotate(45deg)"></span>
+                <span style="display: block; width: 10px; height: 10px; box-sizing: border-box; border: 1.5px solid #5a6472; transform: rotate(45deg)"></span>
+              </div>
+              <span style="margin-left: auto; font-size: 11px; color: #a7adb6">残り 0 / 3</span>
+            </div>
+          </div>
+
           <div style="background: #1f2733; border: 2px solid #d4553a; border-radius: 6px; padding: 9px 11px">
             <div style="display: flex; align-items: baseline; gap: 8px">
               <span style="font-family: 'Shippori Mincho', serif; font-weight: 700; font-size: 16px">雷槍の英霊</span>
@@ -562,26 +791,6 @@
             </div>
           </div>
 
-          <div style="background: #1f2733; border: 1px solid #3a4554; border-radius: 6px; padding: 10px 12px">
-            <div style="display: flex; align-items: baseline; gap: 8px">
-              <span style="font-family: 'Shippori Mincho', serif; font-weight: 700; font-size: 16px">守りの風</span>
-              <span style="font-size: 11px; color: #5fa8ae">防御 精霊</span>
-            </div>
-            <div style="margin-top: 8px; display: flex; align-items: center">
-              <div style="display: flex; gap: 9px; padding: 0 2px" role="img" aria-label="契約の印 残り 5 使用 3">
-                <span style="display: block; width: 10px; height: 10px; background: #d4553a; transform: rotate(45deg)"></span>
-                <span style="display: block; width: 10px; height: 10px; background: #d4553a; transform: rotate(45deg)"></span>
-                <span style="display: block; width: 10px; height: 10px; background: #d4553a; transform: rotate(45deg)"></span>
-                <span style="display: block; width: 10px; height: 10px; background: #d4553a; transform: rotate(45deg)"></span>
-                <span style="display: block; width: 10px; height: 10px; background: #d4553a; transform: rotate(45deg)"></span>
-                <span style="display: block; width: 10px; height: 10px; box-sizing: border-box; border: 1.5px solid #5a6472; transform: rotate(45deg)"></span>
-                <span style="display: block; width: 10px; height: 10px; box-sizing: border-box; border: 1.5px solid #5a6472; transform: rotate(45deg)"></span>
-                <span style="display: block; width: 10px; height: 10px; box-sizing: border-box; border: 1.5px solid #5a6472; transform: rotate(45deg)"></span>
-              </div>
-              <span style="margin-left: auto; font-size: 11px; color: #a7adb6">残り 5 / 8</span>
-            </div>
-          </div>
-
         </div>
       </section>
 
@@ -589,7 +798,7 @@
         <span style="width: 36px; height: 36px; box-sizing: border-box; flex: none; border-radius: 50%; border: 1.5px solid #5fa8ae; background: #11151c; color: #5fa8ae; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5.5c5.5 1.2 12.5 1.2 18 0"/><path d="M5 9.5h14"/><path d="M7 6.6V20"/><path d="M17 6.6V20"/><path d="M12 6.9v2.6"/></svg></span>
         <div>
           <h2 style="margin: 0; font-family: 'Shippori Mincho', serif; font-weight: 700; font-size: 16px; line-height: 1.4">次の祠まで 2 段</h2>
-          <p style="margin: 6px 0 0; font-size: 13px; line-height: 1.65; color: #a7adb6">祠で契約を更新すると、使った印が戻る。戦闘が終わっても印は戻らない。現在地からは、強敵を越えた先にある。</p>
+          <p style="margin: 6px 0 0; font-size: 13px; line-height: 1.65; color: #a7adb6">戦闘が終わっても回数は戻りません。祠で契約を更新すると戻ります。次の祠は、強敵を越えた先にあります。</p>
         </div>
       </section>
 
@@ -618,18 +827,18 @@
     <div style="display: flex; align-items: center; gap: 16px">
       <span style="font-family: 'Shippori Mincho', serif; font-weight: 700; font-size: 19px; letter-spacing: 0.02em">Card Rationing</span>
       <span style="width: 1px; height: 18px; background: #2c3542"></span>
-      <span style="font-size: 13px; color: #a7adb6">苔の参道 第 2 層</span>
+      <span style="font-size: 13px; color: #a7adb6">第 1 幕 灰の街道 5 / 8</span>
     </div>
     <div style="display: flex; align-items: center; gap: 24px">
       <div style="display: flex; align-items: center; gap: 8px">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#d4553a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20s-7.5-4.6-7.5-10.2A4.2 4.2 0 0 1 12 7.2a4.2 4.2 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z"></path></svg>
         <span style="font-size: 13px; color: #a7adb6">体力</span>
-        <span style="font-size: 15px; font-weight: 700">54 / 70</span>
+        <span style="font-size: 15px; font-weight: 700">52 / 70</span>
       </div>
       <div style="display: flex; align-items: center; gap: 8px">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a7adb6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l3 3-3 3-3-3z"></path><path d="M4 11h16a8 8 0 0 1-16 0z"></path><path d="M12 19v2"></path><path d="M9 21h6"></path></svg>
-        <span style="font-size: 13px; color: #a7adb6">供物</span>
-        <span style="font-size: 15px; font-weight: 700">3</span>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a7adb6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><rect x="9.5" y="9.5" width="5" height="5"></rect></svg>
+        <span style="font-size: 13px; color: #a7adb6">所持金</span>
+        <span style="font-size: 15px; font-weight: 700">84</span>
       </div>
       <button style="height: 36px; box-sizing: border-box; padding: 0 14px; display: flex; align-items: center; gap: 8px; background: #1a2029; border: 1px solid #2c3542; border-radius: 6px; color: #e9e6de; font-family: inherit; font-size: 13px; cursor: pointer">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="6" width="12" height="15" rx="1.5"></rect><path d="M8 3h10.5A1.5 1.5 0 0 1 20 4.5V17"></path></svg>
@@ -649,7 +858,7 @@
         <span>道中の出来事</span>
       </div>
       <h1 style="margin: 12px 0 0; font-family: 'Shippori Mincho', serif; font-size: 40px; font-weight: 700; line-height: 1.2; letter-spacing: 0.04em">契約の祠</h1>
-      <p style="margin: 20px 0 0; font-size: 16px; line-height: 1.9; color: #a7adb6">苔むした祠に古い印が刻まれている。供物を捧げれば、ひとつの契約を結び直せる。祠が聞き届ける願いは、ひとつだけだ。</p>
+      <p style="margin: 20px 0 0; font-size: 16px; line-height: 1.9; color: #a7adb6">苔むした祠に古い印が刻まれている。ここでなら、ひとつの契約を結び直せる。祠が聞き届ける願いは、ひとつだけだ。</p>
 
       <div role="group" aria-label="祠での行い" style="margin-top: 32px; display: flex; flex-direction: column; gap: 12px">
         <button aria-pressed="true" style="width: 100%; height: 64px; box-sizing: border-box; display: flex; align-items: center; gap: 16px; padding: 0 19px 0 13px; background: #1a2029; border: 2px solid #d4553a; border-radius: 6px; color: #e9e6de; font-family: inherit; text-align: left; cursor: pointer">
@@ -745,29 +954,25 @@
           <div style="width: 150px; display: flex; flex-direction: column; align-items: center; gap: 16px">
             <button aria-pressed="false" style="width: 150px; height: 210px; box-sizing: border-box; display: flex; flex-direction: column; padding: 12px; background: #1f2733; border: 1px solid #3a4554; border-radius: 8px; color: #e9e6de; font-family: inherit; text-align: left; cursor: pointer">
               <span style="width: 100%; display: flex; align-items: center; justify-content: space-between">
-                <span style="width: 28px; height: 28px; border-radius: 50%; background: #d4553a; color: #ffffff; display: flex; align-items: center; justify-content: center; font-family: 'Shippori Mincho', serif; font-size: 24px; font-weight: 700; line-height: 1">1</span>
+                <span style="width: 28px; height: 28px; border-radius: 50%; background: #d4553a; color: #ffffff; display: flex; align-items: center; justify-content: center; font-family: 'Shippori Mincho', serif; font-size: 24px; font-weight: 700; line-height: 1">0</span>
+                <span style="padding: 2px 6px; border: 1px solid #5a6472; border-radius: 3px; font-size: 11px; line-height: 1.4; color: #e9e6de">契約切れ</span>
               </span>
-              <span style="margin-top: 12px; font-family: 'Shippori Mincho', serif; font-size: 17px; font-weight: 700; line-height: 1.3">守りの風</span>
-              <span style="margin-top: 3px; font-size: 11px; color: #a7adb6">防御 精霊</span>
-              <span style="margin-top: 10px; font-size: 13px; line-height: 1.55"><span style="color: #5fa8ae; font-weight: 700">防御</span> 5</span>
+              <span style="margin-top: 12px; font-family: 'Shippori Mincho', serif; font-size: 17px; font-weight: 700; line-height: 1.3">灯の精</span>
+              <span style="margin-top: 3px; font-size: 11px; color: #a7adb6">技 精霊</span>
+              <span style="margin-top: 10px; font-size: 13px; line-height: 1.55">カードを 1 枚引く</span>
               <span style="margin-top: auto; display: flex; flex-direction: column; gap: 6px">
                 <span aria-hidden="true" style="display: flex; gap: 5.5px; padding: 2px">
-                  <span style="width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg)"></span>
-                  <span style="width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg)"></span>
-                  <span style="width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg)"></span>
-                  <span style="width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg)"></span>
-                  <span style="width: 10px; height: 10px; box-sizing: border-box; background: #d4553a; transform: rotate(45deg)"></span>
                   <span style="width: 10px; height: 10px; box-sizing: border-box; border: 1.5px solid #5a6472; transform: rotate(45deg)"></span>
                   <span style="width: 10px; height: 10px; box-sizing: border-box; border: 1.5px solid #5a6472; transform: rotate(45deg)"></span>
                   <span style="width: 10px; height: 10px; box-sizing: border-box; border: 1.5px solid #5a6472; transform: rotate(45deg)"></span>
                 </span>
-                <span style="font-size: 11px; color: #a7adb6">残り 5 / 8</span>
+                <span style="font-size: 11px; color: #a7adb6">残り 0 / 3</span>
               </span>
             </button>
             <div style="height: 24px; display: flex; align-items: center; gap: 6px; font-size: 13px; color: #a7adb6">
-              <span>5 / 8</span>
+              <span>0 / 3</span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h15M14 7l5 5-5 5"></path></svg>
-              <span>8 / 8</span>
+              <span>3 / 3</span>
             </div>
           </div>
 
@@ -775,8 +980,8 @@
 
         <div style="margin-top: 28px; display: flex; flex-direction: column; gap: 10px">
           <div style="display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: #a7adb6">
-            <span>供物を 1 つ捧げる</span>
-            <span>供物 3 → 2</span>
+            <span>1 回の参拝で結び直せるのは 1 枚</span>
+            <span>代価なし</span>
           </div>
           <button style="width: 100%; height: 52px; box-sizing: border-box; padding: 0 20px; background: #d4553a; border: none; border-radius: 6px; color: #ffffff; font-family: inherit; font-size: 24px; font-weight: 700; letter-spacing: 0.04em; cursor: pointer">雷槍の英霊の契約を更新する</button>
         </div>
@@ -836,10 +1041,10 @@
       <li style="position: relative; width: 150px; height: 210px;">
         <div style="box-sizing: border-box; width: 150px; height: 210px; background: #1f2733; border: 1px solid #3a4554; border-radius: 8px; padding: 12px; display: flex; flex-direction: column; opacity: 0.8;">
           <div style="display: flex; align-items: center; justify-content: space-between; height: 28px;">
-            <span style="width: 28px; height: 28px; border-radius: 50%; background: #d4553a; color: #ffffff; display: flex; align-items: center; justify-content: center; font-family: 'Shippori Mincho', serif; font-size: 24px; font-weight: 700; line-height: 1;">1</span>
+            <span style="width: 28px; height: 28px; border-radius: 50%; background: #d4553a; color: #ffffff; display: flex; align-items: center; justify-content: center; font-family: 'Shippori Mincho', serif; font-size: 24px; font-weight: 700; line-height: 1;">0</span>
           </div>
           <h2 style="margin: 12px 0 0; font-family: 'Shippori Mincho', serif; font-size: 17px; font-weight: 700; line-height: 1.3;">灯の精</h2>
-          <p style="margin: 2px 0 0; font-size: 11px; line-height: 1.4; color: #a7adb6;">技能 精霊</p>
+          <p style="margin: 2px 0 0; font-size: 11px; line-height: 1.4; color: #a7adb6;">技 精霊</p>
           <p style="margin: 10px 0 0; font-size: 13px; line-height: 1.55;"><span style="display: block;">カードを 1 枚引く</span></p>
           <div style="margin-top: auto; padding-top: 10px; border-top: 1px solid #2c3542;">
             <div aria-hidden="true" style="display: flex; align-items: center; gap: 5px; height: 14px; padding-left: 2px;">
@@ -891,7 +1096,7 @@
           <span style="width: 28px; height: 28px; border-radius: 50%; background: #d4553a; color: #ffffff; display: flex; align-items: center; justify-content: center; font-family: 'Shippori Mincho', serif; font-size: 24px; font-weight: 700; line-height: 1;">2</span>
         </div>
         <h2 style="margin: 12px 0 0; font-family: 'Shippori Mincho', serif; font-size: 17px; font-weight: 700; line-height: 1.3;">星読みの英霊</h2>
-        <p style="margin: 2px 0 0; font-size: 11px; line-height: 1.4; color: #a7adb6;">技能 英霊</p>
+        <p style="margin: 2px 0 0; font-size: 11px; line-height: 1.4; color: #a7adb6;">技 英霊</p>
         <p style="margin: 10px 0 0; font-size: 13px; line-height: 1.55;"><span style="display: block;">敵の次の行動を見る</span><span style="display: block;">防御 8 を得る</span></p>
         <div style="margin-top: auto; padding-top: 10px; border-top: 1px solid #2c3542;">
           <div aria-hidden="true" style="display: flex; align-items: center; gap: 5px; height: 14px; padding-left: 2px;">
@@ -946,7 +1151,7 @@
           <span style="width: 28px; height: 28px; border-radius: 50%; background: #d4553a; color: #ffffff; display: flex; align-items: center; justify-content: center; font-family: 'Shippori Mincho', serif; font-size: 24px; font-weight: 700; line-height: 1;">1</span>
         </div>
         <h2 style="margin: 12px 0 0; font-family: 'Shippori Mincho', serif; font-size: 17px; font-weight: 700; line-height: 1.3;">樹の英霊</h2>
-        <p style="margin: 2px 0 0; font-size: 11px; line-height: 1.4; color: #a7adb6;">技能 英霊</p>
+        <p style="margin: 2px 0 0; font-size: 11px; line-height: 1.4; color: #a7adb6;">技 英霊</p>
         <p style="margin: 10px 0 0; font-size: 13px; line-height: 1.55;"><span style="display: block;">体力を 5 回復する</span></p>
         <div style="margin-top: auto; padding-top: 10px; border-top: 1px solid #2c3542;">
           <div aria-hidden="true" style="display: flex; align-items: center; gap: 5px; height: 14px; padding-left: 2px;">
@@ -966,7 +1171,7 @@
           <span style="width: 28px; height: 28px; border-radius: 50%; background: #d4553a; color: #ffffff; display: flex; align-items: center; justify-content: center; font-family: 'Shippori Mincho', serif; font-size: 24px; font-weight: 700; line-height: 1;">1</span>
         </div>
         <h2 style="margin: 12px 0 0; font-family: 'Shippori Mincho', serif; font-size: 17px; font-weight: 700; line-height: 1.3;">雪の精</h2>
-        <p style="margin: 2px 0 0; font-size: 11px; line-height: 1.4; color: #a7adb6;">技能 精霊</p>
+        <p style="margin: 2px 0 0; font-size: 11px; line-height: 1.4; color: #a7adb6;">技 精霊</p>
         <p style="margin: 10px 0 0; font-size: 13px; line-height: 1.55;"><span style="display: block;">敵 1 体を</span><span style="display: block;">1 手番 凍らせる</span></p>
         <div style="margin-top: auto; padding-top: 10px; border-top: 1px solid #2c3542;">
           <div aria-hidden="true" style="display: flex; align-items: center; gap: 5px; height: 14px; padding-left: 2px;">
@@ -1028,7 +1233,7 @@
           <span style="width: 28px; height: 28px; border-radius: 50%; background: #d4553a; color: #ffffff; display: flex; align-items: center; justify-content: center; font-family: 'Shippori Mincho', serif; font-size: 24px; font-weight: 700; line-height: 1;">0</span>
         </div>
         <h2 style="margin: 12px 0 0; font-family: 'Shippori Mincho', serif; font-size: 17px; font-weight: 700; line-height: 1.3;">泉の精</h2>
-        <p style="margin: 2px 0 0; font-size: 11px; line-height: 1.4; color: #a7adb6;">技能 精霊</p>
+        <p style="margin: 2px 0 0; font-size: 11px; line-height: 1.4; color: #a7adb6;">技 精霊</p>
         <p style="margin: 10px 0 0; font-size: 13px; line-height: 1.55;"><span style="display: block;">体力を 2 回復する</span></p>
         <div style="margin-top: auto; padding-top: 10px; border-top: 1px solid #2c3542;">
           <div aria-hidden="true" style="display: flex; align-items: center; gap: 5px; height: 14px; padding-left: 2px;">
@@ -1103,7 +1308,7 @@
       <circle cx="160" cy="310" r="6" fill="#0b0e13"></circle>
       <circle cx="10" cy="160" r="6" fill="#0b0e13"></circle>
     </svg>
-    <div style="font-family: 'Shippori Mincho', serif; font-weight: 700; font-size: 28px; line-height: 1.3; letter-spacing: 0.12em; color: #e9e6de">契約を授けた者</div>
+    <div style="font-family: 'Shippori Mincho', serif; font-weight: 700; font-size: 28px; line-height: 1.3; letter-spacing: 0.12em; color: #e9e6de">灰冠の番人</div>
   </div>
 
   <div style="flex: 1; display: flex; flex-direction: column; gap: 10px; padding: 0 64px 36px; box-sizing: border-box; min-height: 0">
@@ -1121,9 +1326,9 @@
           <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
             <polygon points="5,0.5 9.5,5 5,9.5 0.5,5" fill="#d4553a"></polygon>
           </svg>
-          <span>契約を授けた者</span>
+          <span>灰冠の番人</span>
         </div>
-        <p style="margin: 0; font-family: 'Shippori Mincho', serif; font-weight: 600; font-size: 22px; line-height: 1.7; color: #e9e6de">よく使い込んだな。残った契約で、私に届くと思うか。</p>
+        <p style="margin: 0; font-family: 'Shippori Mincho', serif; font-weight: 600; font-size: 22px; line-height: 1.7; color: #e9e6de">その印、あの方に結ばされたものだな。残った契約で、ここを越えられると思うか。</p>
       </div>
       <div style="display: flex; align-items: flex-end">
         <button type="button" style="display: inline-flex; align-items: center; gap: 10px; height: 48px; padding: 0 28px; box-sizing: border-box; background: transparent; border: 2px solid #d4553a; border-radius: 6px; color: #e9e6de; font-family: 'Zen Kaku Gothic New', sans-serif; font-weight: 700; font-size: 18px; letter-spacing: 0.1em; cursor: pointer">
@@ -1143,212 +1348,6 @@
     </div>
   </div>
 
-</div>
-</section>
-<section style="margin: 0 0 64px">
-<h2 style="margin: 0 0 16px; font-size: 20px; font-family: sans-serif; color: #e9e6de">戦闘 (方向 B)</h2>
-<div style="width: 1280px; height: 720px; box-sizing: border-box; overflow: hidden; position: relative; font-family: 'M PLUS 2', sans-serif; color: #e6ecef; background: #0f1b22">
-
-  <svg width="1280" height="420" viewBox="0 0 1280 420" fill="none" aria-hidden="true" style="position: absolute; top: 48px; left: 0; pointer-events: none">
-    <path d="M304.3 340A360 360 0 0 1 975.7 340" stroke="#2a4250" stroke-width="1"></path>
-    <circle cx="640" cy="110" r="2.5" fill="#2a4250"></circle>
-    <circle cx="809" cy="152.2" r="2.5" fill="#2a4250"></circle>
-    <circle cx="809" cy="152.2" r="7" stroke="#2a4250" stroke-width="1"></circle>
-    <circle cx="408.6" cy="194.2" r="2.5" fill="#2a4250"></circle>
-    <circle cx="322.2" cy="301" r="2.5" fill="#2a4250"></circle>
-  </svg>
-
-  <header style="position: absolute; top: 0; left: 0; right: 0; height: 48px; box-sizing: border-box; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 0 20px; background: #16262f; border-bottom: 1px solid #2a4250">
-    <div style="display: flex; align-items: center; gap: 12px">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c0904f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><path d="M12 6l1.6 4.4L18 12l-4.4 1.6L12 18l-1.6-4.4L6 12l4.4-1.6z"></path></svg>
-      <span style="font-family: 'Zen Old Mincho', serif; font-weight: 700; font-size: 17px">第 1 幕</span>
-      <span style="font-size: 15px; font-weight: 500; color: #9fb3bd">6 / 15</span>
-    </div>
-    <div style="display: flex; align-items: center; gap: 8px">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20C12 20 4.5 15.4 4.5 9.8A4.3 4.3 0 0 1 12 7.2A4.3 4.3 0 0 1 19.5 9.8C19.5 15.4 12 20 12 20z"></path></svg>
-      <span style="font-size: 17px; font-weight: 700">52 / 70</span>
-    </div>
-    <div style="display: flex; align-items: center; justify-content: flex-end; gap: 18px">
-      <div style="display: flex; align-items: center; gap: 6px">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c0904f" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle><circle cx="12" cy="12" r="4"></circle></svg>
-        <span style="font-size: 17px; font-weight: 700">84</span>
-      </div>
-      <button type="button" aria-label="契約の一覧" style="width: 36px; height: 36px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; padding: 0; background: transparent; border: 1px solid #2a4250; border-radius: 6px; color: #e6ecef; font-family: inherit; cursor: pointer">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"></rect><path d="M9 8h6M9 12h6M9 16h3"></path></svg>
-      </button>
-    </div>
-  </header>
-
-  <div style="position: absolute; top: 48px; left: 0; right: 0; height: 352px; box-sizing: border-box; display: flex; align-items: flex-end; justify-content: space-between; padding: 0 96px 24px 120px">
-
-    <div style="display: flex; flex-direction: column; align-items: center; gap: 12px; width: 240px">
-      <div style="width: 200px; height: 260px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; background: #16262f; border: 1px solid #2a4250; border-radius: 6px; font-family: 'Zen Old Mincho', serif; font-weight: 700; font-size: 22px; color: #9fb3bd">巡礼者</div>
-      <div style="display: flex; align-items: center; gap: 10px; width: 240px; height: 24px">
-        <div style="display: flex; align-items: center; gap: 4px; color: #7fb7c9">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5.5c0 4.2-2.9 7.6-7 9.5-4.1-1.9-7-5.3-7-9.5V6z"></path></svg>
-          <span style="font-size: 16px; font-weight: 700">6</span>
-        </div>
-        <div style="flex: 1; height: 10px; box-sizing: border-box; background: #0f1b22; border: 1px solid #2a4250; border-radius: 2px; overflow: hidden">
-          <div style="width: 74.3%; height: 100%; background: #c0904f"></div>
-        </div>
-        <span style="font-size: 14px; font-weight: 500">52 / 70</span>
-      </div>
-    </div>
-
-    <div style="display: flex; align-items: flex-end; gap: 48px">
-      <div style="display: flex; flex-direction: column; align-items: center; gap: 12px; width: 200px">
-        <div style="display: flex; align-items: center; gap: 6px; height: 32px; box-sizing: border-box; padding: 0 10px; background: #16262f; border: 1px solid #2a4250; border-radius: 4px; color: #e6ecef">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 17.5L3 6V3h3l11.5 11.5"></path><path d="M13 19l6-6"></path><path d="M16 16l4 4"></path><path d="M19 21l2-2"></path></svg>
-          <span style="font-size: 18px; font-weight: 700">12</span>
-        </div>
-        <div style="width: 180px; height: 230px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; background: #16262f; border: 1px solid #2a4250; border-radius: 6px; font-family: 'Zen Old Mincho', serif; font-weight: 700; font-size: 20px; color: #9fb3bd">石の番人</div>
-        <div style="display: flex; align-items: center; gap: 10px; width: 200px; height: 24px">
-          <div style="flex: 1; height: 10px; box-sizing: border-box; background: #0f1b22; border: 1px solid #2a4250; border-radius: 2px; overflow: hidden">
-            <div style="width: 85%; height: 100%; background: #c0904f"></div>
-          </div>
-          <span style="font-size: 14px; font-weight: 500">34 / 40</span>
-        </div>
-      </div>
-
-      <div style="display: flex; flex-direction: column; align-items: center; gap: 12px; width: 220px">
-        <div style="display: flex; align-items: center; gap: 6px; height: 32px; box-sizing: border-box; padding: 0 10px; background: #16262f; border: 1px solid #2a4250; border-radius: 4px; color: #7fb7c9">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5.5c0 4.2-2.9 7.6-7 9.5-4.1-1.9-7-5.3-7-9.5V6z"></path></svg>
-          <span style="font-size: 16px; font-weight: 700">防御 8</span>
-        </div>
-        <div style="width: 210px; height: 170px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; background: #16262f; border: 1px solid #2a4250; border-radius: 6px; font-family: 'Zen Old Mincho', serif; font-weight: 700; font-size: 20px; color: #9fb3bd">灰の狼</div>
-        <div style="display: flex; align-items: center; gap: 10px; width: 220px; height: 24px">
-          <div style="flex: 1; height: 10px; box-sizing: border-box; background: #0f1b22; border: 1px solid #2a4250; border-radius: 2px; overflow: hidden">
-            <div style="width: 81.8%; height: 100%; background: #c0904f"></div>
-          </div>
-          <span style="font-size: 14px; font-weight: 500">18 / 22</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div style="position: absolute; left: 20px; right: 20px; bottom: 16px; display: grid; grid-template-columns: 210px 1fr 210px; column-gap: 12px; align-items: end">
-
-    <div style="display: flex; align-items: flex-end; justify-content: space-between">
-      <div style="display: flex; flex-direction: column; align-items: center; gap: 6px">
-        <div style="width: 72px; height: 72px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border-radius: 50%; border: 2px solid #c0904f; background: #16262f; font-size: 20px; font-weight: 700; color: #e6ecef">3 / 3</div>
-        <span style="font-size: 13px; font-weight: 500; color: #9fb3bd">力</span>
-      </div>
-      <button type="button" style="display: flex; flex-direction: column; align-items: center; gap: 2px; width: 68px; box-sizing: border-box; padding: 10px 0 8px; background: #16262f; border: 1px solid #2a4250; border-radius: 6px; color: #e6ecef; font-family: inherit; cursor: pointer">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="7" width="11" height="14" rx="1.5"></rect><path d="M5 17V4.5A1.5 1.5 0 0 1 6.5 3H15"></path></svg>
-        <span style="font-size: 18px; font-weight: 700; line-height: 1.2">12</span>
-        <span style="font-size: 12px; font-weight: 500; color: #9fb3bd">山札</span>
-      </button>
-    </div>
-
-    <div style="display: flex; justify-content: center; align-items: flex-end; gap: 12px">
-
-      <button type="button" style="position: relative; display: flex; flex-direction: column; width: 148px; height: 216px; box-sizing: border-box; margin: 0; padding: 10px; background: #16262f; border: none; border-radius: 7px; color: #e6ecef; font-family: inherit; text-align: left; cursor: pointer">
-        <svg width="148" height="216" viewBox="0 0 148 216" fill="none" aria-hidden="true" style="position: absolute; top: 0; left: 0; pointer-events: none">
-          <path d="M74 1H141A6 6 0 0 1 147 7V209A6 6 0 0 1 141 215H7A6 6 0 0 1 1 209V7A6 6 0 0 1 7 1H74" stroke="#4d6470" stroke-width="2"></path>
-          <path d="M74 1H141A6 6 0 0 1 147 7V209A6 6 0 0 1 141 215H7A6 6 0 0 1 1 209V7A6 6 0 0 1 7 1H74" stroke="#c0904f" stroke-width="2" stroke-dasharray="621 710"></path>
-        </svg>
-        <span style="position: relative; display: flex; justify-content: space-between; align-items: center">
-          <span style="width: 26px; height: 26px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border: 1.5px solid #c0904f; border-radius: 4px; color: #c0904f; font-size: 15px; font-weight: 700">1</span>
-          <span style="padding: 3px 7px; background: #c0904f; color: #10181d; border-radius: 4px; font-size: 13px; font-weight: 700; line-height: 1.2">7 / 8</span>
-        </span>
-        <span style="position: relative; margin-top: 8px; font-family: 'Zen Old Mincho', serif; font-weight: 700; font-size: 18px; line-height: 1.25">斬火</span>
-        <span style="position: relative; margin-top: 2px; font-size: 12px; font-weight: 500; color: #9fb3bd">攻撃 精霊</span>
-        <span style="position: relative; margin-top: 8px; height: 48px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; background: #0f1b22; border: 1px solid #2a4250; border-radius: 4px; color: #9fb3bd">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c.5 3 4.5 5 4.5 9.5a4.5 4.5 0 0 1-9 0c0-2.2 1-3.8 2.5-5 0 1.8.8 3 2 3.3C11.3 8.5 11.5 5.5 12 3z"></path></svg>
-        </span>
-        <span style="position: relative; flex: 1; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 14px; font-weight: 500; line-height: 1.4">6 ダメージ</span>
-      </button>
-
-      <button type="button" style="position: relative; display: flex; flex-direction: column; width: 148px; height: 216px; box-sizing: border-box; margin: 0; padding: 10px; background: #16262f; border: none; border-radius: 7px; color: #e6ecef; font-family: inherit; text-align: left; cursor: pointer">
-        <svg width="148" height="216" viewBox="0 0 148 216" fill="none" aria-hidden="true" style="position: absolute; top: 0; left: 0; pointer-events: none">
-          <path d="M74 1H141A6 6 0 0 1 147 7V209A6 6 0 0 1 141 215H7A6 6 0 0 1 1 209V7A6 6 0 0 1 7 1H74" stroke="#4d6470" stroke-width="2"></path>
-          <path d="M74 1H141A6 6 0 0 1 147 7V209A6 6 0 0 1 141 215H7A6 6 0 0 1 1 209V7A6 6 0 0 1 7 1H74" stroke="#c0904f" stroke-width="2" stroke-dasharray="444 710"></path>
-        </svg>
-        <span style="position: relative; display: flex; justify-content: space-between; align-items: center">
-          <span style="width: 26px; height: 26px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border: 1.5px solid #c0904f; border-radius: 4px; color: #c0904f; font-size: 15px; font-weight: 700">1</span>
-          <span style="padding: 3px 7px; background: #c0904f; color: #10181d; border-radius: 4px; font-size: 13px; font-weight: 700; line-height: 1.2">5 / 8</span>
-        </span>
-        <span style="position: relative; margin-top: 8px; font-family: 'Zen Old Mincho', serif; font-weight: 700; font-size: 18px; line-height: 1.25">守りの風</span>
-        <span style="position: relative; margin-top: 2px; font-size: 12px; font-weight: 500; color: #9fb3bd">防御 精霊</span>
-        <span style="position: relative; margin-top: 8px; height: 48px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; background: #0f1b22; border: 1px solid #2a4250; border-radius: 4px; color: #9fb3bd">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h10a2.5 2.5 0 1 0-2.5-2.5"></path><path d="M3 12h15a2.5 2.5 0 1 1-2.5 2.5"></path><path d="M3 16h7"></path></svg>
-        </span>
-        <span style="position: relative; flex: 1; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 14px; font-weight: 500; line-height: 1.4; color: #7fb7c9">防御 5</span>
-      </button>
-
-      <button type="button" style="position: relative; display: flex; flex-direction: column; width: 148px; height: 216px; box-sizing: border-box; margin: 0; padding: 10px; background: #16262f; border: none; border-radius: 7px; color: #e6ecef; font-family: inherit; text-align: left; cursor: pointer">
-        <svg width="148" height="216" viewBox="0 0 148 216" fill="none" aria-hidden="true" style="position: absolute; top: 0; left: 0; pointer-events: none">
-          <path d="M74 1H141A6 6 0 0 1 147 7V209A6 6 0 0 1 141 215H7A6 6 0 0 1 1 209V7A6 6 0 0 1 7 1H74" stroke="#4d6470" stroke-width="2"></path>
-          <path d="M74 1H141A6 6 0 0 1 147 7V209A6 6 0 0 1 141 215H7A6 6 0 0 1 1 209V7A6 6 0 0 1 7 1H74" stroke="#c0904f" stroke-width="2" stroke-dasharray="355 710"></path>
-        </svg>
-        <span style="position: relative; display: flex; justify-content: space-between; align-items: center">
-          <span style="width: 26px; height: 26px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border: 1.5px solid #c0904f; border-radius: 4px; color: #c0904f; font-size: 15px; font-weight: 700">2</span>
-          <span style="padding: 3px 7px; background: #c0904f; color: #10181d; border-radius: 4px; font-size: 13px; font-weight: 700; line-height: 1.2">1 / 2</span>
-        </span>
-        <span style="position: relative; margin-top: 8px; font-family: 'Zen Old Mincho', serif; font-weight: 700; font-size: 18px; line-height: 1.25">雷槍の英霊</span>
-        <span style="position: relative; margin-top: 2px; font-size: 12px; font-weight: 500; color: #9fb3bd">攻撃 英霊</span>
-        <span style="position: relative; margin-top: 8px; height: 48px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; background: #0f1b22; border: 1px solid #2a4250; border-radius: 4px; color: #9fb3bd">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2L5 13.5h6L10 22l8-11.5h-6z"></path></svg>
-        </span>
-        <span style="position: relative; flex: 1; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 14px; font-weight: 500; line-height: 1.4">敵全体に<br/>12 ダメージ</span>
-        <span style="position: relative; padding-top: 5px; border-top: 1px solid #2a4250; text-align: center; font-size: 12px; font-weight: 700; color: #c0904f">最後の 1 回</span>
-      </button>
-
-      <div style="position: relative; transform: translateY(-14px)">
-        <div role="tooltip" style="position: absolute; left: 50%; bottom: calc(100% + 12px); z-index: 2; transform: translateX(-50%); width: 188px; box-sizing: border-box; padding: 8px 12px; background: #16262f; border: 1px solid #c0904f; border-radius: 6px; text-align: center; font-size: 13px; line-height: 1.5">
-          <span style="display: block; font-weight: 700; color: #c0904f">最後の 1 回</span>
-          <span style="display: block; color: #e6ecef">使うと この契約は終わる</span>
-          <span style="position: absolute; left: 50%; bottom: -6px; width: 10px; height: 10px; margin-left: -5px; box-sizing: border-box; background: #16262f; border-right: 1px solid #c0904f; border-bottom: 1px solid #c0904f; transform: rotate(45deg)"></span>
-        </div>
-        <button type="button" style="position: relative; display: flex; flex-direction: column; width: 148px; height: 216px; box-sizing: border-box; margin: 0; padding: 10px; background: #16262f; border: none; border-radius: 7px; color: #e6ecef; font-family: inherit; text-align: left; cursor: pointer">
-          <svg width="148" height="216" viewBox="0 0 148 216" fill="none" aria-hidden="true" style="position: absolute; top: 0; left: 0; pointer-events: none">
-            <path d="M74 1H141A6 6 0 0 1 147 7V209A6 6 0 0 1 141 215H7A6 6 0 0 1 1 209V7A6 6 0 0 1 7 1H74" stroke="#c0904f" stroke-width="2"></path>
-          </svg>
-          <span style="position: relative; display: flex; justify-content: space-between; align-items: center">
-            <span style="width: 26px; height: 26px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border: 1.5px solid #c0904f; border-radius: 4px; color: #c0904f; font-size: 15px; font-weight: 700">3</span>
-            <span style="padding: 3px 7px; background: #c0904f; color: #10181d; border-radius: 4px; font-size: 13px; font-weight: 700; line-height: 1.2">1 / 1</span>
-          </span>
-          <span style="position: relative; margin-top: 8px; font-family: 'Zen Old Mincho', serif; font-weight: 700; font-size: 18px; line-height: 1.25">古王の宣告</span>
-          <span style="position: relative; margin-top: 2px; font-size: 12px; font-weight: 500; color: #9fb3bd">攻撃 英霊</span>
-          <span style="position: relative; margin-top: 8px; height: 48px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; background: #0f1b22; border: 1px solid #2a4250; border-radius: 4px; color: #9fb3bd">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19h16"></path><path d="M5 16L4 7l4.5 3.5L12 4l3.5 6.5L20 7l-1 9z"></path></svg>
-          </span>
-          <span style="position: relative; flex: 1; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 14px; font-weight: 500; line-height: 1.4">敵 1 体に<br/>40 ダメージ</span>
-          <span style="position: relative; padding-top: 5px; border-top: 1px solid #2a4250; text-align: center; font-size: 12px; font-weight: 700; color: #c0904f">最後の 1 回</span>
-        </button>
-      </div>
-
-      <div style="position: relative">
-        <button type="button" disabled="disabled" style="position: relative; display: flex; flex-direction: column; width: 148px; height: 216px; box-sizing: border-box; margin: 0; padding: 10px; background: #16262f; border: none; border-radius: 7px; color: #e6ecef; font-family: inherit; text-align: left; cursor: default">
-          <svg width="148" height="216" viewBox="0 0 148 216" fill="none" aria-hidden="true" style="position: absolute; top: 0; left: 0; pointer-events: none">
-            <path d="M74 1H141A6 6 0 0 1 147 7V209A6 6 0 0 1 141 215H7A6 6 0 0 1 1 209V7A6 6 0 0 1 7 1H74" stroke="#4d6470" stroke-width="2"></path>
-          </svg>
-          <span style="position: relative; display: flex; justify-content: space-between; align-items: center">
-            <span style="width: 26px; height: 26px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border: 1.5px solid #4d6470; border-radius: 4px; color: #9fb3bd; font-size: 15px; font-weight: 700">0</span>
-            <span style="padding: 3px 7px; background: #4d6470; color: #e6ecef; border-radius: 4px; font-size: 13px; font-weight: 700; line-height: 1.2">0 / 3</span>
-          </span>
-          <span style="position: relative; margin-top: 8px; font-family: 'Zen Old Mincho', serif; font-weight: 700; font-size: 18px; line-height: 1.25; color: #9fb3bd">灯の精</span>
-          <span style="position: relative; margin-top: 2px; font-size: 12px; font-weight: 500; color: #9fb3bd">技 精霊</span>
-          <span style="position: relative; margin-top: 8px; height: 48px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; background: #0f1b22; border: 1px solid #2a4250; border-radius: 4px; color: #9fb3bd">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5c2.2 2.6 3.2 4.3 3.2 6.2a3.2 3.2 0 0 1-6.4 0c0-1.9 1-3.6 3.2-6.2z"></path><path d="M12 13v3"></path><path d="M8 16.5h8"></path><path d="M9.5 20h5"></path></svg>
-          </span>
-          <span style="position: relative; flex: 1; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 14px; font-weight: 500; line-height: 1.4; color: #9fb3bd">カードを<br/>1 枚引く</span>
-        </button>
-        <span style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 5px 12px; background: #0f1b22; border: 1px solid #4d6470; border-radius: 4px; font-size: 14px; font-weight: 700; color: #e6ecef; white-space: nowrap; pointer-events: none">契約切れ</span>
-      </div>
-
-    </div>
-
-    <div style="display: flex; align-items: flex-end; justify-content: space-between">
-      <button type="button" style="display: flex; flex-direction: column; align-items: center; gap: 2px; width: 68px; box-sizing: border-box; padding: 10px 0 8px; background: #16262f; border: 1px solid #2a4250; border-radius: 6px; color: #e6ecef; font-family: inherit; cursor: pointer">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="7" width="11" height="14" rx="1.5"></rect><path d="M19 17V4.5A1.5 1.5 0 0 0 17.5 3H9"></path></svg>
-        <span style="font-size: 18px; font-weight: 700; line-height: 1.2">4</span>
-        <span style="font-size: 12px; font-weight: 500; color: #9fb3bd">捨て札</span>
-      </button>
-      <button type="button" style="width: 128px; height: 52px; box-sizing: border-box; padding: 0; background: #16262f; border: 2px solid #c0904f; border-radius: 6px; color: #e6ecef; font-family: inherit; font-size: 17px; font-weight: 700; cursor: pointer">ターン終了</button>
-    </div>
-
-  </div>
 </div>
 </section>
 </body>

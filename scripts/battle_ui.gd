@@ -98,9 +98,12 @@ func request_card(hand_index: int) -> void:
 	refresh()
 
 
-## もがく。敵が 2 体以上いれば対象の選択に入る
+## もがく。敵が 2 体以上いれば対象の選択に入る。エネルギーが足りない時は何もしない (対象の選択に入ると
+## ターン終了が効かなくなるため)
 func request_struggle() -> void:
 	if pending_hand_index != -1 or battle.outcome != Battle.Outcome.NONE:
+		return
+	if battle.energy < Battle.STRUGGLE_COST:
 		return
 	var alive: Array[int] = battle.alive_enemies()
 	if alive.size() == 1:

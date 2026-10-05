@@ -123,6 +123,10 @@ func _check_target_selection(main: MainScript) -> void:
 		run_state.uses_left(battle_ui.battle.hand[other_slash]) == other_slash_uses,
 		"やめたカードは使われない"
 	)
+	# エネルギー 0 で S を押しても、もがくの対象の選択に入らない (入ると Enter のターン終了が効かなくなる)
+	battle_ui.battle.energy = 0
+	await _press_key(KEY_S)
+	_check(battle_ui.pending_hand_index == -1, "エネルギー 0 ではもがくの対象の選択に入らない")
 	await _press_key(KEY_ENTER)
 	_check(battle_ui.battle.turn == 2, "Enter でターン終了")
 

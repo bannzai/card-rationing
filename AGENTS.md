@@ -33,7 +33,7 @@
 - Godot の起動にはすべて `--log-file` を付ける (Makefile の `ENGINE_LOG`)。付けないと Godot が `user://` にログを書こうとし、書き込みを拒否するサンドボックスでは起動に失敗する
 - `--script` で動かす検証 (selfcheck / integration / screenshot と、以後足す target) には `--quit-after` の上限 (Makefile の `SCRIPT_FLAGS`) を付ける。検証スクリプトが実行時エラーで `quit()` に届かないと Godot が終わらず、CI の job が `timeout-minutes` まで待つため。上限で終わった時は exit code が 0 になるので、各 target は完了の行 (`selfcheck OK` 等) で失敗を検出する
 - ログは `tmp/*.log` に保存して全文を WARNING / ERROR 検査する (`tail` で切り詰めて判定しない)。検査は Godot のメッセージの行頭 (`ERROR:` / `WARNING:` / `SCRIPT ERROR:` / `SHADER ERROR:`。Makefile の `LOG_ERROR_PATTERN`) に絞ってあり、カード名や `print` の文に error / warning の語が入っても落ちない
-- スクリプトを追加したら、Godot が生成する `.uid` を commit する (`~/.claude/rules/coding-rules-godot-gdscript-and-project-layout.md`)。このマシンでは Godot を起動しないため、CI の check-and-export が未 commit の `.uid` を見つけると失敗して artifact `card-rationing-uid` に上げる。`gh run download <run ID> -n card-rationing-uid -D .` で取り出して (`scripts/<名前>.gd.uid` の位置にそのまま入る) commit し、push し直す
+- スクリプト・素材を追加したら、Godot が生成する `.uid` / `.import` を commit する (`~/.claude/rules/coding-rules-godot-gdscript-and-project-layout.md`)。このマシンでは Godot を起動しないため、CI の check-and-export が未 commit の `.uid` / `.import` を見つけると失敗して artifact `card-rationing-generated` に上げる。`gh run download <run ID> -n card-rationing-generated -D .` で取り出して (`scripts/<名前>.gd.uid` 等の位置にそのまま入る) commit し、push し直す
 - エクスポートには Godot 4.7 の export templates が要る。CI は `.github/actions/setup-godot` が tpz から必要なテンプレートだけを取り出してキャッシュする (キャッシュキーはテンプレートの一覧のハッシュ)
 
 ## 規約

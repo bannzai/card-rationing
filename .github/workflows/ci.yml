@@ -50,31 +50,31 @@ jobs:
       # (macOS は export 自体が zip、Windows は実行権限を使わない)
       - name: Package Linux build
         run: tar -czf build/card-rationing-linux.tar.gz -C build linux
-      # import が生成した .uid が commit されていなければ失敗させ、artifact に上げる (開発マシンでは Godot を起動
-      # しないため、ここで取り出して commit する。手順は AGENTS.md「検証方法」、方針は documents/DIRECTION.md)。
+      # import が生成した .uid / .import が commit されていなければ失敗させ、artifact に上げる (開発マシンでは Godot を
+      # 起動しないため、ここで取り出して commit する。手順は AGENTS.md「検証方法」、方針は documents/DIRECTION.md)。
       # 検証とエクスポートの結果を隠さないよう最後に置く
-      - name: Check untracked .uid files
-        id: uid
+      - name: Check untracked generated files (.uid / .import)
+        id: generated
         if: always()
         run: |
-          untracked=$(git ls-files --others --exclude-standard -- '*.uid')
+          untracked=$(git ls-files --others --exclude-standard -- '*.uid' '*.import')
           if [ -z "$untracked" ]; then
-            echo "未 commit の .uid はありません"
+            echo "未 commit の .uid / .import はありません"
             exit 0
           fi
-          mkdir -p tmp/uid
+          mkdir -p tmp/generated
           printf '%s\n' "$untracked" | while IFS= read -r file; do
-            cp --parents "$file" tmp/uid/
+            cp --parents "$file" tmp/generated/
           done
           printf '%s\n' "$untracked"
-          echo "::error::未 commit の .uid が $(printf '%s\n' "$untracked" | wc -l) 件あります。artifact card-rationing-uid を取り出して commit してください (AGENTS.md「検証方法」)"
+          echo "::error::未 commit の .uid / .import が $(printf '%s\n' "$untracked" | wc -l) 件あります。artifact card-rationing-generated を取り出して commit してください (AGENTS.md「検証方法」)"
           exit 1
-      - name: Upload untracked .uid files
-        if: always() && steps.uid.outcome == 'failure'
+      - name: Upload untracked generated files
+        if: always() && steps.generated.outcome == 'failure'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: card-rationing-uid
-          path: tmp/uid/
+          name: card-rationing-generated
+          path: tmp/generated/
           if-no-files-found: error
           retention-days: 7
       - name: Upload logs

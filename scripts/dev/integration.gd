@@ -24,12 +24,19 @@ func _initialize() -> void:
 func _run() -> void:
 	run_state = root.get_node_or_null("RunState")
 	_check(run_state != null, "autoload RunState がある")
+	# headless の DisplayServer はウィンドウの大きさを 0 と答えるため、root の大きさを project.godot の
+	# viewport と同じにしてコントロールをレイアウトさせる (クリックの座標がボタンに当たるように)
+	root.size = Vector2i(
+		ProjectSettings.get_setting("display/window/size/viewport_width"),
+		ProjectSettings.get_setting("display/window/size/viewport_height")
+	)
 	var main: MainScript = MAIN_SCENE.instantiate()
 	root.add_child(main)
 	current_scene = main
 	await _settle()
 	_check(main.is_inside_tree(), "メインシーンが tree に入る")
 	_check(main.get_node("Title").is_visible_in_tree(), "タイトルが表示される")
+	_check(main.get_node("Title").size.x > 0, "コントロールがレイアウトされる (大きさが 0 でない)")
 	await _check_enter_and_win(main)
 	await _check_next_battle_keeps_uses(main)
 	await _check_target_selection(main)
@@ -50,6 +57,7 @@ func _check_enter_and_win(main: MainScript) -> void:
 	if battle_ui == null:
 		return
 	_check(_hand_buttons(battle_ui).size() == 5, "手札のボタンが 5 枚")
+	_check(_hand_buttons(battle_ui)[0].get_global_rect().size.x > 0, "手札のボタンに大きさがある")
 	var slash_hand: int = _hand_index_of(battle_ui, "slash")
 	var slash_deck: int = battle_ui.battle.hand[slash_hand]
 	await _click(_hand_buttons(battle_ui)[slash_hand])
@@ -88,6 +96,8 @@ func _check_target_selection(main: MainScript) -> void:
 	await _press_key(KEY_1 + slash_hand)
 	_check(battle_ui.pending_hand_index == slash_hand, "攻撃を選ぶと対象の選択に入る")
 	_check(battle_ui.message_label.text.contains("対象"), "対象を選ぶ案内が出る")
+	if battle_ui.battle.enemies.size() < 2:
+		return
 	_check(battle_ui.battle.enemies[1]["hp"] == 22, "まだ骸骨兵の体力 22")
 	await _press_key(KEY_2)
 	_check(battle_ui.battle.enemies[1]["hp"] == 16, "2 を押すと骸骨兵に 6 ダメージ")

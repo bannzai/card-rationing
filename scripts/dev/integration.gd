@@ -22,9 +22,6 @@ func _initialize() -> void:
 
 ## フレームを進めながら検証するため、同じ実行中に重ねて呼び出さない
 func _run() -> void:
-	# #4 の実験 B: わざと実行時エラー (null のメソッド呼び出し) を起こし、quit() に届かず Godot が終わらない状態を作る
-	var nothing: Node = null
-	nothing.get_name()
 	run_state = root.get_node_or_null("RunState")
 	_check(run_state != null, "autoload RunState がある")
 	# headless の DisplayServer はウィンドウの大きさを 0 と答えるため、root の大きさを project.godot の

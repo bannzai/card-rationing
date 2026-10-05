@@ -7,10 +7,10 @@
       "prompt": "Full-screen gameplay screenshot mockup of a 2D deck-building roguelike battle on PC, hand-painted dark fantasy illustration with visible brush strokes and paper grain. Left: a hooded pilgrim holding a staff hung with wax-sealed contract scrolls, a translucent spirit of a stag-headed knight standing behind them. Right: two enemies, an ash-crowned stone guardian and a feral hound, on a ruined shrine road at dusk lit by candlelight. Bottom: a fanned hand of five ornate tarot-like cards with illustrated spirits in carved wooden frames, each card carrying a row of small red wax seals, some seals cracked and burnt out; one card is dim and ashen. Small diegetic UI: a candle as energy, health as a string of prayer beads. Warm candle orange against deep indigo and moss green. No legible text or numbers, no flat rectangular UI panels, no top menu bar, no metal or chrome or neon gloss, no 3D render, no anime style.",
       "generator": "imagegen",
       "purpose": "play",
-      "status": "candidate",
-      "note": "方向: 蝋と灯火",
+      "status": "approved",
+      "note": "方向: 蝋と灯火。2026-10-06 に bannzai が関門 2 の出し直しで選んだ",
       "recorded_at": "2026-10-05T20:44:37Z",
-      "updated_at": "2026-10-05T20:44:37Z"
+      "updated_at": "2026-10-05T20:53:26Z"
     },
     {
       "id": "1b657d4e1fef",
@@ -19,10 +19,10 @@
       "prompt": "Full-screen gameplay screenshot mockup of a 2D deck-building roguelike battle on PC, drawn entirely as a page of a medieval illuminated manuscript: aged parchment, gold leaf, lapis blue and vermilion pigments, flat miniature-painting figures with ink outlines, ornamental vine borders in the margins. Left: a small pilgrim figure with a staff, and behind them a haloed spirit knight with stag antlers painted like a saint. Right: two enemies painted as marginalia monsters, a stone guardian wearing a crown of ash and a snarling hound. Bottom: a hand of five cards that look like cut-out manuscript miniatures with gilded frames, each with a row of small red wax seal stamps along its lower edge, some stamps scraped away to bare parchment; one card is faded to grey ink. Energy shown as three gilded candles in the margin, health as a painted rosary. Bright daylight palette, warm cream parchment with rich blue, red and gold. No legible text or numbers, no flat rectangular UI panels, no top menu bar, no metal or chrome or neon gloss, no 3D render, no anime style.",
       "generator": "imagegen",
       "purpose": "play",
-      "status": "candidate",
-      "note": "方向: 彩飾写本",
+      "status": "rejected",
+      "note": "方向: 彩飾写本。2026-10-06 の関門 2 の出し直しで「蝋と灯火」が選ばれたため採らない",
       "recorded_at": "2026-10-05T20:44:37Z",
-      "updated_at": "2026-10-05T20:44:37Z"
+      "updated_at": "2026-10-05T20:53:26Z"
     },
     {
       "id": "1f274eb162d6",
@@ -31,10 +31,10 @@
       "prompt": "Full-screen gameplay screenshot mockup of a 2D deck-building roguelike battle on PC, in a bold stylized stained-glass look: figures built from large faceted panes of saturated jewel colors with dark lead lines, light glowing through them, gouache texture, strong readable silhouettes. Setting: inside a vast ruined cathedral open to a bright teal sky, shafts of colored light on the floor. Left: a young pilgrim in a travel cloak raising a hand, and a towering spirit knight with stag antlers made of glowing amber and emerald glass. Right: two enemies, a hulking guardian of cracked grey glass with a crown of ash and a jagged crimson glass hound. Bottom: a hand of five large cards shaped like small arched stained-glass windows, each showing a different spirit, each with a row of round glowing seal gems under the picture, some gems dark and shattered; one card has lost all its color and is plain grey glass. Energy shown as three glowing orbs of light, health as a ribbon of ruby panes. Vivid teal, amber, ruby and violet. No legible text or numbers, no flat rectangular UI panels, no top menu bar, no metal or chrome or neon gloss, no 3D render, no anime style.",
       "generator": "imagegen",
       "purpose": "play",
-      "status": "candidate",
-      "note": "方向: 色ガラス",
+      "status": "rejected",
+      "note": "方向: 色ガラス。2026-10-06 の関門 2 の出し直しで「蝋と灯火」が選ばれたため採らない",
       "recorded_at": "2026-10-05T20:44:37Z",
-      "updated_at": "2026-10-05T20:44:37Z"
+      "updated_at": "2026-10-05T20:53:26Z"
     },
     {
       "id": "cab94cd6890a",
@@ -43,10 +43,10 @@
       "prompt": "Title screen key art for a 2D deck-building roguelike, hand-painted dark fantasy illustration with visible brush strokes and paper grain: a lone hooded pilgrim seen from behind walking up a candle-lit ruined shrine road at dusk, staff hung with wax-sealed contract scrolls, faint translucent pale spirits of a stag-headed knight and beasts following behind like a procession, a huge red wax seal glowing dimly in the sky like a setting sun. Calm empty area of sky in the upper center reserved for a logo. Warm candle orange against deep indigo and moss green. No text, no letters, no logo, no UI, no metal or chrome or neon gloss, no 3D render, no anime style.",
       "generator": "imagegen",
       "purpose": "title",
-      "status": "candidate",
-      "note": "方向: 蝋と灯火",
+      "status": "approved",
+      "note": "方向: 蝋と灯火。2026-10-06 に bannzai が関門 2 の出し直しで選んだ",
       "recorded_at": "2026-10-05T20:44:37Z",
-      "updated_at": "2026-10-05T20:44:37Z"
+      "updated_at": "2026-10-05T20:53:26Z"
     },
     {
       "id": "fd770dcb7ae6",
@@ -55,10 +55,10 @@
       "prompt": "Title screen key art for a 2D deck-building roguelike, drawn as a full page of a medieval illuminated manuscript: aged cream parchment, gold leaf, lapis blue and vermilion pigments, flat miniature-painting figures with ink outlines, ornamental vine borders with small animals. A large gilded miniature of a pilgrim in a red cloak kneeling before a haloed stag-antlered spirit knight who presses a red wax seal onto a parchment contract, other small spirits watching from the borders, sun and moon in the corners. A blank ornamental banner scroll in the upper center left empty for a logo. No text, no letters, no logo, no UI, no metal or chrome or neon gloss, no 3D render, no anime style.",
       "generator": "imagegen",
       "purpose": "title",
-      "status": "candidate",
-      "note": "方向: 彩飾写本",
+      "status": "rejected",
+      "note": "方向: 彩飾写本。2026-10-06 の関門 2 の出し直しで「蝋と灯火」が選ばれたため採らない",
       "recorded_at": "2026-10-05T20:44:37Z",
-      "updated_at": "2026-10-05T20:44:37Z"
+      "updated_at": "2026-10-05T20:53:26Z"
     },
     {
       "id": "4d463ec2e9dc",
@@ -67,10 +67,10 @@
       "prompt": "Title screen key art for a 2D deck-building roguelike, in a bold stylized stained-glass look: large faceted panes of saturated jewel colors with dark lead lines, light glowing through them, gouache texture. A giant rose window in a ruined cathedral open to a bright teal sky, the window's panes showing a circle of spirits (stag-antlered knight, raven, lion, veiled saint), several panes dark and shattered; a small pilgrim silhouette in a travel cloak stands below looking up, colored light pooling on the floor. Calm plain area in the upper center of the window left for a logo. Vivid teal, amber, ruby and violet. No text, no letters, no logo, no UI, no metal or chrome or neon gloss, no 3D render, no anime style.",
       "generator": "imagegen",
       "purpose": "title",
-      "status": "candidate",
-      "note": "方向: 色ガラス",
+      "status": "rejected",
+      "note": "方向: 色ガラス。2026-10-06 の関門 2 の出し直しで「蝋と灯火」が選ばれたため採らない",
       "recorded_at": "2026-10-05T20:44:38Z",
-      "updated_at": "2026-10-05T20:44:38Z"
+      "updated_at": "2026-10-05T20:53:26Z"
     }
   ]
 }

@@ -40,6 +40,7 @@ func _run() -> void:
 	await _check_enter_and_win(main)
 	await _check_next_battle_keeps_uses(main)
 	await _check_target_selection(main)
+	await _check_hand_fits_after_draw(main)
 	await _check_exhausted_deck_battle(main)
 	main.queue_free()
 	await process_frame
@@ -116,6 +117,28 @@ func _check_target_selection(main: MainScript) -> void:
 	_check(battle_ui.battle.turn == 2, "Enter でターン終了")
 
 
+## ドローで手札が 5 枚を超えても、手札のボタンがすべて画面の幅に収まり押せる
+func _check_hand_fits_after_draw(main: MainScript) -> void:
+	var battle_ui: BattleUiScript = main.battle
+	if battle_ui == null:
+		return
+	run_state.new_run(["breath", "slash", "slash", "guard", "guard", "guard", "spirit_arrow", "slash"])
+	var breath_hand: int = await _start_battle_with_card_in_hand(battle_ui, "breath")
+	if breath_hand < 0:
+		_check(false, "深呼吸が手札に来るシードが見つかる")
+		return
+	await _press_key(KEY_1 + breath_hand)
+	_check(battle_ui.battle.hand.size() == 6, "深呼吸で手札が 6 枚になる")
+	var buttons: Array[Button] = _hand_buttons(battle_ui)
+	_check(buttons.size() == 6, "手札のボタンが 6 枚")
+	for button: Button in buttons:
+		var rect: Rect2 = button.get_global_rect()
+		_check(rect.position.x >= 0 and rect.end.x <= root.size.x, "手札のボタンが画面の幅に収まる: %s" % button.text)
+	if battle_ui.battle.can_play(buttons.size() - 1):
+		await _click(buttons[buttons.size() - 1])
+		_check(battle_ui.battle.hand.size() == 5, "右端のカードをクリックで使える")
+
+
 ## デッキの全カードが契約切れでも、もがく (S) とターン終了 (Enter) で戦闘が勝敗まで進む
 func _check_exhausted_deck_battle(main: MainScript) -> void:
 	var battle_ui: BattleUiScript = main.battle
@@ -150,6 +173,18 @@ func _hand_buttons(battle_ui: BattleUiScript) -> Array[Button]:
 		if child.visible:
 			buttons.append(child)
 	return buttons
+
+
+## card_id のカードが手札に来るシードで戦闘を始め、そのカードの手札の位置を返す (シードを 1 から順に試し、
+## 見つからなければ -1)
+func _start_battle_with_card_in_hand(battle_ui: BattleUiScript, card_id: String) -> int:
+	for seed_value: int in range(1, 51):
+		battle_ui.start_battle(seed_value)
+		var hand_index: int = _hand_index_of(battle_ui, card_id)
+		if hand_index >= 0:
+			await _settle()
+			return hand_index
+	return -1
 
 
 ## 手札の中で card_id のカードがある位置 (無ければ -1)

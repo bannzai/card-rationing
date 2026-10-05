@@ -4,6 +4,7 @@ extends SceneTree
 ## 全部の撮影を終えたら「screenshot OK」の行を出して quit(0) する (Makefile はこの行と PNG の存在で判定する)。
 ## 画面や状態を増やす時は _capture_scenes() に撮影を足す。
 
+const BattleUiScript := preload("res://scripts/battle_ui.gd")
 const MainScript := preload("res://scripts/main.gd")
 const RunStateScript := preload("res://scripts/run_state.gd")
 
@@ -47,9 +48,32 @@ func _capture_scenes() -> bool:
 	await create_timer(0.3).timeout
 	if not await _capture("tmp/screenshot-battle.png"):
 		return false
+	# ドローで手札が 6 枚に増えた画面 (手札が画面の幅に収まることを見る)。深呼吸が手札に来るシードを順に探す
+	run_state.new_run(["breath", "slash", "slash", "guard", "guard", "guard", "spirit_arrow", "slash"])
+	for seed_value: int in range(1, 51):
+		main.battle.start_battle(seed_value)
+		var breath_hand: int = _hand_index_of(main.battle, run_state, "breath")
+		if breath_hand >= 0:
+			main.battle.request_card(breath_hand)
+			break
+	if main.battle.battle.hand.size() != 6:
+		push_error("深呼吸で手札を 6 枚にできない (手札 %d 枚)" % main.battle.battle.hand.size())
+		quit(1)
+		return false
+	await create_timer(0.3).timeout
+	if not await _capture("tmp/screenshot-battle-drawn.png"):
+		return false
 	main.queue_free()
 	await process_frame
 	return true
+
+
+## 戦闘画面の手札の中で card_id のカードがある位置 (無ければ -1)
+func _hand_index_of(battle_ui: BattleUiScript, run_state: RunStateScript, card_id: String) -> int:
+	for hand_index: int in range(battle_ui.battle.hand.size()):
+		if run_state.deck[battle_ui.battle.hand[hand_index]]["id"] == card_id:
+			return hand_index
+	return -1
 
 
 ## 描画が反映されるまで 2 フレーム待ってから viewport を path に PNG で保存する。失敗したら quit(1) する

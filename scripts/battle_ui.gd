@@ -252,11 +252,14 @@ func _refresh_hand() -> void:
 
 
 ## row の子のボタンが count 個以上あるようにする。足したボタンの pressed はその位置の index を付けて
-## callback に繋ぐ (ボタンは使い回し、毎回作り直さない)
+## callback に繋ぐ (ボタンは使い回し、毎回作り直さない)。ボタンは行の幅を等分して並び、ドローで手札が増えても
+## 画面の外に出ない (最小幅 100 なら 10 枚でも 1232 幅の行に収まる)
 func _ensure_buttons(row: HBoxContainer, count: int, callback: Callable) -> void:
 	while row.get_child_count() < count:
 		var button: Button = Button.new()
 		button.focus_mode = Control.FOCUS_NONE
-		button.custom_minimum_size = Vector2(200, 96)
+		button.custom_minimum_size = Vector2(100, 96)
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.clip_text = true
 		button.pressed.connect(callback.bind(row.get_child_count()))
 		row.add_child(button)

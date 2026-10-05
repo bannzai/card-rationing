@@ -45,7 +45,7 @@ text = "第 1 幕 1 階"
 [node name="HelpLabel" type="Label" parent="Layout/TopBar"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 16
-text = "数字キー: カード / 敵を選ぶ  S: もがく  Enter: ターン終了  Esc: 選び直す"
+text = "数字キー: カード / 敵を選ぶ  S: もがく  Enter: ターン終了  Esc: 選び直す  D: 契約の一覧"
 
 [node name="EnemyRow" type="HBoxContainer" parent="Layout"]
 layout_mode = 2
@@ -83,9 +83,3 @@ text = "もがく (S) コスト 1 / 攻撃 2"
 layout_mode = 2
 focus_mode = 0
 text = "ターン終了 (Enter)"
-
-[node name="NextButton" type="Button" parent="Layout/ActionRow"]
-visible = false
-layout_mode = 2
-focus_mode = 0
-text = "次の戦闘へ (Enter)"

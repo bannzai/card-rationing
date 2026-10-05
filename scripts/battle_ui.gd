@@ -2,22 +2,20 @@ extends Control
 ## 戦闘画面 (仮の見た目。見た目は関門 2 の後に反映する)。進行は scripts/battle.gd に任せ、ここは表示と
 ## 入力 (マウスのクリックとキーボード) だけを受け持つ。手札のカードには残り使用回数を必ず表示し、
 ## 残り 1 回と契約切れ (残り 0) を色と文で見分けられるようにする。
-## 戦闘の結果はラン単位の状態 (RunState) に反映し、勝利なら次の階層の戦闘へ、敗北なら新しいランで最初の
-## 戦闘に戻る。
+## カードを使うたびとターンの終わりにランを保存し、勝敗が決まったら scripts/run_flow.gd で戦闘を終える
+## (報酬・踏破・敗北の画面へは scripts/main.gd が切り替える)。
 
+const ActMap := preload("res://scripts/act_map.gd")
 const Battle := preload("res://scripts/battle.gd")
 const Cards := preload("res://scripts/cards.gd")
 const Enemies := preload("res://scripts/enemies.gd")
+const RunFlow := preload("res://scripts/run_flow.gd")
 const RunStateScript := preload("res://scripts/run_state.gd")
+const UiKit := preload("res://scripts/ui_kit.gd")
 
 ## pending_hand_index の特別な値: もがくの対象を選んでいる
 const STRUGGLE_PENDING: int = -2
-## 残り使用回数の色 (通常 / 最後の 1 回 / 契約切れ)。仮の見た目で、関門 2 の後に差し替える
-const COLOR_NORMAL: Color = Color(1, 1, 1, 1)
-const COLOR_LAST: Color = Color(1, 0.75, 0.4, 1)
-const COLOR_EXHAUSTED: Color = Color(0.55, 0.55, 0.55, 1)
-## 契約の相手の区分と敵の行動の種別の表示名
-const BOND_NAMES: Dictionary = {Cards.Bond.SPIRIT: "精霊", Cards.Bond.HERO: "英霊"}
+## 敵の行動の種別の表示名
 const MOVE_NAMES: Dictionary = {Enemies.Move.ATTACK: "攻撃", Enemies.Move.GUARD: "防御"}
 
 ## 進行中の戦闘
@@ -35,7 +33,6 @@ var pending_hand_index: int = -1
 @onready var hand_row: HBoxContainer = $Layout/HandRow
 @onready var struggle_button: Button = $Layout/ActionRow/StruggleButton
 @onready var end_turn_button: Button = $Layout/ActionRow/EndTurnButton
-@onready var next_button: Button = $Layout/ActionRow/NextButton
 
 
 func _ready() -> void:
@@ -44,11 +41,10 @@ func _ready() -> void:
 		push_error("autoload RunState が無い")
 	struggle_button.pressed.connect(request_struggle)
 	end_turn_button.pressed.connect(end_turn)
-	next_button.pressed.connect(next_battle)
 
 
-## キーボード操作。数字キーでカード (対象を選んでいる時は敵)、S でもがく、Enter でターン終了
-## (戦闘が終わっていれば次へ)、Esc で対象の選択をやめる
+## キーボード操作。数字キーでカード (対象を選んでいる時は敵)、S でもがく、Enter でターン終了、
+## Esc で対象の選択をやめる
 func _unhandled_key_input(event: InputEvent) -> void:
 	if battle == null or not (event is InputEventKey) or not event.pressed or event.echo:
 		return
@@ -56,20 +52,17 @@ func _unhandled_key_input(event: InputEvent) -> void:
 	if key >= KEY_1 and key <= KEY_9:
 		select_number(key - KEY_1)
 	elif key == KEY_ENTER or key == KEY_KP_ENTER:
-		if battle.outcome == Battle.Outcome.NONE:
-			end_turn()
-		else:
-			next_battle()
+		end_turn()
 	elif key == KEY_S:
 		request_struggle()
 	elif key == KEY_ESCAPE:
 		cancel_target()
 
 
-## 現在の階層の敵と seed_value で戦闘を始める
+## 今いる節点の敵と seed_value で戦闘を始める
 func start_battle(seed_value: int) -> void:
 	battle = Battle.new()
-	battle.start(run_state, Enemies.encounter_for_floor(run_state.floor_index), seed_value)
+	battle.start(run_state, RunFlow.encounter(run_state), seed_value)
 	pending_hand_index = -1
 	refresh()
 
@@ -95,7 +88,7 @@ func request_card(hand_index: int) -> void:
 			pending_hand_index = hand_index
 	else:
 		battle.play(hand_index)
-	refresh()
+	_after_action()
 
 
 ## もがく。敵が 2 体以上いれば対象の選択に入る。エネルギーが足りない時は何もしない (対象の選択に入ると
@@ -110,7 +103,7 @@ func request_struggle() -> void:
 		battle.struggle(alive[0])
 	elif alive.size() > 1:
 		pending_hand_index = STRUGGLE_PENDING
-	refresh()
+	_after_action()
 
 
 ## 対象の選択中に敵 (enemies の index) を選ぶ。選択中でなければ何もしない
@@ -122,7 +115,7 @@ func choose_target(enemy_index: int) -> void:
 	else:
 		battle.play(pending_hand_index, enemy_index)
 	pending_hand_index = -1
-	refresh()
+	_after_action()
 
 
 ## 対象の選択をやめる
@@ -136,23 +129,16 @@ func end_turn() -> void:
 	if pending_hand_index != -1:
 		return
 	battle.end_turn()
-	refresh()
-
-
-## 戦闘の後の進行。勝利なら次の階層の戦闘へ、敗北なら新しいランで最初の戦闘へ
-func next_battle() -> void:
-	if battle.outcome == Battle.Outcome.WIN:
-		run_state.advance_floor()
-	elif battle.outcome == Battle.Outcome.LOSE:
-		run_state.new_run()
-	else:
-		return
-	start_battle(randi())
+	_after_action()
 
 
 ## 戦闘の状態を画面に反映する
 func refresh() -> void:
-	floor_label.text = "第 %d 幕 %d 階" % [run_state.act, run_state.floor_index + 1]
+	var kind: int = run_state.current_node().get("kind", ActMap.Kind.BATTLE)
+	floor_label.text = (
+		"第 %d 幕 %d 階 %s"
+		% [run_state.act, maxi(1, run_state.path.size()), ActMap.KIND_NAMES[kind]]
+	)
 	status_label.text = (
 		"体力 %d / %d   防御 %d   エネルギー %d / %d   山札 %d   捨て札 %d   ターン %d"
 		% [
@@ -172,18 +158,24 @@ func refresh() -> void:
 	var over: bool = battle.outcome != Battle.Outcome.NONE
 	struggle_button.disabled = over or battle.energy < Battle.STRUGGLE_COST
 	end_turn_button.disabled = over
-	next_button.visible = over
-	next_button.text = (
-		"次の戦闘へ (Enter)" if battle.outcome == Battle.Outcome.WIN else "新しい巡礼へ (Enter)"
-	)
+
+
+## 操作の後: ランを保存し (戦闘の途中で終えても、使った回数と受けた傷が戻らないように)、勝敗が決まっていれば
+## 戦闘を終える (画面の切り替えは scripts/main.gd が局面の変化で行う)。画面を更新する
+func _after_action() -> void:
+	if battle.outcome == Battle.Outcome.NONE:
+		run_state.autosave()
+	else:
+		RunFlow.finish_battle(run_state, battle.outcome == Battle.Outcome.WIN)
+	refresh()
 
 
 ## 状況に応じた案内の文
 func _message_text() -> String:
 	if battle.outcome == Battle.Outcome.WIN:
-		return "勝利。次の戦闘へ (Enter)"
+		return "勝利"
 	if battle.outcome == Battle.Outcome.LOSE:
-		return "敗北。新しい巡礼を始める (Enter)"
+		return "敗北"
 	if pending_hand_index != -1:
 		return "対象の敵を選ぶ (数字キー / クリック。Esc で戻る)"
 	if battle.has_playable_card():
@@ -235,19 +227,17 @@ func _refresh_hand() -> void:
 		var card: Dictionary = Cards.CARDS[card_id]
 		var uses: int = run_state.uses_left(deck_index)
 		var uses_text: String = "残り %d / %d" % [uses, card["max_uses"]]
-		button.modulate = COLOR_NORMAL
+		button.modulate = UiKit.uses_color(uses)
 		if uses == 0:
 			uses_text += "\n契約切れ"
-			button.modulate = COLOR_EXHAUSTED
 		elif uses == 1:
 			uses_text += " (最後の 1 回)"
-			button.modulate = COLOR_LAST
 		button.text = (
 			"%d. %s [%s]\n%s / コスト %d\n%s"
 			% [
 				index + 1,
 				card["name"],
-				BOND_NAMES[card["bond"]],
+				UiKit.BOND_NAMES[card["bond"]],
 				Cards.effect_text(card_id),
 				card["cost"],
 				uses_text,

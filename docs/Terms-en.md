@@ -1,3 +1,7 @@
+---
+lang: en
+---
+
 # Terms of Use
 
 These Terms of Use ("these Terms") set out the conditions for using the game "Card Rationing" ("the Game") provided by bannzai ("the Provider"), and the rights and obligations between the Provider and users. Please read these Terms in full and agree to them before using the Game.

@@ -9,8 +9,9 @@ extends Node
 enum LoadResult { LOADED, NOT_FOUND, CORRUPT }
 
 const Cards := preload("res://scripts/cards.gd")
+const Contractors := preload("res://scripts/contractors.gd")
 
-## 新しいランの体力・最大体力。動作確認用の敵 (攻撃 3〜7) の攻撃を 10 ターン前後受けられる値で、
+## 新しいランの体力・最大体力。1 幕の前半の敵 (1 体の 1 ターンの攻撃 3〜7) の攻撃を 10 ターン前後受けられる値で、
 ## 自動テストプレイ (#10) の結果で見直す
 const START_HP: int = 50
 ## 新しいランの所持金 (商人は #7 で作るため、まだ使い道が無く 0)
@@ -38,10 +39,13 @@ func _ready() -> void:
 	new_run()
 
 
-## 新しいランを始める。デッキは deck_ids のカードを最大使用回数で持つ (空なら初期デッキ)
+## 新しいランを始める。デッキは deck_ids のカードを最大使用回数で持つ (空なら最初の契約者の初期デッキ)
 func new_run(deck_ids: Array[String] = []) -> void:
 	deck = []
-	for card_id: String in (Cards.STARTER_DECK if deck_ids.is_empty() else deck_ids):
+	var ids: Array[String] = deck_ids
+	if ids.is_empty():
+		ids = Contractors.starter_deck(Contractors.FIRST_CONTRACTOR)
+	for card_id: String in ids:
 		deck.append({"id": card_id, "uses_left": Cards.CARDS[card_id]["max_uses"]})
 	hp = START_HP
 	max_hp = START_HP

@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Card Rationing｜カードの使用回数が冒険を通して減るデッキ構築ローグライト</title>
+  <meta name="description" content="Card Rationing は、カードに 1 回の冒険あたりの使用回数があるデッキ構築ローグライト。強いカードほど温存したくなるが、弱いカードだけでは勝てない。PC (Steam) 向けに開発中。">
+  <link rel="canonical" href="https://bannzai.github.io/card-rationing/">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Card Rationing">
+  <meta property="og:title" content="Card Rationing｜カードの使用回数が冒険を通して減るデッキ構築ローグライト">
+  <meta property="og:description" content="強いカードほど、使うのが惜しい。使用回数が冒険を通して減っていくデッキ構築ローグライト。PC (Steam) 向けに開発中。">
+  <meta property="og:url" content="https://bannzai.github.io/card-rationing/">
+  <meta property="og:image" content="https://bannzai.github.io/card-rationing/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:locale" content="ja_JP">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Card Rationing">
+  <meta name="twitter:description" content="強いカードほど、使うのが惜しい。使用回数が冒険を通して減っていくデッキ構築ローグライト。">
+  <meta name="twitter:image" content="https://bannzai.github.io/card-rationing/og.png">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "VideoGame",
+    "name": "Card Rationing",
+    "description": "カードに 1 回の冒険あたりの使用回数があるデッキ構築ローグライト。使用回数は戦闘をまたいで戻らず、強いカードを温存するか使うかを冒険全体で決める。",
+    "genre": ["Roguelike Deckbuilder", "Card Game", "Strategy"],
+    "gamePlatform": "PC",
+    "operatingSystem": ["Windows", "macOS", "Linux"],
+    "inLanguage": "ja",
+    "url": "https://bannzai.github.io/card-rationing/",
+    "image": "https://bannzai.github.io/card-rationing/og.png",
+    "author": { "@type": "Person", "name": "bannzai" }
+  }
+  </script>
+  <style>
+    :root {
+      --ink: #14201f;
+      --ink-2: #1d2d2b;
+      --line: #2f4a47;
+      --face: #e6ebf0;
+      --ember: #e0823d;
+      --text-light: #e6ebf0;
+      --text-muted: #b9c7c5;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+      line-height: 1.8;
+      color: var(--text-light);
+      background: var(--ink);
+    }
+    a { color: inherit; }
+    a:focus-visible { outline: 3px solid var(--ember); outline-offset: 3px; }
+    .wrap { max-width: 960px; margin: 0 auto; padding: 0 20px; }
+    header { padding: 72px 0 56px; }
+    h1 { font-size: clamp(2.4rem, 8vw, 4.2rem); margin: 0; line-height: 1.1; letter-spacing: 0.02em; }
+    .tagline { font-size: clamp(1.3rem, 4vw, 1.8rem); font-weight: bold; margin: 20px 0 0; }
+    .lead { font-size: 1.1rem; color: var(--text-muted); margin: 12px 0 0; max-width: 36em; }
+    .status { display: inline-block; margin-top: 24px; padding: 6px 14px; border: 2px solid var(--text-light); border-radius: 6px; font-weight: bold; }
+    .hand { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 40px; }
+    .card { width: 150px; min-height: 196px; background: var(--face); color: var(--ink); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; }
+    .card h3 { margin: 0; font-size: 1.15rem; }
+    .card .effect { margin: 6px 0 0; font-size: 0.85rem; line-height: 1.5; flex: 1; }
+    .pips { display: flex; gap: 6px; margin-top: 12px; }
+    .pip { width: 16px; height: 16px; border-radius: 50%; background: var(--ember); }
+    .pip.spent { background: transparent; border: 2px solid var(--line); }
+    .uses { font-size: 0.8rem; margin: 6px 0 0; }
+    section { padding: 56px 0; }
+    section h2 { font-size: 1.6rem; margin: 0 0 16px; }
+    .band { background: var(--ink-2); }
+    .points { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 24px; }
+    .point { border: 1px solid var(--line); border-radius: 10px; padding: 20px; }
+    .point h3 { margin: 0 0 8px; font-size: 1.1rem; }
+    .point p { margin: 0; color: var(--text-muted); }
+    footer { border-top: 1px solid var(--line); padding: 32px 0; font-size: 0.9rem; }
+    footer ul { list-style: none; padding: 0; margin: 0 0 12px; display: flex; flex-wrap: wrap; gap: 8px 20px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>Card Rationing</h1>
+      <p class="tagline">強いカードほど使うのが惜しい</p>
+      <p class="lead">カードに 1 回の冒険あたりの使用回数があるデッキ構築ローグライト。使った回数は戦闘が終わっても戻らない。温存するか、ここで切るかを、冒険のあいだずっと考え続ける。</p>
+      <p class="status">PC (Steam) 向けに開発中</p>
+      <div class="hand" aria-label="カードの例: 残り使用回数を丸の数で表している">
+        <div class="card">
+          <h3>斬撃</h3>
+          <p class="effect">6 ダメージ</p>
+          <div class="pips" aria-hidden="true"><span class="pip"></span><span class="pip"></span><span class="pip"></span><span class="pip"></span></div>
+          <p class="uses">残り 4 回</p>
+        </div>
+        <div class="card">
+          <h3>雷槍</h3>
+          <p class="effect">敵全体に 18 ダメージ</p>
+          <div class="pips" aria-hidden="true"><span class="pip"></span><span class="pip spent"></span></div>
+          <p class="uses">残り 1 回 / 2 回</p>
+        </div>
+        <div class="card">
+          <h3>天変</h3>
+          <p class="effect">この戦闘に勝つ</p>
+          <div class="pips" aria-hidden="true"><span class="pip"></span></div>
+          <p class="uses">残り 1 回</p>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="band">
+      <div class="wrap">
+        <h2>使用回数は冒険を通して減る</h2>
+        <p>デッキのカードにはそれぞれ使用回数がある。戦闘ごとに山札は配り直されるが、使った回数は戻らない。強いカードほど回数は少なく、弱いカードは何度でも使える。</p>
+        <div class="points">
+          <div class="point">
+            <h3>温存のジレンマ</h3>
+            <p>強いカードはボスまで取っておきたい。けれど弱いカードだけでは目の前の敵を倒しきれない。</p>
+          </div>
+          <div class="point">
+            <h3>冒険の途中の選択</h3>
+            <p>使用回数を回復する、要らないカードを削る、強いカードを補充する、デッキを入れ替える。立ち寄る先で手札の寿命が変わる。</p>
+          </div>
+          <div class="point">
+            <h3>複数の冒険者</h3>
+            <p>冒険者ごとにカードの組み方と回数の配り方が違う。物語は多くを語らず、ボス戦の前の短い会話で想像を広げる。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="support">
+      <div class="wrap">
+        <h2>サポート・お問い合わせ</h2>
+        <p>不具合の報告やご質問は、メールでお送りください。</p>
+        <p><a href="mailto:bannzai.app@gmail.com">bannzai.app@gmail.com</a></p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <ul>
+        <li><a href="./Terms-ja">利用規約</a></li>
+        <li><a href="./PrivacyPolicy-ja">プライバシーポリシー</a></li>
+        <li><a href="./Terms-en">Terms of Use</a></li>
+        <li><a href="./PrivacyPolicy-en">Privacy Policy</a></li>
+      </ul>
+      <p>&copy; 2026 bannzai</p>
+    </div>
+  </footer>
+</body>
+</html>

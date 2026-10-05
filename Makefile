@@ -115,5 +115,8 @@ build-linux: import
 
 build-all: build-macos build-windows build-linux
 
+# ビルド成果物と、この Makefile が tmp/ に書いたログ・撮影・録画だけを消す (tmp/ は agent の作業ファイルも置くため
+# ディレクトリごとは消さない)
 clean:
-	rm -rf build $(LOG_DIR)
+	rm -rf build
+	rm -f $(LOG_DIR)/*.log $(LOG_DIR)/screenshot-*.png $(LOG_DIR)/movie.avi $(LOG_DIR)/movie.mp4

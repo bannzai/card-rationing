@@ -8,9 +8,12 @@ on:
 permissions:
   contents: read
 
+# ランナーは ubuntu-24.04 に固定する。ubuntu-latest は 2026-10-19 から Ubuntu 26 へ移る (run の notice)。撮影・録画の
+# job は apt のパッケージ名と、Mesa llvmpipe が出す WARNING の文言 (Makefile の WINDOWED_LOG_NOISE) に依存するため、
+# イメージを上げる時は別の PR で確かめる
 jobs:
   lint:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -23,7 +26,7 @@ jobs:
         run: make lint
 
   check-and-export:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -70,14 +73,14 @@ jobs:
   # Xvfb + Mesa llvmpipe (ソフトウェア GL) 上で代表画面の撮影と起動の録画を行い artifact に残す。
   # PR を開いた agent は artifact をダウンロードして PNG と mp4 を目視してから完了報告する (AGENTS.md「検証方法」)
   screenshot-and-movie:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - id: godot
         uses: ./.github/actions/setup-godot
         with:
-          # エディタバイナリで動かすため export templates は要らない (tpz からは version.txt だけ取り出す)
+          # エディタバイナリで動かすため export templates は要らない (tpz を取得しない)
           templates: ""
           cache_key_suffix: editor-only
       - name: Start Xvfb with software GL

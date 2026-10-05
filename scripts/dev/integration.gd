@@ -5,11 +5,17 @@ extends "res://scripts/dev/headless_check.gd"
 
 const BattleScript := preload("res://scripts/battle.gd")
 const BattleUiScript := preload("res://scripts/battle_ui.gd")
+const BossTalkScript := preload("res://scripts/boss_talk.gd")
+const Cards := preload("res://scripts/cards.gd")
+const Contractors := preload("res://scripts/contractors.gd")
+const Enemies := preload("res://scripts/enemies.gd")
 const MainScript := preload("res://scripts/main.gd")
 const RunStateScript := preload("res://scripts/run_state.gd")
 
 ## 起動時に表示するメインシーン
 const MAIN_SCENE: PackedScene = preload("res://scenes/main.tscn")
+## ボス戦の前の会話の画面 (地図と画面の流れ (#7・#8) につなぐまでは単体で確かめる)
+const BOSS_TALK_SCENE: PackedScene = preload("res://scenes/boss_talk.tscn")
 
 ## autoload RunState (ラン単位の状態)
 var run_state: RunStateScript = null
@@ -45,6 +51,8 @@ func _run() -> void:
 	await _check_defeat_starts_new_run(main)
 	main.queue_free()
 	await process_frame
+	# メインシーンを消してから確かめる (Enter を戦闘画面も受けてしまわないように)
+	await _check_boss_talk()
 	_finish()
 
 
@@ -67,19 +75,22 @@ func _check_enter_and_win(main: MainScript) -> void:
 	var slash_hand: int = _hand_index_of(battle_ui, "slash")
 	var slash_deck: int = battle_ui.battle.hand[slash_hand]
 	await _click(_hand_buttons(battle_ui)[slash_hand])
-	_check(run_state.uses_left(slash_deck) == 3, "クリックで斬撃を使うと残り使用回数が 3")
+	var slash_max: int = Cards.CARDS["slash"]["max_uses"]
+	_check(run_state.uses_left(slash_deck) == slash_max - 1, "クリックで斬火を使うと残り使用回数が 1 減る")
 	_check(battle_ui.battle.hand.size() == 4, "使ったカードが手札から消える")
-	_check(battle_ui.battle.enemies[0]["hp"] == 8, "野犬の体力 8")
+	_check(battle_ui.battle.enemies[0]["hp"] == 8, "影の野犬の体力 8")
 	var second_slash: int = _hand_index_of(battle_ui, "slash")
 	var second_slash_deck: int = battle_ui.battle.hand[second_slash]
 	await _press_key(KEY_1 + second_slash)
-	_check(battle_ui.battle.enemies[0]["hp"] == 2, "数字キーで斬撃を使うと野犬の体力 2")
-	_check(run_state.uses_left(second_slash_deck) == 3, "数字キーで使った斬撃も残り使用回数が 3")
+	_check(battle_ui.battle.enemies[0]["hp"] == 2, "数字キーで斬火を使うと影の野犬の体力 2")
+	_check(
+		run_state.uses_left(second_slash_deck) == slash_max - 1, "数字キーで使った斬火も残り使用回数が 1 減る"
+	)
 	var arrow: int = _hand_index_of(battle_ui, "spirit_arrow")
 	var arrow_deck: int = battle_ui.battle.hand[arrow]
 	await _press_key(KEY_1 + arrow)
-	_check(run_state.uses_left(arrow_deck) == 2, "精霊の矢の残り使用回数が 2")
-	_check(battle_ui.battle.outcome == BattleScript.Outcome.WIN, "精霊の矢で倒して勝利")
+	_check(run_state.uses_left(arrow_deck) == 2, "火の粉の残り使用回数が 2")
+	_check(battle_ui.battle.outcome == BattleScript.Outcome.WIN, "火の粉で倒して勝利")
 	_check(battle_ui.next_button.visible, "勝利で「次の戦闘へ」が出る")
 
 
@@ -89,7 +100,11 @@ func _check_next_battle_keeps_uses(main: MainScript) -> void:
 	if battle_ui == null:
 		return
 	var before: Array[Dictionary] = run_state.deck.duplicate(true)
-	_check(before[0]["uses_left"] < 4 or before[1]["uses_left"] < 4, "勝利の時点で斬撃の残りが減っている")
+	var slash_max: int = Cards.CARDS["slash"]["max_uses"]
+	_check(
+		before[0]["uses_left"] < slash_max or before[1]["uses_left"] < slash_max,
+		"勝利の時点で斬火の残りが減っている"
+	)
 	await _click(battle_ui.next_button)
 	_check(run_state.floor_index == 1, "次の戦闘で階層が進む")
 	var battle: BattleScript = battle_ui.battle
@@ -109,14 +124,14 @@ func _check_target_selection(main: MainScript) -> void:
 	_check(battle_ui.message_label.text.contains("対象"), "対象を選ぶ案内が出る")
 	if battle_ui.battle.enemies.size() < 2:
 		return
-	_check(battle_ui.battle.enemies[1]["hp"] == 22, "まだ骸骨兵の体力 22")
+	_check(battle_ui.battle.enemies[1]["hp"] == 22, "まだ骸の巡礼者の体力 22")
 	await _press_key(KEY_2)
-	_check(battle_ui.battle.enemies[1]["hp"] == 16, "2 を押すと骸骨兵に 6 ダメージ")
+	_check(battle_ui.battle.enemies[1]["hp"] == 16, "2 を押すと骸の巡礼者に 6 ダメージ")
 	_check(battle_ui.pending_hand_index == -1, "使ったら対象の選択が終わる")
 	var other_slash: int = _hand_index_of(battle_ui, "slash")
 	var other_slash_uses: int = run_state.uses_left(battle_ui.battle.hand[other_slash])
 	await _press_key(KEY_1 + other_slash)
-	_check(battle_ui.pending_hand_index == other_slash, "2 枚目の斬撃で対象の選択に入る")
+	_check(battle_ui.pending_hand_index == other_slash, "2 枚目の斬火で対象の選択に入る")
 	await _press_key(KEY_ESCAPE)
 	_check(battle_ui.pending_hand_index == -1, "Esc で対象の選択をやめる")
 	_check(
@@ -139,10 +154,10 @@ func _check_hand_fits_after_draw(main: MainScript) -> void:
 	run_state.new_run(["breath", "slash", "slash", "guard", "guard", "guard", "spirit_arrow", "slash"])
 	var breath_hand: int = await _start_battle_with_card_in_hand(battle_ui, "breath")
 	if breath_hand < 0:
-		_check(false, "深呼吸が手札に来るシードが見つかる")
+		_check(false, "灯の精が手札に来るシードが見つかる")
 		return
 	await _press_key(KEY_1 + breath_hand)
-	_check(battle_ui.battle.hand.size() == 6, "深呼吸で手札が 6 枚になる")
+	_check(battle_ui.battle.hand.size() == 6, "灯の精で手札が 6 枚になる")
 	var buttons: Array[Button] = _hand_buttons(battle_ui)
 	_check(buttons.size() == 6, "手札のボタンが 6 枚")
 	for button: Button in buttons:
@@ -198,9 +213,41 @@ func _check_defeat_starts_new_run(main: MainScript) -> void:
 	_check(battle_ui.message_label.text.contains("敗北"), "敗北の案内が出る")
 	await _press_key(KEY_ENTER)
 	_check(run_state.hp == 50 and run_state.floor_index == 0, "敗北の後は新しいランの体力と最初の階層")
-	_check(run_state.deck.size() == 10 and run_state.uses_left(0) == 4, "敗北の後は初期デッキで残りが最大")
+	_check(
+		run_state.deck.size() == Contractors.starter_deck(Contractors.FIRST_CONTRACTOR).size(),
+		"敗北の後は最初の契約者の初期デッキ"
+	)
+	_check(run_state.uses_left(0) == Cards.CARDS["slash"]["max_uses"], "敗北の後は残りが最大")
 	var battle: BattleScript = battle_ui.battle
 	_check(battle.turn == 1 and battle.outcome == BattleScript.Outcome.NONE, "敗北の後に新しい戦闘が始まる")
+
+
+## ボス戦の前の会話: クリックと Enter で台詞が 1 行ずつ進み、最後の台詞でだけ「戦う」が出て、選ぶと finished が
+## 1 度だけ出る
+func _check_boss_talk() -> void:
+	var talk: BossTalkScript = BOSS_TALK_SCENE.instantiate()
+	root.add_child(talk)
+	await _settle()
+	var boss_id: String = Enemies.BOSS_ENCOUNTER[0]
+	var lines: Array = Enemies.ENEMIES[boss_id]["talk"]
+	var finished_count: Array[int] = [0]
+	talk.finished.connect(func() -> void: finished_count[0] += 1)
+	_check(talk.boss_name_label.text == Enemies.ENEMIES[boss_id]["name"], "ボスの名前が出る")
+	_check(talk.line_label.text == lines[0], "最初の台詞が出る")
+	_check(not talk.fight_button.visible, "最初の台詞では「戦う」が出ない")
+	await _click(talk.boss_name_label)
+	_check(talk.line_label.text == lines[1], "クリックで次の台詞へ進む")
+	for _i: int in range(lines.size() - 2):
+		await _press_key(KEY_ENTER)
+	_check(talk.line_label.text == lines[lines.size() - 1], "Enter で最後の台詞まで進む")
+	_check(talk.fight_button.visible, "最後の台詞で「戦う」が出る")
+	_check(finished_count[0] == 0, "最後の台詞を出しただけでは終わらない")
+	await _click(talk.fight_button)
+	_check(finished_count[0] == 1, "「戦う」で finished が出る")
+	await _press_key(KEY_ENTER)
+	_check(finished_count[0] == 1, "finished は 1 度だけ出る")
+	talk.queue_free()
+	await process_frame
 
 
 ## 戦闘画面の手札のボタン (表示中のものだけ)

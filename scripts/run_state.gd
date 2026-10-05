@@ -231,7 +231,10 @@ func save_to(file_path: String) -> Error:
 	file.close()
 	if write_error != OK:
 		return write_error
-	return DirAccess.open(file_path.get_base_dir()).rename(temp_path.get_file(), file_path.get_file())
+	var dir: DirAccess = DirAccess.open(file_path.get_base_dir())
+	if dir == null:
+		return DirAccess.get_open_error()
+	return dir.rename(temp_path.get_file(), file_path.get_file())
 
 
 ## file_path の保存データを読み込む。無ければ NOT_FOUND で状態を変えない。壊れている (JSON でない・形が

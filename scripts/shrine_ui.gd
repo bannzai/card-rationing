@@ -106,7 +106,15 @@ func _build_options() -> void:
 		content, "新しい契約を結ぶ — 3 体から 1 体を選ぶ", show_mode.bind(Mode.CONTRACT)
 	)
 	leave_button = UiKit.add_button(content, "何もせずに立ち去る", leave)
-	renew_button.grab_focus()
+	# 対象のカードが無い選択肢は押せない (更新は残りの減ったカード、破棄は残す枚数を超える分が要る)
+	renew_button.disabled = not range(run_state.deck.size()).any(
+		func(index: int) -> bool: return NodeRules.can_restore(run_state, index)
+	)
+	break_button.disabled = run_state.deck.size() <= NodeRules.MIN_DECK_SIZE
+	for button: Button in [renew_button, break_button, contract_button]:
+		if not button.disabled:
+			button.grab_focus()
+			break
 
 
 ## 新しい契約の候補 3 枚

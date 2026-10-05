@@ -24,15 +24,17 @@
 | ロジック検証 (ゲームのルールの計算・プロジェクト設定・全シーンのロード。一覧は `scripts/dev/selfcheck.gd`) | `make selfcheck` | exit 0 かつ `tmp/selfcheck.log` に `selfcheck OK` が出力され、WARNING / ERROR 行がない |
 | 入力統合テスト (メインシーンを動かし、画面の遷移と入力で変わる振る舞いを確かめる。一覧は `scripts/dev/integration.gd`) | `make integration` | exit 0 かつ `tmp/integration.log` に `integration OK` が出力され、WARNING / ERROR 行がない |
 | headless 検証の一括実行 (lint → check → selfcheck → integration) | `make test` | exit 0 |
-| スクリーンショット (代表画面。headless の検証では見た目の崩れを検出できない) | `make screenshot` | exit 0 かつ `tmp/screenshot-*.png` が生成される |
+| スクリーンショット (代表画面。headless の検証では見た目の崩れを検出できない) | `make screenshot` | exit 0 かつ `tmp/screenshot.log` に `screenshot OK` が出力され、WARNING / ERROR 行がなく、`tmp/screenshot-*.png` が生成される |
 | 起動の録画 (操作なしの起動〜メインシーンの表示。起動直後の描画崩れ・真っ黒を検出する) | `make movie` | exit 0 かつ `tmp/movie.mp4` が生成され、末尾のフレームの輝度平均が基準以上 (ffmpeg が必要) |
 | ゲームをエディタなしで起動 (人が遊んで確かめる。アセットのインポートを含む) | `make run` | ウィンドウが開きメインシーンが表示される |
 | デスクトップエクスポート | `make build-macos` / `make build-windows` / `make build-linux` / `make build-all` | exit 0 で `build/<platform>/` に成果物が生成される |
 
 - 画面や状態を追加したら `scripts/dev/screenshot.gd` の `_capture_scenes()` に撮影を足し、入力で変わる振る舞いは `scripts/dev/integration.gd` に、純粋な計算は `scripts/dev/selfcheck.gd` に検証を足す
 - Godot の起動にはすべて `--log-file` を付ける (Makefile の `ENGINE_LOG`)。付けないと Godot が `user://` にログを書こうとし、書き込みを拒否するサンドボックスでは起動に失敗する
-- ログは `tmp/*.log` に保存して全文を WARNING / ERROR 検査する (`tail` で切り詰めて判定しない)
-- エクスポートには Godot 4.7 の export templates が要る。CI は `.github/actions/setup-godot` が tpz から必要なテンプレートだけを取り出してキャッシュする
+- `--script` で動かす検証 (selfcheck / integration / screenshot と、以後足す target) には `--quit-after` の上限 (Makefile の `SCRIPT_FLAGS`) を付ける。検証スクリプトが実行時エラーで `quit()` に届かないと Godot が終わらず、CI の job が `timeout-minutes` まで待つため。上限で終わった時は exit code が 0 になるので、各 target は完了の行 (`selfcheck OK` 等) で失敗を検出する
+- ログは `tmp/*.log` に保存して全文を WARNING / ERROR 検査する (`tail` で切り詰めて判定しない)。検査は Godot のメッセージの行頭 (`ERROR:` / `WARNING:` / `SCRIPT ERROR:` / `SHADER ERROR:`。Makefile の `LOG_ERROR_PATTERN`) に絞ってあり、カード名や `print` の文に error / warning の語が入っても落ちない
+- スクリプトを追加したら、Godot が生成する `.uid` を commit する (`~/.claude/rules/coding-rules-godot-gdscript-and-project-layout.md`)。このマシンでは Godot を起動しないため、CI の check-and-export が未 commit の `.uid` を見つけると失敗して artifact `card-rationing-uid` に上げる。`gh run download <run ID> -n card-rationing-uid -D .` で取り出して (`scripts/<名前>.gd.uid` の位置にそのまま入る) commit し、push し直す
+- エクスポートには Godot 4.7 の export templates が要る。CI は `.github/actions/setup-godot` が tpz から必要なテンプレートだけを取り出してキャッシュする (キャッシュキーはテンプレートの一覧のハッシュ)
 
 ## 規約
 

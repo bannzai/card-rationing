@@ -14,9 +14,6 @@ inputs:
   templates:
     description: "tpz から取り出す templates/ 配下のファイル (空白区切り。指定した時は version.txt も取り出す。空なら tpz を取得しない)"
     required: true
-  cache_key_suffix:
-    description: "取り出すテンプレートの組み合わせを表すキャッシュキーの接尾辞"
-    required: true
 
 outputs:
   godot:
@@ -26,6 +23,14 @@ outputs:
 runs:
   using: composite
   steps:
+    # キャッシュキーに取り出すテンプレートの一覧のハッシュを入れ、組み合わせが変わったら取り直す
+    # (テンプレートが空の job は空文字列のハッシュになり、エディタバイナリだけのキャッシュと一致する)
+    - name: Hash templates list
+      id: templates
+      shell: bash
+      env:
+        TEMPLATES: ${{ inputs.templates }}
+      run: echo "hash=$(printf '%s' "$TEMPLATES" | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
     - name: Cache Godot binary and export templates
       id: cache-godot
       uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
@@ -33,7 +38,7 @@ runs:
         path: |
           ~/godot-bin
           ~/.local/share/godot/export_templates
-        key: godot-${{ inputs.release }}-${{ inputs.version_dir }}-${{ inputs.cache_key_suffix }}
+        key: godot-${{ inputs.release }}-${{ inputs.version_dir }}-${{ steps.templates.outputs.hash }}
     - name: Install Godot and export templates
       if: steps.cache-godot.outputs.cache-hit != 'true'
       shell: bash

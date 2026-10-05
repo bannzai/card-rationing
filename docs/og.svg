@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <!-- OGP 画像 (docs/og.png) の元。rsvg-convert -w 1200 -h 630 docs/og.svg -o docs/og.png で書き出す -->
+  <rect width="1200" height="630" fill="#14201f"/>
+  <text x="80" y="200" font-family="Hiragino Sans, Noto Sans JP, sans-serif" font-size="88" font-weight="700" fill="#e6ebf0">Card Rationing</text>
+  <text x="80" y="290" font-family="Hiragino Sans, Noto Sans JP, sans-serif" font-size="44" font-weight="700" fill="#e6ebf0">強いカードほど使うのが惜しい</text>
+  <text x="80" y="360" font-family="Hiragino Sans, Noto Sans JP, sans-serif" font-size="30" fill="#b9c7c5">使用回数が冒険を通して減っていくデッキ構築ローグライト</text>
+  <g transform="translate(80 420)">
+    <rect width="150" height="160" rx="10" fill="#e6ebf0"/>
+    <text x="16" y="44" font-family="Hiragino Sans, Noto Sans JP, sans-serif" font-size="26" font-weight="700" fill="#14201f">斬撃</text>
+    <circle cx="30" cy="128" r="9" fill="#e0823d"/><circle cx="56" cy="128" r="9" fill="#e0823d"/><circle cx="82" cy="128" r="9" fill="#e0823d"/><circle cx="108" cy="128" r="9" fill="#e0823d"/>
+  </g>
+  <g transform="translate(260 420)">
+    <rect width="150" height="160" rx="10" fill="#e6ebf0"/>
+    <text x="16" y="44" font-family="Hiragino Sans, Noto Sans JP, sans-serif" font-size="26" font-weight="700" fill="#14201f">雷槍</text>
+    <circle cx="30" cy="128" r="9" fill="#e0823d"/><circle cx="56" cy="128" r="9" fill="none" stroke="#2f4a47" stroke-width="3"/>
+  </g>
+  <g transform="translate(440 420)">
+    <rect width="150" height="160" rx="10" fill="#e6ebf0"/>
+    <text x="16" y="44" font-family="Hiragino Sans, Noto Sans JP, sans-serif" font-size="26" font-weight="700" fill="#14201f">天変</text>
+    <circle cx="30" cy="128" r="9" fill="#e0823d"/>
+  </g>
+</svg>

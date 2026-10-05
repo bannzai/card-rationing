@@ -58,7 +58,7 @@ Slay the Spire 型のデッキ構築ローグライトを遊ぶ PC のプレイ�
 | 2026-10-05 | ロードマップ | BGM と効果音 (#12) は関門 2 の返答を待たず、第 2 弾の後に起動する (音は見た目の方向に依存しないため) | agent |
 | 2026-10-06 | 関門 2 | 名前とデザインは機能っぽいので作り直す。1 回目のモックの方向 A「墨と朱印」・方向 B「星図と青銅」(`documents/design/mock-2026-10-05/`。保存の PR https://github.com/bannzai/card-rationing/pull/17 ) はどちらも採らない。発言の原文は https://github.com/bannzai/card-rationing/issues/16 のコメントに記録 | bannzai |
 | 2026-10-06 | 関門 2 (出し直し) | 見た目の方向は「蝋と灯火」(上の「デザインの方向」)。出し直した 3 方向のうち「彩飾写本」「色ガラス」は採らない | bannzai |
-| 2026-10-06 | 関門 2 (出し直し) | ゲーム名は主人公などが固まってから決める。出した 4 案 (Sigilbound / Thrice Sworn / Waning Seals / Pactworn) はどれも採らない。それまでは仮の名前を agent が決めて使う | bannzai |
+| 2026-10-06 | 関門 2 (出し直し) | ゲーム名は主人公などが固まってから決める。出した 4 案 (Sigilbound / Thrice Sworn / Waning Seals / Pactworn) はどれも正式な名前には採らない。それまでは仮の名前を agent が決めて使う (出した案から選んでもよい) | bannzai |
 | 2026-10-06 | 関門 2 (出し直し) | 識別子の `card-rationing` (リポジトリ名・GitHub Pages の URL・Slack のチャンネル名・CI の artifact 名) は変えない。変えるのは画面・ストア・文書に出るゲーム名だけ | bannzai |
 | 2026-10-06 | 関門 2 (出し直し) | 仮のゲーム名は「Sigilbound」にする (印に縛られた者。世界観「契約の印」から。2026-10-06 の検索で Steam・itch.io に同名なし、商標は未確認)。正式な名前が決まったら置き換える | agent |
 

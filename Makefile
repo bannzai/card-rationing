@@ -8,7 +8,7 @@ GODOT ?= /Applications/Godot.app/Contents/MacOS/Godot
 LOG_DIR := tmp
 # Godot 自身のログの出力先。指定しないと user:// に書こうとし、書き込みを拒否するサンドボックスでは
 # 起動に失敗するため、すべての Godot 起動に付ける ($@ は実行中の target 名)
-ENGINE_LOG = --log-file $(abspath $(LOG_DIR))/$@.godot.log
+ENGINE_LOG = --log-file "$(CURDIR)/$(LOG_DIR)/$@.godot.log"
 
 # 描画付きで起動する target (screenshot / movie) の共通オプション。headless では描画されないため付けない。
 # CI の Linux では Xvfb + Mesa llvmpipe 上で実行する

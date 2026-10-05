@@ -47,7 +47,7 @@ Intellectual property rights in the Game belong to the Provider or to those who 
 
 1. The Provider does not warrant, expressly or implicitly, that the Game is free from factual or legal defects (including defects in safety, reliability, accuracy, completeness, fitness for a particular purpose, errors, bugs, and infringement of rights).
 1. The Provider is not liable for any damage to users arising from the Game. However, this disclaimer does not apply if the contract between the Provider and a user regarding the Game (including these Terms) is a consumer contract under the Consumer Contract Act of Japan.
-1. Even in the case described in the proviso above, the Provider is not liable for damage arising from special circumstances caused by the Provider's negligence (excluding gross negligence). When the Provider compensates for damage, the amount is limited to the price the user paid for the Game.
+1. Even in the case described in the proviso above, the Provider is not liable for damage arising from special circumstances caused by the Provider's negligence (excluding gross negligence). When the Provider compensates for damage caused by the Provider's negligence (excluding gross negligence), the amount is limited to the price the user paid for the Game.
 
 ## Article 9 (Handling of user information)
 

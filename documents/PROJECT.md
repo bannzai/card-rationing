@@ -27,7 +27,7 @@ PC (Steam): Windows / macOS / Linux。理由と制約は ADR 0001。
 
 ## 機能
 
-機能の一覧と、どれを MVP に入れるかは DIRECTION.md「必要な機能」を正とする (関門 1 で bannzai が判断する)。実装はロードマップの親 issue の子 issue で進める。
+機能の一覧と、どれを MVP に入れるかは DIRECTION.md「必要な機能」を正とする (関門 1 で bannzai が判断した)。実装はロードマップの親 issue の子 issue で進める。
 
 ## スコープ外
 

@@ -8,7 +8,10 @@ permissions: {}
 
 jobs:
   human-verification:
-    runs-on: ubuntu-latest
+    # ci.yml と同じく ubuntu-24.04 に固定する (ubuntu-latest は 2026-10-19 から Ubuntu 26 へ移る)
+    runs-on: ubuntu-24.04
+    # PR body の文字列を検査するだけで数秒で終わるため、既定の 360 分ではなく短く打ち切る
+    timeout-minutes: 5
     steps:
       - name: 「## 人間が確認」の未チェック項目を検出する
         env:

@@ -62,7 +62,8 @@ integration: import
 lint:
 	gdlint scripts/
 
-# headless 検証の一括実行 (CI の lint / check-and-export job と同じ内容。描画付きの screenshot / movie は含まない)
+# headless 検証の一括実行 (CI の lint job と、check-and-export job のうちエクスポートを除いた部分。描画付きの
+# screenshot / movie は含まない)
 test: lint check selfcheck integration
 
 # 実際の描画で代表画面を撮影する (headless の検証では見た目の崩れを検出できない)。撮影した PNG は目視してから
@@ -116,7 +117,8 @@ build-linux: import
 build-all: build-macos build-windows build-linux
 
 # ビルド成果物と、この Makefile が tmp/ に書いたログ・撮影・録画だけを消す (tmp/ は agent の作業ファイルも置くため
-# ディレクトリごとは消さない)
+# ディレクトリごとや *.log をまとめては消さない)。ログは target ごとの <target>.log と、ENGINE_LOG の <target>.godot.log
 clean:
 	rm -rf build
-	rm -f $(LOG_DIR)/*.log $(LOG_DIR)/screenshot-*.png $(LOG_DIR)/movie.avi $(LOG_DIR)/movie.mp4
+	rm -f $(foreach target,import check selfcheck integration screenshot movie run build-macos build-windows build-linux,$(LOG_DIR)/$(target).log $(LOG_DIR)/$(target).godot.log)
+	rm -f $(LOG_DIR)/screenshot-*.png $(LOG_DIR)/movie.avi $(LOG_DIR)/movie.mp4

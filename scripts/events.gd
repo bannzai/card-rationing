@@ -82,6 +82,11 @@ static func gained_card(effect: Effect, seed_value: int) -> String:
 	return ""
 
 
+## 契約の入れ替え (deck_size 枚のデッキから released 枚を手放し、英霊 1 枚と契約する) の後のデッキの枚数
+static func swapped_deck_size(deck_size: int, released: int) -> int:
+	return deck_size - released + 1
+
+
 ## 今いる出来事の option_index 番目の選択肢を、picks (選んだデッキの index) で選べるか
 static func can_choose(state: RunStateScript, option_index: int, picks: Array[int]) -> bool:
 	var options: Array = EVENTS[event_for(state.node_seed())]["options"]
@@ -92,7 +97,7 @@ static func can_choose(state: RunStateScript, option_index: int, picks: Array[in
 		return false
 	match option["effect"]:
 		Effect.SWAP:
-			return state.deck.size() - picks.size() >= NodeRules.MIN_DECK_SIZE
+			return swapped_deck_size(state.deck.size(), picks.size()) >= NodeRules.MIN_DECK_SIZE
 		Effect.BLOOD_RESTORE:
 			return state.hp > BLOOD_PRICE and NodeRules.can_restore(state, picks[0])
 	return true

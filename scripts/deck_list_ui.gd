@@ -63,8 +63,9 @@ func _ready() -> void:
 	get_viewport().gui_release_focus()
 
 
-## 開いている間はキーをすべて受け止める。D と Esc で閉じる
-func _unhandled_key_input(event: InputEvent) -> void:
+## 開いている間はキーをすべて受け止める。D と Esc で閉じる。GUI のフォーカス移動 (Tab・矢印) とボタンの
+## 決定 (Enter) で下の画面を操作させないよう、GUI より先に呼ばれる _input() で止める
+func _input(event: InputEvent) -> void:
 	if not (event is InputEventKey):
 		return
 	get_viewport().set_input_as_handled()

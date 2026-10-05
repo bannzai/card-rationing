@@ -355,9 +355,12 @@ func _check_deck_list(main: MainScript) -> void:
 	_check(deck_list.order == DeckListUiScript.Order.USES_LEFT, "残り回数順に切り替えられる")
 	var path_before: int = run_state.path.size()
 	await _press_key(KEY_1)
+	# Tab でフォーカスを地図の節点に移して Enter で押す操作も、一覧が受け止める
+	await _press_key(KEY_TAB)
+	await _press_key(KEY_ENTER)
 	_check(
 		main.screen is MapUiScript and run_state.path.size() == path_before,
-		"契約の一覧を開いている間は地図のキーが効かない"
+		"契約の一覧を開いている間は地図のキー (数字・Tab と Enter) が効かない"
 	)
 	await _press_key(KEY_ESCAPE)
 	_check(main.deck_list == null, "Esc で契約の一覧が閉じる")

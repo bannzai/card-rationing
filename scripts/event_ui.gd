@@ -136,7 +136,13 @@ func _can_start(option_index: int) -> bool:
 		return run_state.hp > Events.BLOOD_PRICE and range(run_state.deck.size()).any(
 			func(index: int) -> bool: return NodeRules.can_restore(run_state, index)
 		)
-	return run_state.deck.size() - option["picks"] >= NodeRules.MIN_DECK_SIZE
+	return (
+		run_state.deck.size() >= option["picks"]
+		and (
+			Events.swapped_deck_size(run_state.deck.size(), option["picks"])
+			>= NodeRules.MIN_DECK_SIZE
+		)
+	)
 
 
 ## カードを選ぶ段階で、デッキの index 番目のカードを選べるか (選んだものは選び直せる)

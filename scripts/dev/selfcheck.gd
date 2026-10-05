@@ -745,6 +745,13 @@ func _check_events() -> void:
 	_check(state.card(state.deck.size() - 1)["bond"] == Cards.Bond.HERO, "入れ替えで得るのは英霊")
 	_check(not Events.choose(state, 1, none), "出来事で選べるのは 1 回だけ")
 	state.free()
+	# 2 枚のデッキでも、2 枚を手放して英霊 1 枚と契約できる (入れ替えの後に 1 枚残る)
+	state = _state_at_event("nameless_grave")
+	var pair: Array[Dictionary] = [{"id": "slash", "uses_left": 4}, {"id": "guard", "uses_left": 4}]
+	state.deck = pair
+	_check(Events.choose(state, 0, two), "2 枚のデッキでも入れ替えられる")
+	_check(state.deck.size() == 1 and state.card(0)["bond"] == Cards.Bond.HERO, "入れ替えの後は英霊 1 枚")
+	state.free()
 	state = _state_at_event("blood_spring")
 	_check(not Events.choose(state, 0, one), "減っていないカードの回数は戻さない")
 	state.use_card(0)

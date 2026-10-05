@@ -274,6 +274,7 @@ func _check_exhausted_deck_battle_and_reward(main: MainScript) -> void:
 		"勝つと所持金を受け取る"
 	)
 	_check(run_state.battles_won == 1, "勝った戦闘の数が 1")
+	_check(root.gui_get_focus_owner() == reward.skip_button, "報酬の画面のフォーカスは「取らずに地図へ戻る」")
 	var card_id: String = reward.offer_buttons.keys()[0]
 	var size_before: int = run_state.deck.size()
 	await _click(reward.offer_buttons[card_id])
@@ -294,6 +295,11 @@ func _check_shrine_restores_uses(main: MainScript) -> void:
 	_check(shrine.deck_grid != null, "「契約を更新する」でカードを選ぶ")
 	if shrine.deck_grid == null or index < 0:
 		return
+	var focused: Control = root.gui_get_focus_owner()
+	_check(
+		focused != null and focused.get_parent() == shrine.deck_grid and not (focused as Button).disabled,
+		"カードを選ぶ段階では押せる最初のカードにフォーカスがある"
+	)
 	var max_uses: int = run_state.card(index)["max_uses"]
 	await _click(shrine.deck_grid.get_child(index) as Button)
 	_check(run_state.uses_left(index) == max_uses, "祠で契約を更新すると残り使用回数が最大に戻る")
@@ -448,8 +454,14 @@ func _check_settings_saved(main: MainScript) -> void:
 	settings_ui.bgm_slider.value = 35
 	settings_ui.se_slider.value = 60
 	_check(settings.bgm_volume == 35 and settings.se_volume == 60, "スライダーで音量が変わる")
-	await _click(settings_ui.back_button)
-	_check(main.screen is TitleUiScript, "設定から戻るとタイトル")
+	# 画面を閉じる前 (戻るを押さずにゲームを終えた時) でも保存されている
+	var saved: SettingsScript = SettingsScript.new()
+	saved.settings_path = INTEGRATION_SETTINGS_PATH
+	saved.load_settings()
+	_check(saved.bgm_volume == 35 and saved.se_volume == 60, "スライダーを動かすたびに保存される")
+	saved.free()
+	await _press_key(KEY_ESCAPE)
+	_check(main.screen is TitleUiScript, "Esc で設定からタイトルへ戻る")
 	settings.bgm_volume = 0
 	settings.se_volume = 0
 	settings.load_settings()

@@ -40,7 +40,8 @@ func _ready() -> void:
 		button.custom_minimum_size = UiKit.CARD_BUTTON_SIZE
 		offer_buttons[card_id] = button
 	skip_button = UiKit.add_button(layout, "取らずに地図へ戻る", skip)
-	offer_buttons.values()[0].grab_focus()
+	# 戦闘の Enter (ターン終了) の続けて押しで、見ずにカードと契約しないよう、取らない方に置く
+	skip_button.grab_focus()
 
 
 ## card_id のカードと契約して地図へ戻る

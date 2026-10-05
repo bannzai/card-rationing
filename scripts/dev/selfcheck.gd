@@ -184,6 +184,8 @@ func _check_save_and_load() -> void:
 	state.gold = 12
 	state.battles_won = 2
 	_check(state.save_to(SELFCHECK_SAVE_PATH) == OK, "保存できる")
+	_check(not FileAccess.file_exists(SELFCHECK_SAVE_PATH + ".tmp"), "保存の後に書きかけのファイルが残らない")
+	_check(state.save_to(SELFCHECK_SAVE_PATH) == OK, "既にある保存データを置き換えて保存できる")
 	_check(
 		other.load_from(SELFCHECK_SAVE_PATH) == RunStateScript.LoadResult.LOADED, "保存データを読み込める"
 	)

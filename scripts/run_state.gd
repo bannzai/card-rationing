@@ -219,14 +219,19 @@ func from_dict(data: Variant) -> bool:
 	return true
 
 
-## path に JSON で保存する
+## file_path に JSON で保存する。file_path + ".tmp" に書き切ってから置き換えるので、書き込みの途中で落ちても
+## 前の保存データは壊れない (戦闘中はカードを使うたびに保存するため)。書き込みに失敗したらそのエラーを返す
 func save_to(file_path: String) -> Error:
-	var file: FileAccess = FileAccess.open(file_path, FileAccess.WRITE)
+	var temp_path: String = file_path + ".tmp"
+	var file: FileAccess = FileAccess.open(temp_path, FileAccess.WRITE)
 	if file == null:
 		return FileAccess.get_open_error()
 	file.store_string(JSON.stringify(to_dict(), "\t"))
+	var write_error: Error = file.get_error()
 	file.close()
-	return OK
+	if write_error != OK:
+		return write_error
+	return DirAccess.open(file_path.get_base_dir()).rename(temp_path.get_file(), file_path.get_file())
 
 
 ## file_path の保存データを読み込む。無ければ NOT_FOUND で状態を変えない。壊れている (JSON でない・形が

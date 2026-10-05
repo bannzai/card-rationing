@@ -1,6 +1,6 @@
 extends Control
-## 設定の画面。BGM と効果音の音量をスライダー (0〜100) で変え、「戻る」で保存して closed を出す。
-## 値は autoload Settings (scripts/settings.gd) に持つ。
+## 設定の画面。BGM と効果音の音量をスライダー (0〜100) で変えるたびに保存し (画面を閉じずにゲームを終えても
+## 残るように)、「戻る」か Esc で closed を出す。値は autoload Settings (scripts/settings.gd) に持つ。
 
 ## 画面を閉じる (呼んだ側が次の画面を出す)
 signal closed
@@ -24,24 +24,34 @@ func _ready() -> void:
 	bgm_slider = _add_volume_row(layout, "BGM の音量", settings.bgm_volume, _on_bgm_changed)
 	se_slider = _add_volume_row(layout, "効果音の音量", settings.se_volume, _on_se_changed)
 	UiKit.add_label(layout, "← → で音量を変える。音そのものは今後の版で鳴る。", 16)
-	back_button = UiKit.add_button(layout, "戻る (保存する)", close)
+	back_button = UiKit.add_button(layout, "戻る (Esc)", closed.emit)
 	bgm_slider.grab_focus()
 
 
-## 設定を保存して閉じる
-func close() -> void:
+## Esc で閉じる
+func _unhandled_key_input(event: InputEvent) -> void:
+	var key_event: InputEventKey = event as InputEventKey
+	if key_event != null and key_event.pressed and key_event.keycode == KEY_ESCAPE:
+		closed.emit()
+
+
+## BGM の音量を変えて保存する
+func _on_bgm_changed(value: float) -> void:
+	settings.bgm_volume = int(value)
+	_save()
+
+
+## 効果音の音量を変えて保存する
+func _on_se_changed(value: float) -> void:
+	settings.se_volume = int(value)
+	_save()
+
+
+## 設定を保存する (失敗したら ERROR を出す)
+func _save() -> void:
 	var status: Error = settings.save_settings()
 	if status != OK:
 		push_error("設定の保存に失敗: %s (%s)" % [settings.settings_path, error_string(status)])
-	closed.emit()
-
-
-func _on_bgm_changed(value: float) -> void:
-	settings.bgm_volume = int(value)
-
-
-func _on_se_changed(value: float) -> void:
-	settings.se_volume = int(value)
 
 
 ## 名前 title と音量のスライダー (値の表示付き) の行を parent に足し、スライダーを返す

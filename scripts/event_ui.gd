@@ -57,6 +57,10 @@ func toggle_pick(index: int) -> void:
 	elif picks.size() < event["options"][pending_option]["picks"]:
 		picks.append(index)
 	_rebuild()
+	# 作り直した格子でも、いま選んだカードにフォーカスを残す (キーボードで続けて選べるように)
+	var button: Button = deck_grid.get_child(index)
+	if not button.disabled:
+		button.grab_focus()
 
 
 ## 選んだカードで決める

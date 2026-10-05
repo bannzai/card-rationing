@@ -104,7 +104,7 @@ static func status_text(state: RunStateScript) -> String:
 
 
 ## parent にデッキの全カードのボタンを格子で並べる。enabled.call(index) が false のカードは押せず、押したら
-## on_pick.call(index) を呼ぶ。並べた格子を返す
+## on_pick.call(index) を呼ぶ。押せる最初のカードにフォーカスを置く (キーボードだけで選べるように)。並べた格子を返す
 static func add_deck_grid(
 	parent: Control, state: RunStateScript, enabled: Callable, on_pick: Callable
 ) -> GridContainer:
@@ -125,4 +125,8 @@ static func add_deck_grid(
 		button.disabled = not enabled.call(index)
 		button.pressed.connect(on_pick.bind(index))
 		grid.add_child(button)
+	for button: Button in grid.get_children():
+		if not button.disabled:
+			button.grab_focus()
+			break
 	return grid

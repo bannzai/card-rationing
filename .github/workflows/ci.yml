@@ -38,7 +38,6 @@ jobs:
             templates/windows_release_x86_64.exe templates/windows_debug_x86_64.exe
             templates/windows_release_x86_64_console.exe templates/windows_debug_x86_64_console.exe
             templates/macos.zip
-          cache_key_suffix: desktop
       - name: Import assets and boot check
         run: make check GODOT="${{ steps.godot.outputs.godot }}"
       - name: Selfcheck
@@ -51,6 +50,36 @@ jobs:
       # (macOS は export 自体が zip、Windows は実行権限を使わない)
       - name: Package Linux build
         run: tar -czf build/card-rationing-linux.tar.gz -C build linux
+      # import が生成した .uid / .import が commit されていなければ失敗させ、artifact に上げる (開発マシンでは Godot を
+      # 起動しないため、ここで取り出して commit する。手順は AGENTS.md「検証方法」、方針は documents/DIRECTION.md)。
+      # 検証とエクスポートの結果を隠さないよう最後に置く
+      - name: Check untracked generated files (.uid / .import)
+        id: generated
+        if: always()
+        run: |
+          # 未追跡のものに加え、commit 済みで Godot が書き換えたもの (版の更新で中身が変わる等) も対象にする
+          untracked=$(git ls-files --others --modified --exclude-standard -- '*.uid' '*.import' | sort -u)
+          if [ -z "$untracked" ]; then
+            echo "未 commit の .uid / .import はありません"
+            exit 0
+          fi
+          mkdir -p tmp/generated
+          printf '%s\n' "$untracked" | while IFS= read -r file; do
+            if [ -f "$file" ]; then
+              cp --parents "$file" tmp/generated/
+            fi
+          done
+          printf '%s\n' "$untracked"
+          echo "::error::未 commit の .uid / .import が $(printf '%s\n' "$untracked" | wc -l) 件あります。artifact card-rationing-generated を取り出して commit してください (AGENTS.md「検証方法」)"
+          exit 1
+      - name: Upload untracked generated files
+        if: always() && steps.generated.outcome == 'failure'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: card-rationing-generated
+          path: tmp/generated/
+          if-no-files-found: error
+          retention-days: 7
       - name: Upload logs
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -82,7 +111,6 @@ jobs:
         with:
           # エディタバイナリで動かすため export templates は要らない (tpz を取得しない)
           templates: ""
-          cache_key_suffix: editor-only
       - name: Start Xvfb with software GL
         run: |
           sudo apt-get update -qq

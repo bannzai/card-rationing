@@ -224,6 +224,8 @@ func _check_corrupt_save() -> void:
 	_check(state.load_from(SELFCHECK_SAVE_PATH) == RunStateScript.LoadResult.LOADED, "土台の保存データは読み込める")
 	_check(state.hp == 1 and state.deck.is_empty(), "土台の保存データの値が入る")
 	state.free()
+	# 上のループが最後に退避した .corrupt が残っているため、読めないデータの検証の前に消す
+	_remove_user_file(corrupt_path)
 	_check_unreadable_save(corrupt_path)
 	_remove_user_file(SELFCHECK_SAVE_PATH)
 	_remove_user_file(corrupt_path)

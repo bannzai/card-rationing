@@ -37,4 +37,4 @@ PC (Steam): Windows / macOS / Linux。理由と制約は ADR 0001。
 
 ## 未決
 
-- 残り回数が 0 になったカードの扱いと、全カードを使い切った時の扱い (`.claude/rules/card-uses-persist-across-run.md`)
+なし (残り回数が 0 になったカードの扱いと、全カードを使い切った時の扱いは DIRECTION.md「決めたこと」で決めた)

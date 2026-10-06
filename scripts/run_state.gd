@@ -144,12 +144,14 @@ func load_from(path: String) -> LoadResult:
 		if FileAccess.get_open_error() == ERR_FILE_NOT_FOUND:
 			return LoadResult.NOT_FOUND
 		return LoadResult.READ_ERROR
-	var text: String = file.get_as_text()
-	# 途中までしか読めなかった時も、壊れたデータと区別して退避しない (末尾に達した ERR_FILE_EOF は正常)
-	var read_error: Error = file.get_error()
+	# get_as_text() は途中までしか読めない時に空文字列と ERROR を出して壊れたデータと区別できないため、
+	# 長さを決めてバイト列で読み、足りなければ退避せずに READ_ERROR にする
+	var length: int = file.get_length()
+	var bytes: PackedByteArray = file.get_buffer(length)
 	file.close()
-	if read_error != OK and read_error != ERR_FILE_EOF:
+	if bytes.size() != length:
 		return LoadResult.READ_ERROR
+	var text: String = bytes.get_string_from_utf8()
 	# JSON.parse_string() は失敗時に ERROR を出すため、エラーを出さない JSON.parse() で解釈する
 	var json: JSON = JSON.new()
 	if json.parse(text) == OK and from_dict(json.data):

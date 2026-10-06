@@ -232,7 +232,7 @@ func _check_corrupt_save() -> void:
 
 
 ## 読めない保存データ (chmod 000) は READ_ERROR で、退避も状態の変更もしない。chmod が効かない環境
-## (Windows、root で実行される CI) では検証を飛ばす
+## (Windows、root で実行される環境) では検証を飛ばす (CI の ubuntu-24.04 ランナーは root でないため飛ばさない)
 func _check_unreadable_save(corrupt_path: String) -> void:
 	var global_path: String = ProjectSettings.globalize_path(SELFCHECK_SAVE_PATH)
 	if OS.execute("chmod", ["000", global_path]) != 0:

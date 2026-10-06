@@ -44,8 +44,8 @@ func _ready() -> void:
 	var row: HBoxContainer = HBoxContainer.new()
 	row.add_theme_constant_override("separation", 12)
 	layout.add_child(row)
-	strength_button = UiKit.add_button(row, "強さ順", set_order.bind(Order.STRENGTH))
-	uses_button = UiKit.add_button(row, "残り回数順", set_order.bind(Order.USES_LEFT))
+	strength_button = UiKit.add_button(row, "強さ順 (1)", set_order.bind(Order.STRENGTH))
+	uses_button = UiKit.add_button(row, "残り回数順 (2)", set_order.bind(Order.USES_LEFT))
 	close_button = UiKit.add_button(row, "閉じる (D / Esc)", closed.emit)
 	for button: Button in [strength_button, uses_button, close_button]:
 		button.focus_mode = Control.FOCUS_NONE
@@ -63,15 +63,23 @@ func _ready() -> void:
 	get_viewport().gui_release_focus()
 
 
-## 開いている間はキーをすべて受け止める。D と Esc で閉じる。GUI のフォーカス移動 (Tab・矢印) とボタンの
-## 決定 (Enter) で下の画面を操作させないよう、GUI より先に呼ばれる _input() で止める
+## 開いている間のキー入力をすべて受け止め、下の画面に渡さない (GUI より先に呼ばれるため、フォーカス移動と
+## 決定のキーで下の画面のボタンも押させない)
 func _input(event: InputEvent) -> void:
 	if not (event is InputEventKey):
 		return
 	get_viewport().set_input_as_handled()
 	var key_event: InputEventKey = event
-	if key_event.pressed and not key_event.echo and key_event.keycode in [KEY_D, KEY_ESCAPE]:
-		closed.emit()
+	if not key_event.pressed:
+		return
+	match key_event.keycode:
+		KEY_D, KEY_ESCAPE:
+			if not key_event.echo:
+				closed.emit()
+		KEY_1:
+			set_order(Order.STRENGTH)
+		KEY_2:
+			set_order(Order.USES_LEFT)
 
 
 ## 並べ方を next_order にして一覧を作り直す

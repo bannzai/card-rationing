@@ -361,6 +361,9 @@ func _check_deck_list(main: MainScript) -> void:
 	_check(deck_list.order == DeckListUiScript.Order.USES_LEFT, "残り回数順に切り替えられる")
 	var path_before: int = run_state.path.size()
 	await _press_key(KEY_1)
+	_check(deck_list.order == DeckListUiScript.Order.STRENGTH, "1 で強さ順に切り替えられる")
+	await _press_key(KEY_2)
+	_check(deck_list.order == DeckListUiScript.Order.USES_LEFT, "2 で残り回数順に切り替えられる")
 	# Tab でフォーカスを地図の節点に移して Enter で押す操作も、一覧が受け止める
 	await _press_key(KEY_TAB)
 	await _press_key(KEY_ENTER)

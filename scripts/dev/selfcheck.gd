@@ -5,13 +5,45 @@ extends "res://scripts/dev/headless_check.gd"
 const RunStateScript := preload("res://scripts/run_state.gd")
 const BattleScript := preload("res://scripts/battle.gd")
 const Cards := preload("res://scripts/cards.gd")
+const Contractors := preload("res://scripts/contractors.gd")
 const Enemies := preload("res://scripts/enemies.gd")
 
 ## 起動検証 (main_scene の --quit) ではロードされない遷移先も含めた全シーン
 const SCENES: Array[String] = [
 	"res://scenes/main.tscn",
 	"res://scenes/battle.tscn",
+	"res://scenes/boss_talk.tscn",
 ]
+## 1 幕の中身の量 (issue #9 の指定): カードの種類の数・敵の格ごとの種類の数・ボスの台詞の行数・初期デッキの枚数
+const CARD_COUNT_RANGE: Array[int] = [25, 30]
+const RANK_COUNT_RANGES: Dictionary = {
+	Enemies.Rank.NORMAL: [6, 8], Enemies.Rank.ELITE: [2, 2], Enemies.Rank.BOSS: [1, 1]
+}
+const TALK_LINES_RANGE: Array[int] = [2, 4]
+const STARTER_DECK_SIZE_RANGE: Array[int] = [8, 12]
+## 初期デッキの英霊の枚数の上限 (初期デッキは弱いが回数の多い精霊を中心にする)
+const STARTER_HERO_LIMIT: int = 2
+## 全カードに占める種別ごとの割合の範囲 (どの種別も 2 割以上・5 割以下)
+const KIND_SHARE_RANGE: Array[float] = [0.2, 0.5]
+## カードの定義の値の範囲 (キー → [最小, 最大])。最大使用回数は区分ごとの BOND_USES_RANGES でも絞る
+const CARD_VALUE_RANGES: Dictionary = {
+	"cost": [0, 3],
+	"max_uses": [1, 6],
+	"damage": [1, 30],
+	"hits": [1, 4],
+	"block": [1, 30],
+	"draw": [1, 3],
+	"energy": [1, 3],
+}
+## 契約の相手の区分ごとの最大使用回数の範囲 (精霊は回数が多め、英霊は少ない)
+const BOND_USES_RANGES: Dictionary = {Cards.Bond.SPIRIT: [2, 6], Cards.Bond.HERO: [1, 2]}
+## 敵の体力と、行動の値・回数の範囲
+const ENEMY_HP_RANGE: Array[int] = [1, 300]
+const MOVE_VALUE_RANGE: Array[int] = [1, 40]
+const MOVE_HITS_RANGE: Array[int] = [1, 5]
+## 短い文言 (カード・敵・契約者の名前、カードの効果の文) に使わない句読点
+## (~/.claude/rules/coding-rules-general-user-facing-short-copy-punctuation.md)
+const SHORT_COPY_PUNCTUATION: Array[String] = ["、", "。", "，", "．"]
 ## 起動時に表示するシーン
 const MAIN_SCENE_PATH: String = "res://scenes/main.tscn"
 ## ADR 0001 で決めたレンダラ (CI の Xvfb + Mesa llvmpipe で描画できるもの)
@@ -26,11 +58,16 @@ func _initialize() -> void:
 	_check_project_settings()
 	_check_scenes_load()
 	_check_cards()
+	_check_strength_and_uses()
+	_check_contractors()
 	_check_enemies()
+	_check_encounters()
 	_check_run_state_uses()
 	_check_save_and_load()
 	_check_corrupt_save()
 	_check_battle_turn()
+	_check_battle_effects()
+	_check_enemy_intent_order()
 	_check_battle_outcomes()
 	_check_battle_keeps_uses()
 	_check_draw_with_small_deck()
@@ -66,70 +103,199 @@ func _check_scenes_load() -> void:
 			node.free()
 
 
-## カードの定義: 1 枚以上あり、最大使用回数が 1 以上、種別が揃い、初期デッキが定義済みのカードだけからなる
+## カードの定義: 種類の数・各値の範囲・区分ごとの最大使用回数・種別の割合・名前と効果の文、効果のキーと種別の対応
 func _check_cards() -> void:
-	_check(Cards.CARDS.size() >= 1, "カードが 1 枚以上ある")
-	var kinds: Dictionary = {}
+	_check(_in_range(Cards.CARDS.size(), CARD_COUNT_RANGE), "カードが 25〜30 種")
+	var kind_counts: Dictionary = {}
 	for card_id: String in Cards.CARDS:
 		var card: Dictionary = Cards.CARDS[card_id]
-		_check(card["max_uses"] >= 1, "最大使用回数が 1 以上: %s" % card_id)
-		_check(card["cost"] >= 0, "コストが 0 以上: %s" % card_id)
+		for key: String in CARD_VALUE_RANGES:
+			if card.has(key):
+				_check(_in_range(card[key], CARD_VALUE_RANGES[key]), "%s が範囲内: %s" % [key, card_id])
+		_check(
+			_in_range(card["max_uses"], BOND_USES_RANGES[card["bond"]]),
+			"最大使用回数が区分の範囲内: %s" % card_id
+		)
 		_check(not card["name"].is_empty(), "名前がある: %s" % card_id)
 		_check(
-			card.has("damage") or card.has("block") or card.has("draw"), "効果がある: %s" % card_id
+			card.has("damage") or card.has("block") or card.has("draw") or card.has("energy"),
+			"効果がある: %s" % card_id
 		)
 		_check(not Cards.effect_text(card_id).is_empty(), "効果の文がある: %s" % card_id)
-		# battle.play() は対象の有無を needs_target で、ダメージの適用を damage の有無で見るため、両者を一致させる
-		_check(card.has("damage") == Cards.needs_target(card_id), "ダメージを持つのは攻撃だけ: %s" % card_id)
-		kinds[card["kind"]] = true
+		_check(
+			_is_short_copy(card["name"]) and _is_short_copy(Cards.effect_text(card_id)),
+			"名前と効果の文に句読点が無い: %s" % card_id
+		)
+		# battle.play() はダメージの適用を damage の有無で、対象の有無を needs_target で見る。攻撃だけがダメージを持ち、
+		# hits と area はダメージの付け足しなので攻撃だけが持つ
+		var attack: bool = card["kind"] == Cards.Kind.ATTACK
+		_check(card.has("damage") == attack, "ダメージを持つのは攻撃だけで、攻撃はすべて持つ: %s" % card_id)
+		_check(attack or not (card.has("hits") or card.has("area")), "hits と area は攻撃だけ: %s" % card_id)
+		_check(
+			Cards.needs_target(card_id) == (attack and not card.get("area", false)),
+			"全体攻撃でない攻撃だけが対象を取る: %s" % card_id
+		)
+		kind_counts[card["kind"]] = kind_counts.get(card["kind"], 0) + 1
 	for kind: int in [Cards.Kind.ATTACK, Cards.Kind.GUARD, Cards.Kind.SKILL]:
-		_check(kinds.has(kind), "種別 %d のカードがある" % kind)
-	_check(not Cards.STARTER_DECK.is_empty(), "初期デッキが定義されている")
-	var has_target_attack: bool = false
-	var has_single_use: bool = false
-	for card_id: String in Cards.STARTER_DECK:
-		_check(Cards.CARDS.has(card_id), "初期デッキのカードが定義済み: %s" % card_id)
-		if not Cards.CARDS.has(card_id):
-			continue
-		has_target_attack = has_target_attack or Cards.needs_target(card_id)
-		has_single_use = has_single_use or Cards.CARDS[card_id]["max_uses"] == 1
-	_check(has_target_attack, "初期デッキに対象を選ぶ攻撃がある")
-	_check(has_single_use, "初期デッキに最大使用回数 1 のカードがある")
+		var share: float = float(kind_counts.get(kind, 0)) / Cards.CARDS.size()
+		_check(
+			share >= KIND_SHARE_RANGE[0] and share <= KIND_SHARE_RANGE[1],
+			"種別 %d のカードの割合が 2〜5 割 (%.2f)" % [kind, share]
+		)
+	# 強さの定義 (documents/DIRECTION.md「決めたこと」) の基準のカードと、全体攻撃・引く・エネルギーの点数
+	_check(is_equal_approx(Cards.strength("slash"), 3.0), "斬火の強さが 3")
+	_check(is_equal_approx(Cards.strength("hero_strike"), 6.0), "雷槍の英霊の強さが 6")
+	_check(is_equal_approx(Cards.strength("ember_wave"), 3.0), "熾火の波 (全体攻撃 4) の強さが 3")
+	_check(is_equal_approx(Cards.strength("lantern_row"), 4.5), "灯の連なり (2 枚引く + エネルギー 1) の強さが 4.5")
 
 
-## 敵の定義: 2 種類以上あり、体力が 1 以上、行動の候補があり、階層ごとの組み合わせが定義済みの敵だけからなる
+## 強さと最大使用回数の関係: 同じ種別の中で、強さが高いカードほど最大使用回数が多くならない (強さが同じなら
+## 制約しない)。同じ種別の英霊はどの精霊よりも強い
+func _check_strength_and_uses() -> void:
+	for stronger: String in Cards.CARDS:
+		for weaker: String in Cards.CARDS:
+			var a: Dictionary = Cards.CARDS[stronger]
+			var b: Dictionary = Cards.CARDS[weaker]
+			if a["kind"] != b["kind"]:
+				continue
+			if Cards.strength(stronger) > Cards.strength(weaker):
+				_check(
+					a["max_uses"] <= b["max_uses"],
+					"強い %s の最大使用回数が弱い %s 以下" % [stronger, weaker]
+				)
+			if a["bond"] == Cards.Bond.HERO and b["bond"] == Cards.Bond.SPIRIT:
+				_check(
+					Cards.strength(stronger) > Cards.strength(weaker),
+					"英霊 %s が同じ種別の精霊 %s より強い" % [stronger, weaker]
+				)
+
+
+## 契約者の定義: 名前と設定があり、初期デッキが 8〜12 枚で定義済みのカードだけからなり、英霊が 2 枚以下で、
+## 対象を選ぶ攻撃と最大使用回数 1 のカードを含む
+func _check_contractors() -> void:
+	_check(Contractors.CONTRACTORS.has(Contractors.FIRST_CONTRACTOR), "最初の契約者が定義済み")
+	for contractor_id: String in Contractors.CONTRACTORS:
+		var contractor: Dictionary = Contractors.CONTRACTORS[contractor_id]
+		_check(
+			not contractor["name"].is_empty() and _is_short_copy(contractor["name"]),
+			"契約者の名前があり句読点が無い: %s" % contractor_id
+		)
+		_check(not contractor["story"].is_empty(), "契約者の設定がある: %s" % contractor_id)
+		var deck: Array[String] = Contractors.starter_deck(contractor_id)
+		_check(_in_range(deck.size(), STARTER_DECK_SIZE_RANGE), "初期デッキが 8〜12 枚: %s" % contractor_id)
+		var heroes: int = 0
+		var has_target_attack: bool = false
+		var has_single_use: bool = false
+		for card_id: String in deck:
+			_check(Cards.CARDS.has(card_id), "初期デッキのカードが定義済み: %s" % card_id)
+			if not Cards.CARDS.has(card_id):
+				continue
+			if Cards.CARDS[card_id]["bond"] == Cards.Bond.HERO:
+				heroes += 1
+			has_target_attack = has_target_attack or Cards.needs_target(card_id)
+			has_single_use = has_single_use or Cards.CARDS[card_id]["max_uses"] == 1
+		_check(heroes <= STARTER_HERO_LIMIT, "初期デッキの英霊が 2 枚以下: %s" % contractor_id)
+		_check(has_target_attack, "初期デッキに対象を選ぶ攻撃がある: %s" % contractor_id)
+		_check(has_single_use, "初期デッキに最大使用回数 1 のカードがある: %s" % contractor_id)
+
+
+## 敵の定義: 格ごとの種類の数、名前、体力と行動の値の範囲、会話の台詞を持つのはボスだけで 2〜4 行
 func _check_enemies() -> void:
-	_check(Enemies.ENEMIES.size() >= 2, "敵が 2 種類以上ある")
+	var rank_counts: Dictionary = {}
 	for enemy_id: String in Enemies.ENEMIES:
 		var enemy: Dictionary = Enemies.ENEMIES[enemy_id]
-		_check(enemy["hp"] >= 1, "体力が 1 以上: %s" % enemy_id)
+		_check(
+			not enemy["name"].is_empty() and _is_short_copy(enemy["name"]),
+			"敵の名前があり句読点が無い: %s" % enemy_id
+		)
+		_check(_in_range(enemy["hp"], ENEMY_HP_RANGE), "体力が範囲内: %s" % enemy_id)
 		_check(not enemy["moves"].is_empty(), "行動の候補がある: %s" % enemy_id)
-	_check(not Enemies.ENCOUNTERS.is_empty(), "敵の組み合わせが定義されている")
-	for floor_index: int in range(Enemies.ENCOUNTERS.size() + 1):
+		for move: Dictionary in enemy["moves"]:
+			var attack: bool = move["move"] == Enemies.Move.ATTACK
+			_check(attack or move["move"] == Enemies.Move.GUARD, "行動の種別が定義済み: %s" % enemy_id)
+			_check(_in_range(move["value"], MOVE_VALUE_RANGE), "行動の値が範囲内: %s" % enemy_id)
+			_check(_in_range(move.get("hits", 1), MOVE_HITS_RANGE), "攻撃の回数が範囲内: %s" % enemy_id)
+			_check(attack or not move.has("hits"), "hits は攻撃だけ: %s" % enemy_id)
+		var rank: int = enemy["rank"]
+		rank_counts[rank] = rank_counts.get(rank, 0) + 1
+		_check(enemy.has("talk") == (rank == Enemies.Rank.BOSS), "会話の台詞を持つのはボスだけ: %s" % enemy_id)
+		if enemy.has("talk"):
+			_check(_in_range(enemy["talk"].size(), TALK_LINES_RANGE), "ボスの台詞が 2〜4 行: %s" % enemy_id)
+			for line: String in enemy["talk"]:
+				_check(not line.is_empty(), "ボスの台詞が空でない: %s" % enemy_id)
+	for rank: int in RANK_COUNT_RANGES:
+		_check(
+			_in_range(rank_counts.get(rank, 0), RANK_COUNT_RANGES[rank]),
+			"格 %d の敵の種類の数が範囲内 (%d)" % [rank, rank_counts.get(rank, 0)]
+		)
+
+
+## 敵の組み合わせ: 候補が定義済みの同じ格の敵だけからなり、全部の敵がどこかに出て、後半の敵は前半より体力が多く、
+## ボスはどの強敵より体力が多い。仮の道順 (地図ができるまで) はボスで終わる
+func _check_encounters() -> void:
+	var used: Dictionary = {}
+	for late_half: bool in [false, true]:
+		for rank: int in [Enemies.Rank.NORMAL, Enemies.Rank.ELITE, Enemies.Rank.BOSS]:
+			var candidates: Array = Enemies.encounter_candidates(rank, late_half)
+			_check(not candidates.is_empty(), "格 %d・後半 %s の候補がある" % [rank, late_half])
+			for ids: Array in candidates:
+				_check(not ids.is_empty(), "組み合わせに敵がいる: %s" % [ids])
+				for enemy_id: String in ids:
+					var defined: bool = Enemies.ENEMIES.has(enemy_id)
+					_check(defined, "組み合わせの敵が定義済み: %s" % enemy_id)
+					if defined:
+						_check(Enemies.ENEMIES[enemy_id]["rank"] == rank, "組み合わせの格が敵の格と同じ: %s" % enemy_id)
+						used[enemy_id] = true
+	for enemy_id: String in Enemies.ENEMIES:
+		_check(used.has(enemy_id), "敵が組み合わせのどこかに出る: %s" % enemy_id)
+	_check(
+		(
+			_encounter_hps(Enemies.Rank.NORMAL, true).min()
+			> _encounter_hps(Enemies.Rank.NORMAL, false).max()
+		),
+		"後半の敵はどれも前半の敵より体力が多い"
+	)
+	var late_elite: Array[int] = _encounter_hps(Enemies.Rank.ELITE, true)
+	_check(
+		late_elite.min() > _encounter_hps(Enemies.Rank.ELITE, false).max(),
+		"後半の強敵は前半の強敵より体力が多い"
+	)
+	_check(
+		_encounter_hps(Enemies.Rank.BOSS, false).min() > late_elite.max(),
+		"ボスはどの強敵より体力が多い"
+	)
+	var route: Array = Enemies.provisional_route()
+	for floor_index: int in range(route.size() + 1):
 		var ids: Array[String] = Enemies.encounter_for_floor(floor_index)
-		_check(not ids.is_empty(), "階層 %d に敵がいる" % floor_index)
+		_check(not ids.is_empty(), "仮の道順の階層 %d に敵がいる" % floor_index)
 		for enemy_id: String in ids:
 			_check(Enemies.ENEMIES.has(enemy_id), "階層 %d の敵が定義済み: %s" % [floor_index, enemy_id])
+	_check(
+		Enemies.encounter_for_floor(route.size() - 1) == Enemies.BOSS_ENCOUNTER,
+		"仮の道順の最後の階層がボス"
+	)
 
 
 ## 残り使用回数: 使うと 1 減り、0 (契約切れ) では使えず、回復で戻る (最大を超えない)。体力は 0 未満にならない
 func _check_run_state_uses() -> void:
 	var state: RunStateScript = RunStateScript.new()
 	state.new_run()
-	_check(state.deck.size() == Cards.STARTER_DECK.size(), "新しいランのデッキが初期デッキと同じ枚数")
-	var single: int = Cards.STARTER_DECK.find("hero_strike")
-	var slash: int = Cards.STARTER_DECK.find("slash")
+	var starter: Array[String] = Contractors.starter_deck(Contractors.FIRST_CONTRACTOR)
+	_check(state.deck.size() == starter.size(), "新しいランのデッキが最初の契約者の初期デッキと同じ枚数")
+	var single: int = starter.find("hero_strike")
+	var slash: int = starter.find("slash")
+	var slash_max: int = Cards.CARDS["slash"]["max_uses"]
 	_check(state.uses_left(single) == 1 and state.can_use(single), "最大使用回数 1 のカードが使える")
 	_check(state.use_card(single), "使うと true")
 	_check(state.uses_left(single) == 0 and not state.can_use(single), "残り 0 で契約切れ (使えない)")
 	_check(not state.use_card(single), "契約切れのカードは使えず false")
 	_check(state.uses_left(single) == 0, "契約切れのカードを使おうとしても減らない")
 	_check(state.restore_uses(single, 1) == 1 and state.can_use(single), "1 回の回復で使えるようになる")
-	_check(state.use_card(slash) and state.use_card(slash), "斬撃を 2 回使える")
-	_check(state.uses_left(slash) == 2, "斬撃の残りが 2")
-	_check(state.restore_uses(slash, 1) == 3, "1 回の回復で 3")
-	_check(state.restore_uses(slash, 99) == 4, "回復は最大使用回数を超えない")
-	_check(state.restore_uses(slash) == 4, "回数を省いた回復は最大まで戻す")
+	_check(state.use_card(slash) and state.use_card(slash), "斬火を 2 回使える")
+	_check(state.uses_left(slash) == slash_max - 2, "斬火の残りが 2 減る")
+	_check(state.restore_uses(slash, 1) == slash_max - 1, "1 回の回復で 1 戻る")
+	_check(state.restore_uses(slash, 99) == slash_max, "回復は最大使用回数を超えない")
+	_check(state.restore_uses(slash) == slash_max, "回数を省いた回復は最大まで戻す")
 	state.take_damage(10)
 	_check(state.hp == 40, "10 のダメージで体力 40")
 	state.take_damage(100)
@@ -151,7 +317,7 @@ func _check_save_and_load() -> void:
 	_check(other.deck == state.deck, "NOT_FOUND では状態を変えない")
 	state.use_card(0)
 	state.use_card(0)
-	state.use_card(Cards.STARTER_DECK.find("hero_strike"))
+	state.use_card(Contractors.starter_deck(Contractors.FIRST_CONTRACTOR).find("hero_strike"))
 	state.take_damage(7)
 	state.advance_floor()
 	state.gold = 12
@@ -249,7 +415,9 @@ func _check_unreadable_save(corrupt_path: String) -> void:
 	state.use_card(0)
 	var result: RunStateScript.LoadResult = state.load_from(SELFCHECK_SAVE_PATH)
 	_check(result == RunStateScript.LoadResult.READ_ERROR, "読めない保存データは READ_ERROR")
-	_check(state.uses_left(0) == 3, "READ_ERROR では状態を変えない")
+	_check(
+		state.uses_left(0) == Cards.CARDS["slash"]["max_uses"] - 1, "READ_ERROR では状態を変えない"
+	)
 	OS.execute("chmod", ["644", global_path])
 	_check(FileAccess.file_exists(SELFCHECK_SAVE_PATH), "読めない保存データは退避されず残る")
 	_check(not FileAccess.file_exists(corrupt_path), "読めない保存データは .corrupt を作らない")
@@ -264,23 +432,26 @@ func _check_battle_turn() -> void:
 	battle.start(state, ["wild_dog"], 1)
 	_check(battle.hand.size() == 5 and battle.draw_pile.is_empty(), "開始時に 5 枚引く")
 	_check(battle.energy == 3 and battle.turn == 1, "開始時のエネルギー 3・ターン 1")
-	_check(battle.enemies.size() == 1 and battle.enemies[0]["hp"] == 14, "野犬の体力 14")
+	_check(battle.enemies.size() == 1 and battle.enemies[0]["hp"] == 14, "影の野犬の体力 14")
 	battle.enemies[0]["block"] = 4
-	_check(battle.play(_hand_index_of(battle, state, "slash"), 0), "斬撃を使える")
+	_check(battle.play(_hand_index_of(battle, state, "slash"), 0), "斬火を使える")
 	_check(battle.enemies[0]["hp"] == 12 and battle.enemies[0]["block"] == 0, "防御 4 が先に受けて体力 12")
-	_check(battle.energy == 2 and state.uses_left(0) == 3, "コスト 1 を払い残り使用回数が 3")
+	_check(
+		battle.energy == 2 and state.uses_left(0) == Cards.CARDS["slash"]["max_uses"] - 1,
+		"コスト 1 を払い残り使用回数が 1 減る"
+	)
 	var deck_before_struggle: Array[Dictionary] = state.deck.duplicate(true)
 	_check(battle.struggle(0) and battle.enemies[0]["hp"] == 10, "もがくで 2 ダメージ")
 	_check(state.deck == deck_before_struggle, "もがくは残りのあるカードの残り使用回数も減らさない")
 	_check(battle.energy == 1, "もがくのコスト 1")
 	battle.energy = 2
 	_check(battle.hand.size() == 4 and battle.discard_pile.size() == 1, "使ったカードは捨て札へ")
-	_check(battle.play(_hand_index_of(battle, state, "guard")), "守りを使える")
+	_check(battle.play(_hand_index_of(battle, state, "guard")), "守りの風を使える")
 	_check(battle.block == 5 and battle.energy == 1, "防御 5・エネルギー 1")
 	_check(not battle.can_play(_hand_index_of(battle, state, "hero_strike")), "コスト 2 は払えない")
-	_check(battle.play(_hand_index_of(battle, state, "breath")), "深呼吸を使える")
+	_check(battle.play(_hand_index_of(battle, state, "breath")), "灯の精を使える")
 	_check(battle.hand.size() == 4 and battle.discard_pile.is_empty(), "捨て札を混ぜ直して 2 枚引く")
-	_check(battle.play(_hand_index_of(battle, state, "spirit_arrow"), 0), "精霊の矢を使える")
+	_check(battle.play(_hand_index_of(battle, state, "spirit_arrow"), 0), "火の粉を使える")
 	_check(battle.enemies[0]["hp"] == 7, "体力 7")
 	# 予告を固定して、防御 5 を超えた攻撃 7 の分だけ体力が減ることを確かめる
 	battle.enemies[0]["intent"] = {"move": Enemies.Move.ATTACK, "value": 7}
@@ -294,13 +465,71 @@ func _check_battle_turn() -> void:
 	state.free()
 
 
+## 効果の種類: 複数回の攻撃 (hits)・全体攻撃 (area)・エネルギーを得る (energy)・敵の複数回の攻撃
+func _check_battle_effects() -> void:
+	var state: RunStateScript = RunStateScript.new()
+	state.new_run(["twin_flame", "ember_wave", "candle_flame", "guard", "guard"])
+	var battle: BattleScript = BattleScript.new()
+	battle.start(state, ["wild_dog", "skeleton"], 1)
+	_check(battle.play(_hand_index_of(battle, state, "twin_flame"), 1), "双つ灯を使える")
+	_check(battle.enemies[1]["hp"] == 14, "双つ灯は骸の巡礼者に 4 を 2 回与えて体力 14")
+	_check(Cards.needs_target("twin_flame") and not Cards.needs_target("ember_wave"), "全体攻撃は対象を取らない")
+	_check(battle.play(_hand_index_of(battle, state, "ember_wave")), "熾火の波は対象を選ばずに使える")
+	_check(
+		battle.enemies[0]["hp"] == 10 and battle.enemies[1]["hp"] == 10,
+		"熾火の波は生きている敵すべてに 4 を与える"
+	)
+	_check(battle.energy == 1, "コスト 1 を 2 枚使ってエネルギー 1")
+	_check(battle.play(_hand_index_of(battle, state, "candle_flame")), "蝋燭の火を使える")
+	_check(battle.energy == 2, "蝋燭の火でエネルギーが 1 増える")
+	# 予告を固定して、攻撃 2×3 の 1 回ずつを防御 3 が先に受けることを確かめる (2 + 1 を防いで 3 を受ける)
+	battle.block = 3
+	battle.enemies[0]["intent"] = {"move": Enemies.Move.ATTACK, "value": 2, "hits": 3}
+	battle.enemies[1]["intent"] = {"move": Enemies.Move.GUARD, "value": 1}
+	var hp_before: int = state.hp
+	battle.end_turn()
+	_check(state.hp == hp_before - 3, "攻撃 2×3 を防御 3 が受けて体力が 3 減る")
+	# 境界: 複数回の攻撃は 1 回ごとに敵の防御が先に受け、全体攻撃は倒した敵を飛ばし、全員を倒したら勝利
+	state.new_run(["twin_flame", "ember_wave"])
+	var finisher: BattleScript = BattleScript.new()
+	finisher.start(state, ["wild_dog", "skeleton"], 2)
+	finisher.enemies[0]["hp"] = 0
+	finisher.enemies[1]["block"] = 3
+	_check(finisher.play(_hand_index_of(finisher, state, "twin_flame"), 1), "双つ灯を防御 3 の敵に使える")
+	_check(
+		finisher.enemies[1]["hp"] == 17 and finisher.enemies[1]["block"] == 0,
+		"双つ灯の 1 回目を防御 3 が受け、2 回目は体力に届く (22 → 17)"
+	)
+	finisher.enemies[1]["hp"] = 4
+	_check(finisher.play(_hand_index_of(finisher, state, "ember_wave")), "熾火の波を使える")
+	_check(finisher.enemies[0]["hp"] == 0 and finisher.enemies[1]["hp"] == 0, "倒した敵は 0 のまま")
+	_check(finisher.outcome == BattleScript.Outcome.WIN, "全体攻撃で全員を倒したら勝利")
+	state.free()
+
+
+## 予告を順に繰り返す敵 (in_order) は、moves を先頭から順に予告し、最後の後は先頭に戻る
+func _check_enemy_intent_order() -> void:
+	var state: RunStateScript = RunStateScript.new()
+	state.new_run(["guard"])
+	var battle: BattleScript = BattleScript.new()
+	battle.start(state, ["moth"], 8)
+	var moves: Array = Enemies.ENEMIES["moth"]["moves"]
+	_check(Enemies.ENEMIES["moth"].get("in_order", false), "煤蛾は予告を順に繰り返す")
+	_check(battle.enemies[0]["intent"] == moves[0], "最初は moves の先頭を予告する")
+	battle.end_turn()
+	_check(battle.enemies[0]["intent"] == moves[1], "次は moves の 2 番目を予告する")
+	battle.end_turn()
+	_check(battle.enemies[0]["intent"] == moves[0], "最後の後は先頭に戻る")
+	state.free()
+
+
 ## 勝敗: 敵をすべて倒したら勝利、体力 0 で敗北。勝利の後の戦闘は残り使用回数を引き継ぐ (同じシードで同じ進行)
 func _check_battle_outcomes() -> void:
 	var state: RunStateScript = RunStateScript.new()
 	state.new_run(["hero_strike", "guard"])
 	var battle: BattleScript = BattleScript.new()
 	battle.start(state, ["wild_dog"], 2)
-	_check(battle.play(_hand_index_of(battle, state, "hero_strike"), 0), "英霊の一閃を使える")
+	_check(battle.play(_hand_index_of(battle, state, "hero_strike"), 0), "雷槍の英霊を使える")
 	_check(battle.outcome == BattleScript.Outcome.WIN, "敵を倒して勝利")
 	_check(not battle.play(_hand_index_of(battle, state, "guard")), "勝利の後はカードを使えない")
 	_check(not battle.struggle(0), "勝利の後はもがけない")
@@ -331,9 +560,10 @@ func _check_battle_keeps_uses() -> void:
 	state.use_card(0)
 	var battle: BattleScript = BattleScript.new()
 	battle.start(state, ["wild_dog"], 4)
-	_check(state.uses_left(0) == 3, "戦闘の開始で残り使用回数が戻らない")
+	var used_once: int = Cards.CARDS["slash"]["max_uses"] - 1
+	_check(state.uses_left(0) == used_once, "戦闘の開始で残り使用回数が戻らない")
 	battle.end_turn()
-	_check(state.uses_left(0) == 3, "ターンの終了で残り使用回数が戻らない")
+	_check(state.uses_left(0) == used_once, "ターンの終了で残り使用回数が戻らない")
 	var before: Array[Dictionary] = state.deck.duplicate(true)
 	battle.start(state, ["wild_dog"], 5)
 	_check(state.deck == before, "次の戦闘の開始でも残り使用回数が戻らない")
@@ -380,6 +610,28 @@ func _hand_index_of(battle: BattleScript, state: RunStateScript, card_id: String
 		if state.deck[battle.hand[hand_index]]["id"] == card_id:
 			return hand_index
 	return -1
+
+
+## value が bounds ([最小, 最大]) の範囲内か
+func _in_range(value: Variant, bounds: Array) -> bool:
+	return value >= bounds[0] and value <= bounds[1]
+
+
+## 短い文言に句読点が無いか (SHORT_COPY_PUNCTUATION のどれも含まない)
+func _is_short_copy(text: String) -> bool:
+	for mark: String in SHORT_COPY_PUNCTUATION:
+		if text.contains(mark):
+			return false
+	return true
+
+
+## 敵の格と幕の前半・後半ごとの組み合わせの候補に出る敵の体力の並び
+func _encounter_hps(rank: int, late_half: bool) -> Array[int]:
+	var hps: Array[int] = []
+	for ids: Array in Enemies.encounter_candidates(rank, late_half):
+		for enemy_id: String in ids:
+			hps.append(Enemies.ENEMIES[enemy_id]["hp"])
+	return hps
 
 
 ## user:// のファイルを消す (無ければ何もしない)

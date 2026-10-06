@@ -16,9 +16,12 @@ const STRUGGLE_PENDING: int = -2
 const COLOR_NORMAL: Color = Color(1, 1, 1, 1)
 const COLOR_LAST: Color = Color(1, 0.75, 0.4, 1)
 const COLOR_EXHAUSTED: Color = Color(0.55, 0.55, 0.55, 1)
-## 契約の相手の区分と敵の行動の種別の表示名
+## 契約の相手の区分・敵の行動の種別・敵の格の表示名 (戦闘の格の敵には付けない)
 const BOND_NAMES: Dictionary = {Cards.Bond.SPIRIT: "精霊", Cards.Bond.HERO: "英霊"}
 const MOVE_NAMES: Dictionary = {Enemies.Move.ATTACK: "攻撃", Enemies.Move.GUARD: "防御"}
+const RANK_NAMES: Dictionary = {
+	Enemies.Rank.NORMAL: "", Enemies.Rank.ELITE: " [強敵]", Enemies.Rank.BOSS: " [ボス]"
+}
 
 ## 進行中の戦闘
 var battle: Battle = null
@@ -207,16 +210,19 @@ func _refresh_enemies() -> void:
 			button.disabled = true
 			continue
 		var intent: Dictionary = enemy["intent"]
+		var hits: int = intent.get("hits", 1)
 		button.text = (
-			"%d. %s\n体力 %d / %d   防御 %d\n予告: %s %d"
+			"%d. %s%s\n体力 %d / %d   防御 %d\n予告: %s %d%s"
 			% [
 				index + 1,
 				enemy["name"],
+				RANK_NAMES[Enemies.ENEMIES[enemy["id"]]["rank"]],
 				enemy["hp"],
 				enemy["max_hp"],
 				enemy["block"],
 				MOVE_NAMES[intent["move"]],
 				intent["value"],
+				"×%d" % hits if hits > 1 else "",
 			]
 		)
 		button.disabled = false

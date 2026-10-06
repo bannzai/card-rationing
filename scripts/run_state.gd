@@ -5,8 +5,8 @@ extends Node
 ## 残り使用回数を増やす経路は restore_uses() だけ。
 ## --script の検証から使う時は root.get_node_or_null("RunState") で取るか、このスクリプトを new() する。
 
-## 保存データの読み込みの結果
-enum LoadResult { LOADED, NOT_FOUND, CORRUPT }
+## 保存データの読み込みの結果 (READ_ERROR はファイルはあるが開けない。壊れたデータとは別で、退避も状態の変更もしない)
+enum LoadResult { LOADED, NOT_FOUND, CORRUPT, READ_ERROR }
 
 const Cards := preload("res://scripts/cards.gd")
 
@@ -133,12 +133,17 @@ func save_to(path: String) -> Error:
 	return OK
 
 
-## path の保存データを読み込む。無ければ NOT_FOUND で状態を変えない。壊れている (JSON でない・形が合わない) なら
-## 読み込まずに path + ".corrupt" へ退避し、新しいランにして CORRUPT を返す
+## path の保存データを読み込む。無ければ NOT_FOUND、あるが開けなければ READ_ERROR で、どちらも状態を変えない。
+## 壊れている (JSON でない・形が合わない) なら読み込まずに path + ".corrupt" へ退避し、新しいランにして CORRUPT を返す
 func load_from(path: String) -> LoadResult:
 	if not FileAccess.file_exists(path):
 		return LoadResult.NOT_FOUND
-	var text: String = FileAccess.get_file_as_string(path)
+	# get_file_as_string() は開けない時も空文字列を返して壊れたデータと区別できないため、明示的に開く
+	var file: FileAccess = FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		return LoadResult.READ_ERROR
+	var text: String = file.get_as_text()
+	file.close()
 	# JSON.parse_string() は失敗時に ERROR を出すため、エラーを出さない JSON.parse() で解釈する
 	var json: JSON = JSON.new()
 	if json.parse(text) == OK and from_dict(json.data):

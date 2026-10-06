@@ -560,9 +560,10 @@ func _playable_without_target(battle_ui: BattleUiScript) -> int:
 			continue
 		if not Cards.needs_target(card_id):
 			return hand_index
+		if alive.size() != 1:
+			continue
 		var enemy: Dictionary = battle_ui.battle.enemies[alive[0]]
-		var kills: bool = Cards.CARDS[card_id]["damage"] >= enemy["hp"] + enemy["block"]
-		if alive.size() == 1 and not kills:
+		if Cards.CARDS[card_id]["damage"] < enemy["hp"] + enemy["block"]:
 			return hand_index
 	return -1
 

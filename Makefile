@@ -122,3 +122,9 @@ clean:
 	rm -rf build
 	rm -f $(foreach target,import check selfcheck integration screenshot movie run build-macos build-windows build-linux,$(LOG_DIR)/$(target).log $(LOG_DIR)/$(target).godot.log)
 	rm -f $(LOG_DIR)/screenshot-*.png $(LOG_DIR)/movie.avi $(LOG_DIR)/movie.mp4
+
+# 引数なしの make で動作確認 (verify) を実行する
+.DEFAULT_GOAL := verify
+
+.PHONY: verify
+verify: test build-all

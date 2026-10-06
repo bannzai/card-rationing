@@ -227,6 +227,8 @@ func _check_corrupt_save() -> void:
 	for column: int in range(ActMap.COLUMNS):
 		if not ActMap.next_columns(rows, no_path).has(column):
 			unreachable = column
+	# ボスまで進んだ道 (地図の局面ではこの先に選べる節点が無い)
+	var boss_route: Array[int] = ActMap.route_to(rows, ActMap.BOSS_ROW, ActMap.BOSS_COLUMN)
 	var broken: Array[Dictionary] = [
 		{"version": 1},
 		{"version": []},
@@ -252,6 +254,7 @@ func _check_corrupt_save() -> void:
 		{"phase": RunStateScript.Phase.DEFEAT},
 		{"phase": RunStateScript.Phase.BATTLE},
 		{"path": [first], "phase": RunStateScript.Phase.SHOP},
+		{"path": boss_route, "phase": RunStateScript.Phase.MAP},
 		{"deck": "x"},
 		{"deck": [1]},
 		{"deck": [{"id": "nope", "uses_left": 1}]},

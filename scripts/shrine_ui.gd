@@ -127,3 +127,5 @@ func _build_contracts() -> void:
 		var button: Button = UiKit.add_button(row, UiKit.offer_text(card_id), contract.bind(card_id))
 		button.custom_minimum_size = UiKit.CARD_BUTTON_SIZE
 		offer_buttons[card_id] = button
+	# キーボードだけで選べるよう、最初の候補にフォーカスを置く
+	offer_buttons.values()[0].grab_focus()

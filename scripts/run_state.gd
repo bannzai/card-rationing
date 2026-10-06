@@ -316,8 +316,9 @@ func _is_valid_progress(data: Dictionary) -> bool:
 	if not SAVED_PHASE_KINDS.has(saved_phase):
 		return false
 	var kinds: Array = SAVED_PHASE_KINDS[saved_phase]
+	# 地図の局面はボスに入る前まで (ボスの後は踏破で保存データを消すため、ボスまで進んだ地図は進めない)
 	if kinds.is_empty():
-		return true
+		return saved_path.size() < ActMap.ROWS
 	if saved_path.is_empty():
 		return false
 	var node: Dictionary = ActMap.node_at(map_rows, saved_path.size() - 1, saved_path.back())

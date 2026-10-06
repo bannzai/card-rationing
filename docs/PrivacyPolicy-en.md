@@ -4,7 +4,7 @@ lang: en
 
 # Privacy Policy
 
-bannzai ("we" or "the Provider") sets out this Privacy Policy ("this Policy") for how we handle user information, including personal information, in the game "Card Rationing" ("the Game").
+bannzai ("we" or "the Provider") sets out this Privacy Policy ("this Policy") for how we handle user information, including personal information, in the game "Sigilbound" ("the Game").
 
 ## Information we collect and how
 

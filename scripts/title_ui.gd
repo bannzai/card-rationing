@@ -35,7 +35,10 @@ func _ready() -> void:
 	column.custom_minimum_size = Vector2(420, 0)
 	column.add_theme_constant_override("separation", 14)
 	add_child(column)
-	var title: Label = UiKit.add_label(column, "Card Rationing", 48)
+	# ゲーム名は仮の名前で変わり得るため、project.godot の表示名を正にする
+	var title: Label = UiKit.add_label(
+		column, ProjectSettings.get_setting("application/config/name"), 48
+	)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	var subtitle: Label = UiKit.add_label(column, "契約の印 — 1 回の巡礼で命令できる回数は決まっている")
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

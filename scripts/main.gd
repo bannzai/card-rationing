@@ -26,6 +26,8 @@ const ShrineUiScript := preload("res://scripts/shrine_ui.gd")
 const TitleUiScript := preload("res://scripts/title_ui.gd")
 ## 保存データが壊れていた時のタイトルの知らせ
 const CORRUPT_NOTICE: String = "保存データが壊れていたため読み込まずに退避した。新しい巡礼を始めてほしい。"
+## 保存データを開けなかった時のタイトルの知らせ (保存データは退避せず残っている)
+const READ_ERROR_NOTICE: String = "保存データを読めなかった。ファイルはそのまま残してある。"
 
 ## ラン単位の状態 (autoload RunState)
 var run_state: RunStateScript = null
@@ -111,6 +113,8 @@ func continue_run() -> void:
 			show_run_phase()
 		RunStateScript.LoadResult.CORRUPT:
 			show_title(CORRUPT_NOTICE)
+		RunStateScript.LoadResult.READ_ERROR:
+			show_title(READ_ERROR_NOTICE)
 		_:
 			show_title()
 

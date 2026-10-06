@@ -9,8 +9,8 @@ extends Node
 ## 局面が変わった (画面の切り替えの合図。scripts/main.gd が受ける)
 signal phase_changed
 
-## 保存データの読み込みの結果
-enum LoadResult { LOADED, NOT_FOUND, CORRUPT }
+## 保存データの読み込みの結果 (READ_ERROR はファイルはあるが開けない。壊れたデータとは別で、退避も状態の変更もしない)
+enum LoadResult { LOADED, NOT_FOUND, CORRUPT, READ_ERROR }
 ## ランの局面。MAP は地図で次の節点を選ぶところ、REWARD は戦闘の後の報酬、DEFEAT / CLEAR はランの終わり
 enum Phase { MAP, BATTLE, REWARD, SHRINE, SHOP, EVENT, DEFEAT, CLEAR }
 
@@ -237,12 +237,26 @@ func save_to(file_path: String) -> Error:
 	return dir.rename(temp_path.get_file(), file_path.get_file())
 
 
-## file_path の保存データを読み込む。無ければ NOT_FOUND で状態を変えない。壊れている (JSON でない・形が
-## 合わない) なら読み込まずに file_path + ".corrupt" へ退避し、新しいランにして CORRUPT を返す
+## file_path の保存データを読み込む。無ければ NOT_FOUND、あるが開けなければ READ_ERROR で、どちらも状態を変えない。
+## 壊れている (JSON でない・形が合わない) なら読み込まずに file_path + ".corrupt" へ退避し、新しいランにして
+## CORRUPT を返す
 func load_from(file_path: String) -> LoadResult:
 	if not FileAccess.file_exists(file_path):
 		return LoadResult.NOT_FOUND
-	var text: String = FileAccess.get_file_as_string(file_path)
+	# get_file_as_string() は開けない時も空文字列を返して壊れたデータと区別できないため、明示的に開く
+	var file: FileAccess = FileAccess.open(file_path, FileAccess.READ)
+	if file == null:
+		if FileAccess.get_open_error() == ERR_FILE_NOT_FOUND:
+			return LoadResult.NOT_FOUND
+		return LoadResult.READ_ERROR
+	# get_as_text() は途中までしか読めない時に空文字列と ERROR を出して壊れたデータと区別できないため、
+	# 長さを決めてバイト列で読み、足りなければ退避せずに READ_ERROR にする
+	var length: int = file.get_length()
+	var bytes: PackedByteArray = file.get_buffer(length)
+	file.close()
+	if bytes.size() != length:
+		return LoadResult.READ_ERROR
+	var text: String = bytes.get_string_from_utf8()
 	# JSON.parse_string() は失敗時に ERROR を出すため、エラーを出さない JSON.parse() で解釈する
 	var json: JSON = JSON.new()
 	if json.parse(text) == OK and from_dict(json.data):

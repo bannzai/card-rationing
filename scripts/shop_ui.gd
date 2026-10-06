@@ -69,7 +69,10 @@ func show_mode(next_mode: Mode) -> void:
 				remove_from_deck
 			)
 	if mode != Mode.GOODS:
-		UiKit.add_button(content, "戻る", show_mode.bind(Mode.GOODS))
+		var back: Button = UiKit.add_button(content, "戻る", show_mode.bind(Mode.GOODS))
+		# 押せるカードが無くてフォーカスがどこにも無い時は、キーボードで戻れるよう「戻る」に置く
+		if get_viewport().gui_get_focus_owner() == null:
+			back.grab_focus()
 
 
 ## card_id のカードを買う
@@ -116,8 +119,13 @@ func _build_goods() -> void:
 		"1 枚の残り使用回数を最大まで戻す (値段 %d)" % NodeRules.RESTORE_PRICE,
 		show_mode.bind(Mode.RESTORE)
 	)
+	# 戻せるカード (残りの減ったカード) が無ければ押せない (契約の祠の更新と同じ)
 	restore_button.disabled = (
-		run_state.visit.has("restored") or run_state.gold < NodeRules.RESTORE_PRICE
+		run_state.visit.has("restored")
+		or run_state.gold < NodeRules.RESTORE_PRICE
+		or not range(run_state.deck.size()).any(
+			func(index: int) -> bool: return NodeRules.can_restore(run_state, index)
+		)
 	)
 	remove_button = UiKit.add_button(
 		content, "1 枚を外す (値段 %d)" % NodeRules.REMOVE_PRICE, show_mode.bind(Mode.REMOVE)

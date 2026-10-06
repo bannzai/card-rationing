@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
   <!-- OGP 画像 (docs/og.png) の元。rsvg-convert -w 1200 -h 630 docs/og.svg -o docs/og.png で書き出す -->
   <rect width="1200" height="630" fill="#14201f"/>
-  <text x="80" y="200" font-family="Hiragino Sans, Noto Sans JP, sans-serif" font-size="88" font-weight="700" fill="#e6ebf0">Card Rationing</text>
+  <text x="80" y="200" font-family="Hiragino Sans, Noto Sans JP, sans-serif" font-size="88" font-weight="700" fill="#e6ebf0">Sigilbound</text>
   <text x="80" y="290" font-family="Hiragino Sans, Noto Sans JP, sans-serif" font-size="44" font-weight="700" fill="#e6ebf0">強いカードほど使うのが惜しい</text>
   <text x="80" y="360" font-family="Hiragino Sans, Noto Sans JP, sans-serif" font-size="30" fill="#b9c7c5">使用回数が冒険を通して減っていくデッキ構築ローグライト</text>
   <g transform="translate(80 420)">

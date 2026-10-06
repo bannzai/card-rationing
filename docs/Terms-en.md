@@ -4,11 +4,11 @@ lang: en
 
 # Terms of Use
 
-These Terms of Use ("these Terms") set out the conditions for using the game "Card Rationing" ("the Game") provided by bannzai ("the Provider"), and the rights and obligations between the Provider and users. Please read these Terms in full and agree to them before using the Game.
+These Terms of Use ("these Terms") set out the conditions for using the game "Sigilbound" ("the Game") provided by bannzai ("the Provider"), and the rights and obligations between the Provider and users. Please read these Terms in full and agree to them before using the Game.
 
 ## Article 1 (Definitions)
 
-1. "The Game" means the game software named "Card Rationing" provided by the Provider, including updates, additional content, and any version whose name or content has changed.
+1. "The Game" means the game software named "Sigilbound" provided by the Provider, including updates, additional content, and any version whose name or content has changed.
 1. "User" means anyone who uses the Game.
 1. "Steam" means the game distribution platform operated by Valve Corporation.
 1. "Intellectual property rights" means copyrights, patent rights, utility model rights, design rights, trademark rights, and other intellectual property rights (including the right to acquire or apply for registration of such rights).

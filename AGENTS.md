@@ -1,4 +1,4 @@
-# Card Rationing
+# Sigilbound (仮の名前)
 
 カードに 1 回の冒険 (ラン) あたりの使用回数制限があるローグライト・デッキ構築ゲーム (Godot 4.7 / Steam)。仕様・スコープは [documents/PROJECT.md](documents/PROJECT.md)、判断の根拠 (仮説・判定基準・決めたこと) は [documents/DIRECTION.md](documents/DIRECTION.md) を参照 (どちらも SSOT)。
 

@@ -1,5 +1,5 @@
 # GitHub Pages (Jekyll) の設定。利用規約・プライバシーポリシーの Markdown を HTML 化して
 # 拡張子なし URL (/Terms-ja) と .html の両方で配信するため .nojekyll は置かない
-title: Card Rationing
+title: Sigilbound
 description: カードに冒険あたりの使用回数制限があるローグライト・デッキ構築ゲーム
 lang: ja

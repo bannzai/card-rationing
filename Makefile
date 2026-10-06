@@ -1,4 +1,4 @@
-# Card Rationing の検証・ビルド入口。target 命名は ~/.claude/rules/makefile-target-naming.md に従う
+# Sigilbound の検証・ビルド入口。target 命名は ~/.claude/rules/makefile-target-naming.md に従う
 # (`build-<対象>` = エクスポートだけ。`run` = エディタなしでの起動)。
 # このマシンで実行してよい target は AGENTS.md「検証方法」を参照 (Godot を起動する target は CI で実行する)。
 #

@@ -224,8 +224,36 @@ func _check_corrupt_save() -> void:
 	_check(state.load_from(SELFCHECK_SAVE_PATH) == RunStateScript.LoadResult.LOADED, "土台の保存データは読み込める")
 	_check(state.hp == 1 and state.deck.is_empty(), "土台の保存データの値が入る")
 	state.free()
+	# 上のループが最後に退避した .corrupt が残っているため、読めないデータの検証の前に消す
+	_remove_user_file(corrupt_path)
+	_check_unreadable_save(corrupt_path)
 	_remove_user_file(SELFCHECK_SAVE_PATH)
 	_remove_user_file(corrupt_path)
+
+
+## 読めない保存データ (chmod 000) は READ_ERROR で、退避も状態の変更もしない。chmod が効かない環境
+## (Windows、root で実行される環境) では検証を飛ばす (CI の ubuntu-24.04 ランナーは root でないため飛ばさない)
+func _check_unreadable_save(corrupt_path: String) -> void:
+	var global_path: String = ProjectSettings.globalize_path(SELFCHECK_SAVE_PATH)
+	if OS.execute("chmod", ["000", global_path]) != 0:
+		print("selfcheck note: chmod が使えないため、読めない保存データの検証を飛ばす")
+		return
+	var probe: FileAccess = FileAccess.open(SELFCHECK_SAVE_PATH, FileAccess.READ)
+	if probe != null:
+		probe.close()
+		OS.execute("chmod", ["644", global_path])
+		print("selfcheck note: chmod 000 でも読めるため (root 等)、読めない保存データの検証を飛ばす")
+		return
+	var state: RunStateScript = RunStateScript.new()
+	state.new_run()
+	state.use_card(0)
+	var result: RunStateScript.LoadResult = state.load_from(SELFCHECK_SAVE_PATH)
+	_check(result == RunStateScript.LoadResult.READ_ERROR, "読めない保存データは READ_ERROR")
+	_check(state.uses_left(0) == 3, "READ_ERROR では状態を変えない")
+	OS.execute("chmod", ["644", global_path])
+	_check(FileAccess.file_exists(SELFCHECK_SAVE_PATH), "読めない保存データは退避されず残る")
+	_check(not FileAccess.file_exists(corrupt_path), "読めない保存データは .corrupt を作らない")
+	state.free()
 
 
 ## 1 ターンの流れ: ドロー・エネルギー・攻撃 (防御が先に受ける)・防御・ドローの効果・混ぜ直し・敵の行動

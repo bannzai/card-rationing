@@ -141,9 +141,15 @@ func load_from(path: String) -> LoadResult:
 	# get_file_as_string() は開けない時も空文字列を返して壊れたデータと区別できないため、明示的に開く
 	var file: FileAccess = FileAccess.open(path, FileAccess.READ)
 	if file == null:
+		if FileAccess.get_open_error() == ERR_FILE_NOT_FOUND:
+			return LoadResult.NOT_FOUND
 		return LoadResult.READ_ERROR
 	var text: String = file.get_as_text()
+	# 途中までしか読めなかった時も、壊れたデータと区別して退避しない (末尾に達した ERR_FILE_EOF は正常)
+	var read_error: Error = file.get_error()
 	file.close()
+	if read_error != OK and read_error != ERR_FILE_EOF:
+		return LoadResult.READ_ERROR
 	# JSON.parse_string() は失敗時に ERROR を出すため、エラーを出さない JSON.parse() で解釈する
 	var json: JSON = JSON.new()
 	if json.parse(text) == OK and from_dict(json.data):

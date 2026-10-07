@@ -8,12 +8,14 @@ extends SceneTree
 ## 画面を進められない時は quit(1) で終わる。保存データは本番と別の保存先に書き、ランの終わりに消える。
 
 const ActMap := preload("res://scripts/act_map.gd")
+const AudioScript := preload("res://scripts/audio.gd")
 const BattleUiScript := preload("res://scripts/battle_ui.gd")
 const BossTalkScript := preload("res://scripts/boss_talk.gd")
 const Bots := preload("res://scripts/dev/strategy_bots.gd")
 const Contractors := preload("res://scripts/contractors.gd")
 const Enemies := preload("res://scripts/enemies.gd")
 const EventUiScript := preload("res://scripts/event_ui.gd")
+const HeadlessCheck := preload("res://scripts/dev/headless_check.gd")
 const MainScript := preload("res://scripts/main.gd")
 const MapUiScript := preload("res://scripts/map_ui.gd")
 const NodeRules := preload("res://scripts/node_rules.gd")
@@ -92,6 +94,9 @@ func _run() -> void:
 			]
 		)
 	)
+	# 遊んでいる間に鳴らした BGM・効果音を止め、解放を待ってから終える (待たないとリークの WARNING が出る)
+	(root.get_node("Audio") as AudioScript).stop_all()
+	await create_timer(HeadlessCheck.AUDIO_RELEASE_TIME).timeout
 	print("playtest OK")
 	quit(0)
 

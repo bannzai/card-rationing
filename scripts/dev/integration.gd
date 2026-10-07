@@ -406,6 +406,7 @@ func _check_clear_returns_to_title(main: MainScript) -> void:
 	if talk == null:
 		return
 	_check(talk.boss_id == Enemies.BOSS_ENCOUNTER[0], "会話するのはボスの節点の敵")
+	_check(not main.deck_button.visible, "会話の間は契約の一覧のボタンを出さない (「戦う」と重ならない)")
 	var lines: int = Enemies.ENEMIES[talk.boss_id]["talk"].size()
 	for _i: int in range(lines):
 		await _press_key(KEY_ENTER)

@@ -161,7 +161,8 @@ func show_battle() -> void:
 func _show_boss_talk() -> void:
 	var talk: BossTalkScript = BOSS_TALK_SCENE.instantiate()
 	talk.finished.connect(show_battle)
-	_set_screen(talk, true)
+	# 会話の「戦う」ボタンが右下に出て契約の一覧のボタンと重なるため、会話の間は契約の一覧のボタンを出さない
+	_set_screen(talk, false)
 	talk.start(RunFlow.encounter(run_state)[0])
 
 

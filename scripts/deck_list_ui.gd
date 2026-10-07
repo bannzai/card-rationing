@@ -28,6 +28,8 @@ var uses_button: Button = null
 var close_button: Button = null
 ## カードの文を並べる格子 (並べ方を変えるたびに作り直す)
 var list_grid: GridContainer = null
+## list_grid を縦にスクロールする入れ物 (矢印キーと PageUp / PageDown で動かす)
+var list_scroll: ScrollContainer = null
 
 
 ## 画面のノードを組み立てる
@@ -49,22 +51,22 @@ func _ready() -> void:
 	close_button = UiKit.add_button(row, "閉じる (D / Esc)", closed.emit)
 	for button: Button in [strength_button, uses_button, close_button]:
 		button.focus_mode = Control.FOCUS_NONE
-	var scroll: ScrollContainer = ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	layout.add_child(scroll)
+	list_scroll = ScrollContainer.new()
+	list_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	list_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	layout.add_child(list_scroll)
 	list_grid = GridContainer.new()
 	list_grid.columns = UiKit.DECK_GRID_COLUMNS
 	list_grid.add_theme_constant_override("h_separation", 8)
 	list_grid.add_theme_constant_override("v_separation", 8)
-	scroll.add_child(list_grid)
+	list_scroll.add_child(list_grid)
 	set_order(order)
 	# 下の画面のボタンにフォーカスが残ると Enter で押せてしまうため外す
 	get_viewport().gui_release_focus()
 
 
 ## 開いている間のキー入力をすべて受け止め、下の画面に渡さない (GUI より先に呼ばれるため、フォーカス移動と
-## 決定のキーで下の画面のボタンも押させない)
+## 決定のキーで下の画面のボタンも押させない)。一覧のスクロールのキーはここで処理する
 func _input(event: InputEvent) -> void:
 	if not (event is InputEventKey):
 		return
@@ -80,6 +82,16 @@ func _input(event: InputEvent) -> void:
 			set_order(Order.STRENGTH)
 		KEY_2:
 			set_order(Order.USES_LEFT)
+		KEY_UP, KEY_DOWN, KEY_PAGEUP, KEY_PAGEDOWN:
+			scroll_list(key_event.keycode)
+
+
+## 一覧を keycode のキーの分だけ縦にスクロールする (矢印は 1 行、PageUp / PageDown は表示の高さ 1 つ分)
+func scroll_list(keycode: Key) -> void:
+	var page: int = int(list_scroll.get_v_scroll_bar().page)
+	var line: int = int(UiKit.CARD_BUTTON_SIZE.y)
+	var amounts: Dictionary = {KEY_UP: -line, KEY_DOWN: line, KEY_PAGEUP: -page, KEY_PAGEDOWN: page}
+	list_scroll.scroll_vertical += amounts[keycode]
 
 
 ## 並べ方を next_order にして一覧を作り直す

@@ -390,14 +390,24 @@ func _check_event(main: MainScript) -> void:
 	_check(main.screen is MapUiScript and run_state.phase == RunStateScript.Phase.MAP, "出来事の後は地図")
 
 
-## 地図で D を押すと契約の一覧が開き、全カードを並べ、並べ方を変えられ、Esc で閉じる
+## 地図で D を押すと契約の一覧が開き、全カードを並べ、キーでスクロールでき、並べ方を変えられ、Esc で閉じる
 func _check_deck_list(main: MainScript) -> void:
+	# 一覧が縦に収まらない枚数にして、キーでのスクロールも確かめる
+	var ids: Array[String] = []
+	for _i: int in range(12):
+		ids.append_array(["slash", "guard", "breath", "spirit_arrow"])
+	_set_deck(ids)
 	await _press_key(KEY_D)
 	var deck_list: DeckListUiScript = main.deck_list
 	_check(deck_list != null, "D で契約の一覧が開く")
 	if deck_list == null:
 		return
 	_check(_visible_children(deck_list.list_grid) == run_state.deck.size(), "契約の一覧に全カードが並ぶ")
+	await _press_key(KEY_PAGEDOWN)
+	var paged: int = deck_list.list_scroll.scroll_vertical
+	_check(paged > 0, "PageDown で契約の一覧が下へスクロールする")
+	await _press_key(KEY_UP)
+	_check(deck_list.list_scroll.scroll_vertical < paged, "上の矢印で契約の一覧が上へスクロールする")
 	await _click(deck_list.uses_button)
 	_check(deck_list.order == DeckListUiScript.Order.USES_LEFT, "残り回数順に切り替えられる")
 	var path_before: int = run_state.path.size()

@@ -62,7 +62,7 @@ const ENEMIES: Dictionary = {
 	{
 		"name": "蝋の人形",
 		"rank": Rank.NORMAL,
-		"hp": 32,
+		"hp": 26,
 		"in_order": true,
 		"moves":
 		[
@@ -74,7 +74,7 @@ const ENEMIES: Dictionary = {
 	{
 		"name": "灰の猟犬",
 		"rank": Rank.NORMAL,
-		"hp": 26,
+		"hp": 23,
 		"moves":
 		[
 			{"move": Move.ATTACK, "value": 5, "hits": 2},
@@ -85,7 +85,7 @@ const ENEMIES: Dictionary = {
 	{
 		"name": "堕ちた番兵",
 		"rank": Rank.NORMAL,
-		"hp": 38,
+		"hp": 30,
 		"in_order": true,
 		"moves":
 		[

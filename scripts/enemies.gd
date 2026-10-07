@@ -129,7 +129,7 @@ const ENEMIES: Dictionary = {
 		"moves":
 		[
 			{"move": Move.ATTACK, "value": 6, "hits": 2},
-			{"move": Move.GUARD, "value": 20},
+			{"move": Move.GUARD, "value": 8},
 			{"move": Move.ATTACK, "value": 18},
 			{"move": Move.ATTACK, "value": 4, "hits": 3},
 		],

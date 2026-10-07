@@ -296,7 +296,7 @@ static func _spends_low_uses(strategy: int, battle: Battle, state: RunStateScrip
 ## デッキの deck_index 番目のカードを今使った時の効果の点数と、狙う敵。{"value": 点数, "target": 敵の index
 ## (対象を取らないカードは -1)}。点数は、敵の体力を減らす量 + 防ぐダメージ × GUARD_WEIGHT (倒した敵が予告していた
 ## 攻撃を含む) + 引く枚数とエネルギーの点 (Cards.strength() と同じ点)。引く効果は、引いたカードを使う
-## エネルギーが残る時だけ数える
+## エネルギーが残り、使う前の山札か捨て札にカードがある時だけ数える (どちらも空なら、使ったカード自身を引き直すだけ)
 static func _play_value(battle: Battle, state: RunStateScript, deck_index: int) -> Dictionary:
 	var card: Dictionary = state.card(deck_index)
 	var incoming: int = _incoming_damage(battle)

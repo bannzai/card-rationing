@@ -62,36 +62,36 @@ const ENEMIES: Dictionary = {
 	{
 		"name": "蝋の人形",
 		"rank": Rank.NORMAL,
-		"hp": 32,
+		"hp": 26,
 		"in_order": true,
 		"moves":
 		[
 			{"move": Move.GUARD, "value": 8},
-			{"move": Move.ATTACK, "value": 11},
+			{"move": Move.ATTACK, "value": 8},
 		],
 	},
 	"ash_hound":
 	{
 		"name": "灰の猟犬",
 		"rank": Rank.NORMAL,
-		"hp": 26,
+		"hp": 23,
 		"moves":
 		[
-			{"move": Move.ATTACK, "value": 5, "hits": 2},
-			{"move": Move.ATTACK, "value": 9},
+			{"move": Move.ATTACK, "value": 3, "hits": 2},
+			{"move": Move.ATTACK, "value": 7},
 		],
 	},
 	"fallen_guard":
 	{
 		"name": "堕ちた番兵",
 		"rank": Rank.NORMAL,
-		"hp": 38,
+		"hp": 30,
 		"in_order": true,
 		"moves":
 		[
-			{"move": Move.ATTACK, "value": 12},
+			{"move": Move.ATTACK, "value": 9},
 			{"move": Move.GUARD, "value": 10},
-			{"move": Move.ATTACK, "value": 6, "hits": 2},
+			{"move": Move.ATTACK, "value": 4, "hits": 2},
 		],
 	},
 	"candle_warden":
@@ -111,27 +111,27 @@ const ENEMIES: Dictionary = {
 	{
 		"name": "封蝋の騎士",
 		"rank": Rank.ELITE,
-		"hp": 72,
+		"hp": 56,
 		"in_order": true,
 		"moves":
 		[
-			{"move": Move.ATTACK, "value": 9, "hits": 2},
+			{"move": Move.ATTACK, "value": 7, "hits": 2},
 			{"move": Move.GUARD, "value": 16},
-			{"move": Move.ATTACK, "value": 24},
+			{"move": Move.ATTACK, "value": 18},
 		],
 	},
 	"wick_eater":
 	{
 		"name": "灯喰らいの司祭",
 		"rank": Rank.BOSS,
-		"hp": 150,
+		"hp": 66,
 		"in_order": true,
 		"moves":
 		[
-			{"move": Move.ATTACK, "value": 8, "hits": 2},
-			{"move": Move.GUARD, "value": 20},
-			{"move": Move.ATTACK, "value": 26},
-			{"move": Move.ATTACK, "value": 5, "hits": 4},
+			{"move": Move.ATTACK, "value": 6, "hits": 2},
+			{"move": Move.GUARD, "value": 8},
+			{"move": Move.ATTACK, "value": 18},
+			{"move": Move.ATTACK, "value": 4, "hits": 3},
 		],
 		"talk":
 		[

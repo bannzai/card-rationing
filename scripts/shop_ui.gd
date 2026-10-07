@@ -6,6 +6,7 @@ extends Control
 ## 画面の段階: 品物を選ぶ / 残り使用回数を戻すカードを選ぶ / 外すカードを選ぶ
 enum Mode { GOODS, RESTORE, REMOVE }
 
+const AudioScript := preload("res://scripts/audio.gd")
 const NodeRules := preload("res://scripts/node_rules.gd")
 const RunFlow := preload("res://scripts/run_flow.gd")
 const RunStateScript := preload("res://scripts/run_state.gd")
@@ -13,6 +14,8 @@ const UiKit := preload("res://scripts/ui_kit.gd")
 
 ## ラン単位の状態 (autoload RunState)
 var run_state: RunStateScript = null
+## BGM と効果音 (autoload Audio)
+var audio: AudioScript = null
 ## 今の画面の段階
 var mode: Mode = Mode.GOODS
 ## 今の段階の画面の中身 (段階が変わるたびや買うたびに作り直す)
@@ -30,6 +33,7 @@ var deck_grid: GridContainer = null
 ## 画面のノードを組み立てる
 func _ready() -> void:
 	run_state = get_tree().root.get_node_or_null("RunState")
+	audio = get_tree().root.get_node_or_null("Audio")
 	var layout: VBoxContainer = UiKit.screen_layout(self, "商人")
 	UiKit.add_label(layout, "「契約の切れ端なら、いくらでも売ってやるよ」")
 	status_label = UiKit.add_label(layout, "")
@@ -81,9 +85,10 @@ func buy(card_id: String) -> void:
 		show_mode(Mode.GOODS)
 
 
-## デッキの index 番目のカードの残り使用回数を戻す
+## デッキの index 番目のカードの残り使用回数を戻す (回数の回復の効果音を鳴らす)
 func restore(index: int) -> void:
 	if NodeRules.buy_restore(run_state, index):
+		audio.play_se(AudioScript.Se.RESTORE)
 		show_mode(Mode.GOODS)
 
 

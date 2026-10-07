@@ -115,9 +115,9 @@ const ENEMIES: Dictionary = {
 		"in_order": true,
 		"moves":
 		[
-			{"move": Move.ATTACK, "value": 9, "hits": 2},
+			{"move": Move.ATTACK, "value": 7, "hits": 2},
 			{"move": Move.GUARD, "value": 16},
-			{"move": Move.ATTACK, "value": 24},
+			{"move": Move.ATTACK, "value": 18},
 		],
 	},
 	"wick_eater":

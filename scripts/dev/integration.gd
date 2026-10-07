@@ -79,6 +79,7 @@ func _run() -> void:
 	await _check_battle_resume_keeps_uses(main)
 	await _check_exhausted_deck_battle_and_reward(main)
 	await _check_shrine_restores_uses(main)
+	await _check_deck_grid_follows_focus(main)
 	await _check_shop(main)
 	await _check_event(main)
 	await _check_deck_list(main)
@@ -317,6 +318,34 @@ func _check_shrine_restores_uses(main: MainScript) -> void:
 	var saved: RunStateScript = _load_saved()
 	_check(saved.uses_left(index) == max_uses, "祠の結果が保存される")
 	saved.free()
+
+
+## デッキが表示に収まらない枚数の時、契約の祠でカードを選ぶ格子の下の方のカードへフォーカスを移すと、そのカードが
+## 見える位置までスクロールし、そのカードを選ぶと地図へ戻る
+func _check_deck_grid_follows_focus(main: MainScript) -> void:
+	var ids: Array[String] = []
+	for _i: int in range(6):
+		ids.append_array(["slash", "guard", "breath", "spirit_arrow"])
+	_set_deck(ids)
+	for index: int in range(run_state.deck.size()):
+		run_state.use_card(index)
+	await _enter_kind(main, ActMap.Kind.SHRINE)
+	var shrine: ShrineUiScript = main.screen as ShrineUiScript
+	if shrine == null:
+		_check(false, "スクロールの検証: 契約の祠に入る")
+		return
+	await _click(shrine.renew_button)
+	var last: Button = shrine.deck_grid.get_child(shrine.deck_grid.get_child_count() - 1)
+	var scroll: ScrollContainer = shrine.deck_grid.get_parent() as ScrollContainer
+	last.grab_focus()
+	await _settle()
+	var view: Rect2 = scroll.get_global_rect()
+	_check(scroll.scroll_vertical > 0, "下の方のカードへフォーカスを移すと格子がスクロールする")
+	_check(
+		view.encloses(last.get_global_rect()), "フォーカスを移したカードが格子の表示の中に見える"
+	)
+	await _click(last)
+	_check(main.screen is MapUiScript, "スクロールした先のカードを選ぶと地図へ戻る")
 
 
 ## 地図で商人に入り、カードを買う・残り使用回数を戻す・立ち去ると、所持金とデッキに反映される

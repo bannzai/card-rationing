@@ -119,6 +119,8 @@ static func add_deck_grid(
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	# キーボードでフォーカスを移したカードが表示の外なら、見える位置までスクロールする
+	scroll.follow_focus = true
 	parent.add_child(scroll)
 	var grid: GridContainer = GridContainer.new()
 	grid.columns = DECK_GRID_COLUMNS

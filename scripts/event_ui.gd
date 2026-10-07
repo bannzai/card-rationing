@@ -50,17 +50,25 @@ func select_option(option_index: int) -> void:
 		_decide(option_index, no_picks)
 
 
-## カードを選ぶ段階でデッキの index 番目のカードを選ぶ・選び直す
+## カードを選ぶ段階でデッキの index 番目のカードを選ぶ・選び直す。作り直した格子でも、スクロールの位置を
+## 保ち、いま選んだカードにフォーカスを残して見える位置に置く (キーボードで続けて選べるように)
 func toggle_pick(index: int) -> void:
+	var scroll_before: int = (deck_grid.get_parent() as ScrollContainer).scroll_vertical
 	if picks.has(index):
 		picks.erase(index)
 	elif picks.size() < event["options"][pending_option]["picks"]:
 		picks.append(index)
 	_rebuild()
-	# 作り直した格子でも、いま選んだカードにフォーカスを残す (キーボードで続けて選べるように)
 	var button: Button = deck_grid.get_child(index)
 	if not button.disabled:
 		button.grab_focus()
+	# 作り直した格子のレイアウトは次のフレームで決まるため、その後にスクロールの位置を戻す
+	await get_tree().process_frame
+	if not is_instance_valid(button) or not button.is_inside_tree():
+		return
+	var scroll: ScrollContainer = button.get_parent().get_parent() as ScrollContainer
+	scroll.scroll_vertical = scroll_before
+	scroll.ensure_control_visible(button)
 
 
 ## 選んだカードで決める

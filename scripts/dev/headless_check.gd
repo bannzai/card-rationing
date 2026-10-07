@@ -7,6 +7,10 @@ extends SceneTree
 ## 影の野犬 (体力 14) をもがく (2 ダメージ、エネルギー 3 で 1 ターン 3 回) で倒すには 7 回 + ターン終了 2 回の
 ## 9 手で、その 6 倍強
 const EXHAUSTED_BATTLE_STEP_LIMIT: int = 60
+## 音を止めてから終了するまで待つ時間 (秒)。止めた BGM・効果音の再生は AudioServer がミキシングを数回進めてから
+## 解放するため、待たずに終了すると再生がリークとして WARNING / ERROR に出る (bannzai/kageboshi の CI で実測した値。
+## ミキシング数回分に余裕を持たせてある)。描画付きの scripts/dev/screenshot.gd もこの値で待つ
+const AUDIO_RELEASE_TIME: float = 0.25
 
 ## 検証が 1 件でも失敗したか。true なら exit code 1 で終わる
 var failed: bool = false

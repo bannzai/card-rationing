@@ -6,6 +6,7 @@ extends Control
 ## 画面の段階: 3 択を選ぶ / 更新・破棄するカードを選ぶ / 新しく契約するカードを選ぶ
 enum Mode { OPTIONS, RENEW, BREAK, CONTRACT }
 
+const AudioScript := preload("res://scripts/audio.gd")
 const NodeRules := preload("res://scripts/node_rules.gd")
 const RunFlow := preload("res://scripts/run_flow.gd")
 const RunStateScript := preload("res://scripts/run_state.gd")
@@ -13,6 +14,8 @@ const UiKit := preload("res://scripts/ui_kit.gd")
 
 ## ラン単位の状態 (autoload RunState)
 var run_state: RunStateScript = null
+## BGM と効果音 (autoload Audio)
+var audio: AudioScript = null
 ## 今の画面の段階
 var mode: Mode = Mode.OPTIONS
 ## 今の段階の画面の中身 (段階が変わるたびに作り直す)
@@ -30,6 +33,7 @@ var offer_buttons: Dictionary = {}
 ## 画面のノードを組み立てる
 func _ready() -> void:
 	run_state = get_tree().root.get_node_or_null("RunState")
+	audio = get_tree().root.get_node_or_null("Audio")
 	var layout: VBoxContainer = UiKit.screen_layout(self, "契約の祠")
 	UiKit.add_note(layout, "古い祠に契約の印が灯っている。代価なし。1 つだけ選べる。")
 	content = VBoxContainer.new()
@@ -70,9 +74,10 @@ func show_mode(next_mode: Mode) -> void:
 		UiKit.add_button(content, "戻る", show_mode.bind(Mode.OPTIONS))
 
 
-## デッキの index 番目のカードの契約を更新して地図へ戻る
+## デッキの index 番目のカードの契約を更新して (回数の回復の効果音を鳴らし) 地図へ戻る
 func renew(index: int) -> void:
 	if NodeRules.shrine_renew(run_state, index):
+		audio.play_se(AudioScript.Se.RESTORE)
 		RunFlow.leave_node(run_state)
 
 

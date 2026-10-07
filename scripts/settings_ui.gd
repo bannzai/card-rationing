@@ -1,15 +1,20 @@
 extends Control
 ## 設定の画面。BGM と効果音の音量をスライダー (0〜100) で変えるたびに保存し (画面を閉じずにゲームを終えても
 ## 残るように)、「戻る」か Esc で closed を出す。値は autoload Settings (scripts/settings.gd) に持つ。
+## 変えた音量を聞いて確かめられるよう、開いている間は BGM が鳴り (scripts/main.gd)、効果音の音量を変えるたびに
+## 効果音を鳴らす。
 
 ## 画面を閉じる (呼んだ側が次の画面を出す)
 signal closed
 
+const AudioScript := preload("res://scripts/audio.gd")
 const SettingsScript := preload("res://scripts/settings.gd")
 const UiKit := preload("res://scripts/ui_kit.gd")
 
 ## 設定 (autoload Settings)
 var settings: SettingsScript = null
+## BGM と効果音 (autoload Audio)
+var audio: AudioScript = null
 ## BGM と効果音の音量のスライダー
 var bgm_slider: HSlider = null
 var se_slider: HSlider = null
@@ -20,10 +25,11 @@ var back_button: Button = null
 ## 画面のノードを組み立てる
 func _ready() -> void:
 	settings = get_tree().root.get_node_or_null("Settings")
+	audio = get_tree().root.get_node_or_null("Audio")
 	var layout: VBoxContainer = UiKit.screen_layout(self, "設定")
 	bgm_slider = _add_volume_row(layout, "BGM の音量", settings.bgm_volume, _on_bgm_changed)
 	se_slider = _add_volume_row(layout, "効果音の音量", settings.se_volume, _on_se_changed)
-	UiKit.add_label(layout, "← → で音量を変える。音そのものは今後の版で鳴る。", 16)
+	UiKit.add_label(layout, "← → で音量を変える。", 16)
 	back_button = UiKit.add_button(layout, "戻る (Esc)", closed.emit)
 	bgm_slider.grab_focus()
 
@@ -41,9 +47,10 @@ func _on_bgm_changed(value: float) -> void:
 	_save()
 
 
-## 効果音の音量を変えて保存する
+## 効果音の音量を変えて保存する。変えた音量を聴いて確かめられるよう、効果音を 1 つ鳴らす
 func _on_se_changed(value: float) -> void:
 	settings.se_volume = int(value)
+	audio.play_se(AudioScript.Se.CARD_USE)
 	_save()
 
 

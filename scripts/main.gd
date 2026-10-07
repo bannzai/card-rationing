@@ -2,12 +2,13 @@ extends Control
 ## 起動時に表示するメインシーン。タイトル・契約者の選択・設定と、ランの局面 (RunState.phase) に応じた画面
 ## (地図・戦闘・報酬・契約の祠・商人・出来事・敗北 / 踏破) を 1 つだけ子に置いて切り替える。ランの状態は
 ## autoload RunState に持ち、ここは表示する画面を選ぶだけ。ランの間は契約の一覧を D キーか右下のボタンで
-## いつでも重ねて開ける。
+## いつでも重ねて開ける。画面に合わせて BGM も切り替える (曲の割り当ては scripts/audio.gd の bgm_for())。
 
 const BOOT_MESSAGE: String = "card-rationing boot"
 const BATTLE_SCENE: PackedScene = preload("res://scenes/battle.tscn")
 const BOSS_TALK_SCENE: PackedScene = preload("res://scenes/boss_talk.tscn")
 const ActMap := preload("res://scripts/act_map.gd")
+const AudioScript := preload("res://scripts/audio.gd")
 const BattleUiScript := preload("res://scripts/battle_ui.gd")
 const BossTalkScript := preload("res://scripts/boss_talk.gd")
 const CharacterSelectUiScript := preload("res://scripts/character_select_ui.gd")
@@ -33,6 +34,8 @@ const READ_ERROR_NOTICE: String = (
 
 ## ラン単位の状態 (autoload RunState)
 var run_state: RunStateScript = null
+## BGM と効果音 (autoload Audio)
+var audio: AudioScript = null
 ## 今表示している画面 (タイトル・地図・戦闘など。常に 1 つ)
 var screen: Control = null
 ## 重ねて開いている契約の一覧 (閉じていれば null)
@@ -50,8 +53,9 @@ func _ready() -> void:
 	# ERROR になる (ThemeDB.fallback_font は既定テーマがフォントを持つため効かなかった)
 	theme = UiKit.build_theme()
 	run_state = get_tree().root.get_node_or_null("RunState")
-	if run_state == null:
-		push_error("autoload RunState が無い")
+	audio = get_tree().root.get_node_or_null("Audio")
+	if run_state == null or audio == null:
+		push_error("autoload RunState か Audio が無い")
 		return
 	run_state.phase_changed.connect(show_run_phase)
 	deck_button = Button.new()
@@ -77,8 +81,9 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		open_deck_list()
 
 
-## タイトル画面を出す。notice はボタンの下に出す知らせ
+## タイトル画面を出す (BGM は鳴らさない)。notice はボタンの下に出す知らせ
 func show_title(notice: String = "") -> void:
+	audio.play_bgm(AudioScript.Bgm.NONE)
 	var title: TitleUiScript = TitleUiScript.new()
 	title.has_save = FileAccess.file_exists(run_state.save_path)
 	title.notice = notice
@@ -97,8 +102,9 @@ func show_character_select() -> void:
 	_set_screen(select, false)
 
 
-## 設定画面を出す (閉じたらタイトルへ)
+## 設定画面を出す (閉じたらタイトルへ)。変えた BGM の音量を聞いて確かめられるよう、開いている間は地図の曲を鳴らす
 func show_settings() -> void:
+	audio.play_bgm(AudioScript.Bgm.MAP)
 	var settings_ui: SettingsUiScript = SettingsUiScript.new()
 	settings_ui.closed.connect(show_title)
 	_set_screen(settings_ui, false)
@@ -126,11 +132,13 @@ func continue_run() -> void:
 ## ランの今の局面の画面を出す。戦闘は今いる節点の戦闘を最初から始め (戦闘の途中から再開した時も同じ)、
 ## ボスの節点ではボス戦の前の会話を先に出す
 func show_run_phase() -> void:
+	var node_kind: int = run_state.current_node().get("kind", ActMap.Kind.BATTLE)
+	audio.play_bgm(AudioScript.bgm_for(run_state.phase, node_kind))
 	match run_state.phase:
 		RunStateScript.Phase.MAP:
 			_set_screen(MapUiScript.new(), true)
 		RunStateScript.Phase.BATTLE:
-			if run_state.current_node().get("kind", ActMap.Kind.BATTLE) == ActMap.Kind.BOSS:
+			if node_kind == ActMap.Kind.BOSS:
 				_show_boss_talk()
 			else:
 				show_battle()

@@ -5,9 +5,11 @@ extends Control
 ## 封蝋の印の列で必ず見せ、契約切れ (残り 0) のカードは色を失う。
 ## カードを使うたびとターンの終わりにランを保存し、勝敗が決まったら scripts/run_flow.gd で戦闘を終える
 ## (報酬・踏破・敗北の画面へは scripts/main.gd が切り替える)。
+## カードを使った後の残り使用回数・被弾・勝敗に合わせて効果音を鳴らす (回数の増減を耳でも分かるように)。
 
 const ActMap := preload("res://scripts/act_map.gd")
 const Art := preload("res://scripts/art.gd")
+const AudioScript := preload("res://scripts/audio.gd")
 const Battle := preload("res://scripts/battle.gd")
 const CardView := preload("res://scripts/card_view.gd")
 const Cards := preload("res://scripts/cards.gd")
@@ -27,6 +29,8 @@ const BEAD_SIZE: Vector2 = Vector2(16, 16)
 var battle: Battle = null
 ## ラン単位の状態 (autoload RunState)
 var run_state: RunStateScript = null
+## BGM と効果音 (autoload Audio)
+var audio: AudioScript = null
 ## 対象の敵を選んでいる途中の手札の index (-1 なら選んでいない。もがくなら STRUGGLE_PENDING)
 var pending_hand_index: int = -1
 
@@ -47,8 +51,9 @@ var pending_hand_index: int = -1
 
 func _ready() -> void:
 	run_state = get_tree().root.get_node_or_null("RunState")
-	if run_state == null:
-		push_error("autoload RunState が無い")
+	audio = get_tree().root.get_node_or_null("Audio")
+	if run_state == null or audio == null:
+		push_error("autoload RunState か Audio が無い")
 	($Background as TextureRect).texture = Art.BATTLE_BG
 	($Pilgrim as TextureRect).texture = Art.PILGRIM
 	message_label.add_theme_color_override("font_color", Art.CANDLE)
@@ -96,11 +101,11 @@ func request_card(hand_index: int) -> void:
 	if Cards.needs_target(card_id):
 		var alive: Array[int] = battle.alive_enemies()
 		if alive.size() == 1:
-			battle.play(hand_index, alive[0])
+			_play_card(hand_index, alive[0])
 		else:
 			pending_hand_index = hand_index
 	else:
-		battle.play(hand_index)
+		_play_card(hand_index)
 	_after_action()
 
 
@@ -126,7 +131,7 @@ func choose_target(enemy_index: int) -> void:
 	if pending_hand_index == STRUGGLE_PENDING:
 		battle.struggle(enemy_index)
 	else:
-		battle.play(pending_hand_index, enemy_index)
+		_play_card(pending_hand_index, enemy_index)
 	pending_hand_index = -1
 	_after_action()
 
@@ -137,11 +142,15 @@ func cancel_target() -> void:
 	refresh()
 
 
-## ターンを終える (敵の行動の後、次のターンの手札が配られる)
+## ターンを終える (敵の行動の後、次のターンの手札が配られる)。敵の攻撃で体力が減ったら被弾の効果音を鳴らす
+## (防御で受け切った時は鳴らさない)
 func end_turn() -> void:
 	if pending_hand_index != -1:
 		return
+	var hp_before: int = run_state.hp
 	battle.end_turn()
+	if run_state.hp < hp_before:
+		audio.play_se(AudioScript.Se.HIT)
 	_after_action()
 
 
@@ -185,15 +194,25 @@ func refresh() -> void:
 	end_turn_button.disabled = over
 
 
+## 手札の hand_index 番目のカードを target の敵に使う (対象を取らないカードは target を省く)。使えた時は、
+## 回数が減ったことを耳で知らせる効果音を鳴らす (使ったカードは捨て札へ行き、残りの表示が見えなくなるため)
+func _play_card(hand_index: int, target: int = -1) -> void:
+	var deck_index: int = battle.hand[hand_index]
+	if battle.play(hand_index, target):
+		audio.play_se(AudioScript.card_use_se(run_state.uses_left(deck_index)))
+
+
 ## 操作の後: ランを保存し (戦闘の途中で終えても、使った回数と受けた傷が戻らないように)、勝敗が決まっていれば
-## 戦闘を終える (画面の切り替えは scripts/main.gd が局面の変化で行う)。画面を更新する
+## 戦闘を終えて勝利・敗北の効果音を鳴らす (画面の切り替えは scripts/main.gd が局面の変化で行う)。画面を更新する
 func _after_action() -> void:
 	if battle.outcome == Battle.Outcome.NONE:
 		var status: Error = run_state.autosave()
 		if status != OK:
 			push_error("自動保存に失敗: %s (%s)" % [run_state.save_path, error_string(status)])
-	else:
-		RunFlow.finish_battle(run_state, battle.outcome == Battle.Outcome.WIN)
+	elif RunFlow.finish_battle(run_state, battle.outcome == Battle.Outcome.WIN):
+		audio.play_se(
+			AudioScript.Se.WIN if battle.outcome == Battle.Outcome.WIN else AudioScript.Se.LOSE
+		)
 	refresh()
 
 

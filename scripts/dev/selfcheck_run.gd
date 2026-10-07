@@ -1,9 +1,10 @@
 extends "res://scripts/dev/headless_check.gd"
 ## selfcheck (scripts/dev/selfcheck.gd) のうち、巡礼の地図と局面の移り変わり・報酬・契約の祠・商人・出来事・契約の一覧・
-## 設定の検証 (#7・#8)。selfcheck.gd がこのスクリプトを継承して _initialize() から呼ぶ (1 ファイルの行数の上限
-## (gdlintrc の max-file-lines) に収めるため分けた)。
+## 設定の検証 (#7・#8) と、音・素材の記録の検証 (#12)。selfcheck.gd がこのスクリプトを継承して _initialize() から
+## 呼ぶ (1 ファイルの行数の上限 (gdlintrc の max-file-lines) に収めるため分けた)。
 
 const ActMap := preload("res://scripts/act_map.gd")
+const AudioScript := preload("res://scripts/audio.gd")
 const Cards := preload("res://scripts/cards.gd")
 const Contractors := preload("res://scripts/contractors.gd")
 const DeckListUiScript := preload("res://scripts/deck_list_ui.gd")
@@ -20,6 +21,19 @@ const SELFCHECK_SAVE_PATH: String = "user://selfcheck_save.json"
 const SELFCHECK_SETTINGS_PATH: String = "user://selfcheck_settings.cfg"
 ## 地図の生成の制約を確かめるシードの数 (シード 1〜MAP_SEEDS。issue #7 が例に挙げた 100 個)
 const MAP_SEEDS: int = 100
+## 素材の置き場と、素材の出典とライセンスの記録
+const ASSETS_DIR: String = "res://assets"
+const CREDITS_PATH: String = "res://assets/CREDITS.md"
+## Godot がインポートで作るファイルの拡張子 (素材でないため、記録の照合から除く)
+const GENERATED_EXTENSIONS: Array[String] = ["import", "uid"]
+## 地図の曲を鳴らす局面 (戦闘とランの終わりのほか)
+const MAP_BGM_PHASES: Array = [
+	RunStateScript.Phase.MAP,
+	RunStateScript.Phase.REWARD,
+	RunStateScript.Phase.SHRINE,
+	RunStateScript.Phase.SHOP,
+	RunStateScript.Phase.EVENT,
+]
 
 
 ## 地図の生成: 同じシードなら同じ地図で、シード 1〜MAP_SEEDS のすべての地図が生成の制約
@@ -424,9 +438,113 @@ func _check_settings() -> void:
 	other.load_settings()
 	_check(other.bgm_volume == SettingsScript.MAX_VOLUME, "範囲の外の音量は収める")
 	_check(other.se_volume == SettingsScript.DEFAULT_VOLUME, "数でない音量は既定値")
+	var changes: Array[int] = [0]
+	settings.volume_changed.connect(func() -> void: changes[0] += 1)
+	settings.se_volume = 20
+	_check(changes[0] == 1, "音量を変えると volume_changed が出る")
 	settings.free()
 	other.free()
 	_remove_user_file(SELFCHECK_SETTINGS_PATH)
+
+
+## 音: BGM と効果音の素材を読み込めて BGM は繰り返し、局面と使った後の残り使用回数から鳴らす音が決まり
+## (documents/DIRECTION.md「決めたこと」)、音量が BGM・効果音のバスに反映される
+func _check_audio() -> void:
+	_check(
+		AudioScript.BGM_PATHS.size() == AudioScript.Bgm.size() - 1, "無音のほかのすべての曲に素材がある"
+	)
+	for track: AudioScript.Bgm in AudioScript.BGM_PATHS:
+		var path: String = AudioScript.BGM_PATHS[track]
+		_check(ResourceLoader.exists(path), "BGM の素材がある: %s" % path)
+		if ResourceLoader.exists(path):
+			_check(AudioScript.bgm_stream(track).loop, "BGM は繰り返す: %s" % path)
+	_check(AudioScript.SE_PATHS.size() == AudioScript.Se.size(), "すべての効果音に素材がある")
+	for path: String in AudioScript.SE_PATHS.values():
+		_check(
+			ResourceLoader.exists(path) and load(path) is AudioStreamWAV, "効果音を読み込める: %s" % path
+		)
+	for phase: RunStateScript.Phase in MAP_BGM_PHASES:
+		_check(
+			AudioScript.bgm_for(phase, ActMap.Kind.BATTLE) == AudioScript.Bgm.MAP,
+			"局面 %d は地図の曲" % phase
+		)
+	var battle: RunStateScript.Phase = RunStateScript.Phase.BATTLE
+	_check(
+		(
+			AudioScript.bgm_for(battle, ActMap.Kind.BATTLE) == AudioScript.Bgm.BATTLE
+			and AudioScript.bgm_for(battle, ActMap.Kind.ELITE) == AudioScript.Bgm.BATTLE
+		),
+		"戦闘と強敵は戦闘の曲"
+	)
+	_check(AudioScript.bgm_for(battle, ActMap.Kind.BOSS) == AudioScript.Bgm.BOSS, "ボスの節点はボスの曲")
+	for phase: RunStateScript.Phase in [RunStateScript.Phase.DEFEAT, RunStateScript.Phase.CLEAR]:
+		_check(
+			AudioScript.bgm_for(phase, ActMap.Kind.BOSS) == AudioScript.Bgm.NONE,
+			"ランの終わり (局面 %d) は無音" % phase
+		)
+	_check(AudioScript.card_use_se(3) == AudioScript.Se.CARD_USE, "使った後の残り 3 回は使う音")
+	_check(AudioScript.card_use_se(2) == AudioScript.Se.CARD_USE, "使った後の残り 2 回は使う音")
+	_check(AudioScript.card_use_se(1) == AudioScript.Se.LAST_ONE, "使った後の残り 1 回は最後の 1 回の音")
+	_check(AudioScript.card_use_se(0) == AudioScript.Se.EXPIRED, "使った後の残り 0 回は契約切れの音")
+	AudioScript.add_buses()
+	var bus_count: int = AudioServer.bus_count
+	AudioScript.add_buses()
+	var bgm_bus: int = AudioServer.get_bus_index(AudioScript.BGM_BUS)
+	var se_bus: int = AudioServer.get_bus_index(AudioScript.SE_BUS)
+	_check(bgm_bus != -1 and se_bus != -1, "BGM と効果音のバスがある")
+	_check(AudioServer.bus_count == bus_count, "バスを 2 回足しても増えない")
+	AudioScript.apply_volume(AudioScript.BGM_BUS, 30)
+	_check(
+		(
+			is_equal_approx(AudioServer.get_bus_volume_db(bgm_bus), linear_to_db(0.3))
+			and not AudioServer.is_bus_mute(bgm_bus)
+		),
+		"音量 30 を BGM のバスに反映する"
+	)
+	AudioScript.apply_volume(AudioScript.SE_BUS, 0)
+	_check(AudioServer.is_bus_mute(se_bus), "音量 0 はミュートにする")
+	AudioScript.apply_volume(AudioScript.SE_BUS, SettingsScript.MAX_VOLUME)
+	_check(
+		not AudioServer.is_bus_mute(se_bus) and is_zero_approx(AudioServer.get_bus_volume_db(se_bus)),
+		"最大の音量はミュートを解いて素材そのままの音量にする"
+	)
+
+
+## ASSETS_DIR の下の全素材が CREDITS_PATH に記録されている。記録の照合が記録の無い素材を見逃さないことも確かめる
+func _check_credits() -> void:
+	_check(
+		_unrecorded_assets(["audio/missing.wav"], "`audio/other.wav`") == ["audio/missing.wav"],
+		"素材の記録: 記録の無い素材を見つける"
+	)
+	var credits: String = FileAccess.get_file_as_string(CREDITS_PATH)
+	_check(not credits.is_empty(), "素材の記録: %s がある" % CREDITS_PATH)
+	var files: Array[String] = _asset_files(ASSETS_DIR)
+	_check(not files.is_empty(), "素材の記録: %s に素材がある" % ASSETS_DIR)
+	for file: String in _unrecorded_assets(files, credits):
+		_check(false, "素材の記録: %s が %s に記録されていない" % [file, CREDITS_PATH])
+
+
+## dir の下 (サブディレクトリを含む) の素材の、ASSETS_DIR からの相対パス。素材の記録 (CREDITS_PATH) と、
+## Godot がインポートで作るファイルは素材でないため除く
+func _asset_files(dir: String) -> Array[String]:
+	var files: Array[String] = []
+	for file: String in DirAccess.get_files_at(dir):
+		if dir.path_join(file) == CREDITS_PATH or GENERATED_EXTENSIONS.has(file.get_extension()):
+			continue
+		files.append(dir.path_join(file).trim_prefix(ASSETS_DIR + "/"))
+	for sub: String in DirAccess.get_directories_at(dir):
+		files.append_array(_asset_files(dir.path_join(sub)))
+	return files
+
+
+## files (ASSETS_DIR からの相対パス) のうち、credits (CREDITS_PATH の本文) にバッククォートで囲んで書かれて
+## いないもの
+func _unrecorded_assets(files: Array[String], credits: String) -> Array[String]:
+	var missing: Array[String] = []
+	for file: String in files:
+		if not credits.contains("`%s`" % file):
+			missing.append(file)
+	return missing
 
 
 ## シード seed_value の地図で、kind の最初の節点に入った局面のラン (保存先は検証用)

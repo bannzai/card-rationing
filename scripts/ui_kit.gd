@@ -64,12 +64,12 @@ static func add_button(parent: Control, text: String, callback: Callable) -> But
 	return button
 
 
-## カードの名前・区分・効果・コスト (例: 「斬撃 [精霊] 攻撃 6 / コスト 1」)
+## カードの名前・区分・コストの行と、効果の行の 2 行 (例: 「斬火 [精霊] コスト 1」「攻撃 6」)
 static func card_summary(card_id: String) -> String:
 	var card: Dictionary = Cards.CARDS[card_id]
 	return (
-		"%s [%s] %s / コスト %d"
-		% [card["name"], BOND_NAMES[card["bond"]], Cards.effect_text(card_id), card["cost"]]
+		"%s [%s] コスト %d\n%s"
+		% [card["name"], BOND_NAMES[card["bond"]], card["cost"], Cards.effect_text(card_id)]
 	)
 
 
@@ -103,6 +103,14 @@ static func status_text(state: RunStateScript) -> String:
 	return "体力 %d / %d   所持金 %d   契約 %d 枚" % [state.hp, state.max_hp, state.gold, state.deck.size()]
 
 
+## parent にカード 1 枚のボタン (CARD_BUTTON_SIZE の幅で文を折り返す) を足し、押したら callback を呼ぶ
+static func add_card_button(parent: Control, text: String, callback: Callable) -> Button:
+	var button: Button = add_button(parent, text, callback)
+	button.custom_minimum_size = CARD_BUTTON_SIZE
+	button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	return button
+
+
 ## parent にデッキの全カードのボタンを格子で並べる。enabled.call(index) が false のカードは押せず、押したら
 ## on_pick.call(index) を呼ぶ。押せる最初のカードにフォーカスを置く (キーボードだけで選べるように)。並べた格子を返す
 static func add_deck_grid(
@@ -118,13 +126,9 @@ static func add_deck_grid(
 	grid.add_theme_constant_override("v_separation", 8)
 	scroll.add_child(grid)
 	for index: int in range(state.deck.size()):
-		var button: Button = Button.new()
-		button.text = deck_card_text(state, index)
-		button.custom_minimum_size = CARD_BUTTON_SIZE
+		var button: Button = add_card_button(grid, deck_card_text(state, index), on_pick.bind(index))
 		button.modulate = uses_color(state.uses_left(index))
 		button.disabled = not enabled.call(index)
-		button.pressed.connect(on_pick.bind(index))
-		grid.add_child(button)
 	for button: Button in grid.get_children():
 		if not button.disabled:
 			button.grab_focus()

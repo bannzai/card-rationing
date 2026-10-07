@@ -108,8 +108,7 @@ func _build_goods() -> void:
 	for card_id: String in NodeRules.card_offers(run_state.node_seed()):
 		var price: int = NodeRules.card_price(card_id)
 		var label: String = "%s\n値段 %d" % [UiKit.offer_text(card_id), price]
-		var button: Button = UiKit.add_button(row, label, buy.bind(card_id))
-		button.custom_minimum_size = UiKit.CARD_BUTTON_SIZE
+		var button: Button = UiKit.add_card_button(row, label, buy.bind(card_id))
 		if sold.has(card_id):
 			button.text = "%s\n売り切れ" % UiKit.card_summary(card_id)
 		button.disabled = sold.has(card_id) or run_state.gold < price

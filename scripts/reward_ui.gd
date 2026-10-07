@@ -36,8 +36,7 @@ func _ready() -> void:
 	row.add_theme_constant_override("separation", 12)
 	layout.add_child(row)
 	for card_id: String in NodeRules.card_offers(run_state.node_seed()):
-		var button: Button = UiKit.add_button(row, UiKit.offer_text(card_id), take.bind(card_id))
-		button.custom_minimum_size = UiKit.CARD_BUTTON_SIZE
+		var button: Button = UiKit.add_card_button(row, UiKit.offer_text(card_id), take.bind(card_id))
 		offer_buttons[card_id] = button
 	skip_button = UiKit.add_button(layout, "取らずに地図へ戻る", skip)
 	# 戦闘の Enter (ターン終了) の続けて押しで、見ずにカードと契約しないよう、取らない方に置く

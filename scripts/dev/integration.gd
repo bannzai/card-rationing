@@ -26,6 +26,7 @@ const SettingsUiScript := preload("res://scripts/settings_ui.gd")
 const ShopUiScript := preload("res://scripts/shop_ui.gd")
 const ShrineUiScript := preload("res://scripts/shrine_ui.gd")
 const TitleUiScript := preload("res://scripts/title_ui.gd")
+const UiKit := preload("res://scripts/ui_kit.gd")
 
 ## 起動時に表示するメインシーン
 const MAIN_SCENE: PackedScene = preload("res://scenes/main.tscn")
@@ -326,6 +327,8 @@ func _check_shop(main: MainScript) -> void:
 	_check(shop != null, "地図の商人の節点で商人に入る")
 	if shop == null:
 		return
+	_check_buttons_fit(shop.card_buttons.values(), "商人のカード")
+	await _check_longest_cards_fit()
 	var card_id: String = shop.card_buttons.keys()[0]
 	var size_before: int = run_state.deck.size()
 	await _click(shop.card_buttons[card_id])
@@ -632,6 +635,46 @@ func _hand_index_of(battle_ui: BattleUiScript, card_id: String) -> int:
 		if run_state.deck[battle_ui.battle.hand[hand_index]]["id"] == card_id:
 			return hand_index
 	return -1
+
+
+## buttons のすべてが画面の幅に収まるか (label は失敗の文の頭に付ける)
+func _check_buttons_fit(buttons: Array, label: String) -> void:
+	for button: Button in buttons:
+		var rect: Rect2 = button.get_global_rect()
+		_check(
+			rect.position.x >= 0 and rect.end.x <= root.size.x,
+			"%sのボタンが画面の幅に収まる: %s" % [label, button.text]
+		)
+
+
+## 文の最も長いカードを、報酬・祠・商人の 3 枚の並び (値段の行付き) とデッキの格子の 1 行に並べても、画面の
+## 幅に収まる (画面と同じ余白の入れ物に置いて確かめ、確かめた後に消す)
+func _check_longest_cards_fit() -> void:
+	var card_ids: Array = Cards.CARDS.keys()
+	card_ids.sort_custom(
+		func(a: String, b: String) -> bool:
+			return UiKit.offer_text(a).length() > UiKit.offer_text(b).length()
+	)
+	var probe: Control = Control.new()
+	root.add_child(probe)
+	var layout: VBoxContainer = UiKit.screen_layout(probe, "")
+	var row: HBoxContainer = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	layout.add_child(row)
+	var grid: GridContainer = GridContainer.new()
+	grid.columns = UiKit.DECK_GRID_COLUMNS
+	grid.add_theme_constant_override("h_separation", 8)
+	layout.add_child(grid)
+	var buttons: Array[Button] = []
+	for card_id: String in card_ids.slice(0, NodeRules.OFFER_COUNT):
+		var text: String = "%s\n値段 %d" % [UiKit.offer_text(card_id), NodeRules.card_price(card_id)]
+		buttons.append(UiKit.add_card_button(row, text, func() -> void: pass))
+	for card_id: String in card_ids.slice(0, UiKit.DECK_GRID_COLUMNS):
+		buttons.append(UiKit.add_card_button(grid, UiKit.offer_text(card_id), func() -> void: pass))
+	await _settle()
+	_check_buttons_fit(buttons, "文の長いカード")
+	probe.queue_free()
+	await process_frame
 
 
 ## parent の表示中の子の数

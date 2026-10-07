@@ -1,37 +1,35 @@
 extends Control
-## 巡礼の地図の画面。1 幕の地図の全体 (下が出発、上がボス) を最初から見せ、契約の祠を色で目立たせて先まで
-## 分かるようにする。次に進める節点だけを押せ、クリックか数字キー (左から 1, 2, ...) で選ぶと
-## scripts/run_flow.gd で節点に入る (画面の切り替えは scripts/main.gd が局面の変化で行う)。
+## 巡礼の地図の画面。1 幕の地図の全体 (下が出発、上がボス) を羊皮紙の上に最初から見せ、節点は種類ごとの印の絵で
+## 示す (契約の祠は蝋燭の灯る祠の印で、先まで分かる)。次に進める節点だけを押せ、クリックか数字キー (左から
+## 1, 2, ...) で選ぶと scripts/run_flow.gd で節点に入る (画面の切り替えは scripts/main.gd が局面の変化で行う)。
 
 const ActMap := preload("res://scripts/act_map.gd")
+const Art := preload("res://scripts/art.gd")
 const RunFlow := preload("res://scripts/run_flow.gd")
 const RunStateScript := preload("res://scripts/run_state.gd")
 const UiKit := preload("res://scripts/ui_kit.gd")
 
-## 地図の配置: 最下段の中心の y、段の間隔、最左列の中心の x、列の間隔、節点のボタンの大きさ
-const MAP_BOTTOM: float = 684.0
-const ROW_SPACING: float = 45.0
-const MAP_LEFT: float = 110.0
-const COLUMN_SPACING: float = 140.0
-const NODE_SIZE: Vector2 = Vector2(64, 34)
-## 節点の種類ごとの文字の色 (祠は先まで見えるよう最も明るい金色)
-const KIND_COLORS: Dictionary = {
-	ActMap.Kind.BATTLE: Color(0.85, 0.85, 0.85),
-	ActMap.Kind.ELITE: Color(1, 0.5, 0.45),
-	ActMap.Kind.EVENT: Color(0.6, 0.8, 1),
-	ActMap.Kind.SHRINE: Color(1, 0.85, 0.3),
-	ActMap.Kind.SHOP: Color(0.6, 0.95, 0.6),
-	ActMap.Kind.BOSS: Color(0.95, 0.6, 1),
-}
-## 辺の色 (通った道 / ほか) と太さ
-const EDGE_COLOR: Color = Color(0.45, 0.43, 0.5)
-const PATH_EDGE_COLOR: Color = Color(1, 0.85, 0.3)
+## 地図の配置: 最下段の中心の y、段の間隔、最左列の中心の x、列の間隔。15 段が画面の高さ 720 に、5 列が
+## 羊皮紙 (SHEET_RECT) の破れた端の内側に収まり、印どうしが重ならない間隔にした
+const MAP_BOTTOM: float = 668.0
+const ROW_SPACING: float = 44.0
+const MAP_LEFT: float = 124.0
+const COLUMN_SPACING: float = 136.0
+## 地図を載せる羊皮紙を置く範囲と、右側の説明 (幕と階・凡例・操作) を置く位置と幅 (高さは中身で決まる)
+const SHEET_RECT: Rect2 = Rect2(30, 6, 734, 708)
+const SIDE_RECT: Rect2 = Rect2(800, 20, 450, 0)
+## 節点の印の大きさ (次に進める節点 / ほか)
+const CHOICE_SIZE: Vector2 = Vector2(46, 46)
+const NODE_SIZE: Vector2 = Vector2(36, 36)
+## 辺の色 (ほか = 墨 / 通った道 = 封蝋の赤) と太さ
+const EDGE_COLOR: Color = Color(Art.INK, 0.5)
+const PATH_EDGE_COLOR: Color = Art.SEAL_RED
 const EDGE_WIDTH: float = 2.0
-## 通った節点の明るさ (不透明のまま暗くし、辺が文字に透けないようにする)
-const VISITED_MODULATE: Color = Color(0.6, 0.6, 0.6, 1)
-## 節点のボタンの背景 (不透明にして、節点を通る辺を文字の下に隠す) と、次に進める節点の枠の太さ
-const NODE_BG_COLOR: Color = Color(0.15, 0.14, 0.18, 1)
-const SELECTABLE_BORDER_WIDTH: int = 2
+const PATH_EDGE_WIDTH: float = 4.0
+## まだ進めない先の節点の印の色合い (次に進める節点より沈める)
+const FAR_TINT: Color = Color(0.82, 0.8, 0.78)
+## 凡例の印の大きさ
+const LEGEND_ICON_SIZE: Vector2 = Vector2(28, 28)
 
 ## ラン単位の状態 (autoload RunState)
 var run_state: RunStateScript = null
@@ -50,6 +48,12 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	run_state = get_tree().root.get_node_or_null("RunState")
 	choices = ActMap.next_columns(run_state.rows, run_state.path)
+	Art.add_background(self, Art.BACKDROP)
+	var sheet: Panel = Panel.new()
+	sheet.position = SHEET_RECT.position
+	sheet.size = SHEET_RECT.size
+	sheet.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(sheet)
 	edge_canvas = Control.new()
 	edge_canvas.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	edge_canvas.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -88,46 +92,53 @@ func node_center(row: int, column: int) -> Vector2:
 	return Vector2(MAP_LEFT + column * COLUMN_SPACING, MAP_BOTTOM - row * ROW_SPACING)
 
 
-## 節点のボタンを置く。次に進める節点だけ押せ、数字キーの番号を付ける
+## 節点のボタンを置く。見た目は節点の種類の印の絵で、通った節点は焼けた封蝋の印にする。次に進める節点だけ
+## 押せ、大きく見せて数字キーの番号を添える
 func _add_node_button(row: int, node: Dictionary) -> void:
 	var column: int = node["column"]
 	var kind: int = node["kind"]
 	var button: Button = Button.new()
 	var selectable: bool = row == run_state.path.size() and choices.has(column)
 	var visited: bool = row < run_state.path.size() and run_state.path[row] == column
-	button.text = ActMap.KIND_MARKS[kind]
-	if selectable:
-		button.text = "%d %s" % [choices.find(column) + 1, button.text]
-	button.size = NODE_SIZE
-	button.position = node_center(row, column) - NODE_SIZE / 2
+	button.icon = Art.SEAL_BURNT if visited else Art.MAP_ICONS[kind]
+	button.expand_icon = true
+	button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	button.add_theme_color_override("icon_disabled_color", Color.WHITE if visited else FAR_TINT)
+	for style_name: String in ["normal", "disabled", "hover", "pressed"]:
+		button.add_theme_stylebox_override(style_name, StyleBoxEmpty.new())
+	var ring: StyleBoxFlat = StyleBoxFlat.new()
+	ring.draw_center = false
+	ring.border_color = Art.SEAL_RED
+	ring.set_border_width_all(3)
+	ring.set_corner_radius_all(int(CHOICE_SIZE.x))
+	ring.set_expand_margin_all(4)
+	button.add_theme_stylebox_override("focus", ring)
+	button.size = CHOICE_SIZE if selectable else NODE_SIZE
+	button.position = node_center(row, column) - button.size / 2
 	button.disabled = not selectable
 	button.focus_mode = Control.FOCUS_ALL if selectable else Control.FOCUS_NONE
-	for color_name: String in ["font_color", "font_disabled_color", "font_hover_color"]:
-		button.add_theme_color_override(color_name, KIND_COLORS[kind])
-	var background: StyleBoxFlat = StyleBoxFlat.new()
-	background.bg_color = NODE_BG_COLOR
-	background.set_corner_radius_all(6)
-	if selectable:
-		background.set_border_width_all(SELECTABLE_BORDER_WIDTH)
-		background.border_color = KIND_COLORS[kind]
-	for style_name: String in ["normal", "disabled", "hover", "pressed"]:
-		button.add_theme_stylebox_override(style_name, background)
-	if visited:
-		button.modulate = VISITED_MODULATE
 	button.tooltip_text = ActMap.KIND_NAMES[kind]
 	button.pressed.connect(choose.bind(column))
 	add_child(button)
 	node_buttons["%d,%d" % [row, column]] = button
+	if selectable:
+		var number: Label = UiKit.add_label(button, str(choices.find(column) + 1), 18)
+		number.autowrap_mode = TextServer.AUTOWRAP_OFF
+		number.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		number.position = Vector2(-16, -12)
 
 
 ## 右側の説明: 幕と階・体力と所持金・凡例・操作
 func _build_side_panel() -> void:
 	var panel: VBoxContainer = VBoxContainer.new()
-	panel.position = Vector2(820, 24)
-	panel.custom_minimum_size = Vector2(430, 0)
-	panel.add_theme_constant_override("separation", 10)
+	panel.position = SIDE_RECT.position
+	panel.custom_minimum_size = SIDE_RECT.size
+	panel.add_theme_constant_override("separation", 8)
 	add_child(panel)
-	UiKit.add_label(panel, "第 %d 幕 巡礼の地図" % run_state.act, UiKit.TITLE_FONT_SIZE)
+	var title: Label = UiKit.add_label(
+		panel, "第 %d 幕 巡礼の地図" % run_state.act, UiKit.TITLE_FONT_SIZE
+	)
+	title.add_theme_color_override("font_color", Art.CANDLE)
 	info_label = UiKit.add_label(
 		panel,
 		(
@@ -135,22 +146,33 @@ func _build_side_panel() -> void:
 			% [run_state.path.size(), ActMap.ROWS, UiKit.status_text(run_state)]
 		)
 	)
-	for kind: int in ActMap.KIND_MARKS:
-		var legend: Label = UiKit.add_label(
-			panel, "%s  %s" % [ActMap.KIND_MARKS[kind], ActMap.KIND_NAMES[kind]], 18
-		)
-		legend.add_theme_color_override("font_color", KIND_COLORS[kind])
-	UiKit.add_label(
+	for kind: int in ActMap.KIND_NAMES:
+		_add_legend(panel, Art.MAP_ICONS[kind], ActMap.KIND_NAMES[kind])
+	_add_legend(panel, Art.SEAL_BURNT, "通った節点")
+	UiKit.add_note(
 		panel,
 		(
-			"契約の祠 (祠) では代価なしで、契約の更新 (残り使用回数を最大まで戻す)・破棄・"
+			"契約の祠では代価なしで、契約の更新 (残り使用回数を最大まで戻す)・破棄・"
 			+ "新しい契約から 1 つを選べる。\n数字キー / クリック: 次の節点   D: 契約の一覧"
 		),
-		16
+		16,
+		SIDE_RECT.size.x - 2 * UiKit.PARCHMENT_MARGIN.x
 	)
 
 
-## 地図の辺を描く (通った道は明るい色)
+## 凡例の 1 行 (印の絵と名前) を panel に足す
+func _add_legend(panel: VBoxContainer, icon: Texture2D, text: String) -> void:
+	var row: HBoxContainer = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	panel.add_child(row)
+	var picture: TextureRect = Art.picture(icon)
+	picture.custom_minimum_size = LEGEND_ICON_SIZE
+	row.add_child(picture)
+	# 行の中のラベルは折り返さない (幅の決まらない横並びでは 1 文字ずつ折り返してしまう)
+	UiKit.add_label(row, text, 18).autowrap_mode = TextServer.AUTOWRAP_OFF
+
+
+## 地図の辺を描く (通った道は封蝋の赤の太い線)
 func _draw_edges() -> void:
 	for row: int in range(run_state.rows.size()):
 		for node: Dictionary in run_state.rows[row]:
@@ -165,5 +187,5 @@ func _draw_edges() -> void:
 					from,
 					node_center(row + 1, next_column),
 					PATH_EDGE_COLOR if on_path else EDGE_COLOR,
-					EDGE_WIDTH
+					PATH_EDGE_WIDTH if on_path else EDGE_WIDTH
 				)

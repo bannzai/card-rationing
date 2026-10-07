@@ -38,7 +38,7 @@ const NO_REPEAT_KINDS: Array[int] = [Kind.ELITE, Kind.SHOP, Kind.SHRINE]
 ## 1 枚の地図に必ず出す種類。出なければ種類を引き直す (MAX_KIND_ATTEMPTS 回まで)
 const REQUIRED_KINDS: Array[int] = [Kind.BATTLE, Kind.ELITE, Kind.EVENT, Kind.SHOP, Kind.SHRINE]
 const MAX_KIND_ATTEMPTS: int = 100
-## 種類の表示名と、地図の節点に出す 1 文字
+## 種類の表示名 (地図の節点に出す印の絵は scripts/art.gd の MAP_ICONS)
 const KIND_NAMES: Dictionary = {
 	Kind.BATTLE: "戦闘",
 	Kind.ELITE: "強敵",
@@ -46,14 +46,6 @@ const KIND_NAMES: Dictionary = {
 	Kind.SHRINE: "契約の祠",
 	Kind.SHOP: "商人",
 	Kind.BOSS: "ボス",
-}
-const KIND_MARKS: Dictionary = {
-	Kind.BATTLE: "戦",
-	Kind.ELITE: "強",
-	Kind.EVENT: "?",
-	Kind.SHRINE: "祠",
-	Kind.SHOP: "商",
-	Kind.BOSS: "主",
 }
 
 

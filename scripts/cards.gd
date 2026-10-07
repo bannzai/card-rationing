@@ -10,6 +10,9 @@ enum Kind { ATTACK, GUARD, SKILL }
 ## 契約の相手の区分 (精霊は回数が多く、英霊は強く回数が少ない)
 enum Bond { SPIRIT, HERO }
 
+## 契約の相手の区分の表示名
+const BOND_NAMES: Dictionary = {Bond.SPIRIT: "精霊", Bond.HERO: "英霊"}
+
 ## カード ID → 定義。max_uses が 1 回の巡礼 (ラン) で命令できる回数 (契約の回数)
 const CARDS: Dictionary = {
 	"slash":

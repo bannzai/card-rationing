@@ -35,7 +35,7 @@ func _ready() -> void:
 	run_state = get_tree().root.get_node_or_null("RunState")
 	audio = get_tree().root.get_node_or_null("Audio")
 	var layout: VBoxContainer = UiKit.screen_layout(self, "契約の祠")
-	UiKit.add_label(layout, "古い祠に契約の印が灯っている。代価なし。1 つだけ選べる。")
+	UiKit.add_note(layout, "古い祠に契約の印が灯っている。代価なし。1 つだけ選べる。")
 	content = VBoxContainer.new()
 	content.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	content.add_theme_constant_override("separation", 10)
@@ -125,13 +125,8 @@ func _build_options() -> void:
 ## 新しい契約の候補 3 枚
 func _build_contracts() -> void:
 	UiKit.add_label(content, "契約する精霊・英霊を選ぶ")
-	var row: HBoxContainer = HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
-	content.add_child(row)
+	var row: HBoxContainer = UiKit.add_card_row(content)
 	for card_id: String in NodeRules.card_offers(run_state.node_seed()):
-		var button: Button = UiKit.add_card_button(
-			row, UiKit.offer_text(card_id), contract.bind(card_id)
-		)
-		offer_buttons[card_id] = button
+		offer_buttons[card_id] = UiKit.add_offer_card(row, card_id, "", contract.bind(card_id))
 	# キーボードだけで選べるよう、最初の候補にフォーカスを置く
 	offer_buttons.values()[0].grab_focus()

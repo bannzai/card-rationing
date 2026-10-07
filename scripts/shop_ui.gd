@@ -35,7 +35,7 @@ func _ready() -> void:
 	run_state = get_tree().root.get_node_or_null("RunState")
 	audio = get_tree().root.get_node_or_null("Audio")
 	var layout: VBoxContainer = UiKit.screen_layout(self, "商人")
-	UiKit.add_label(layout, "「契約の切れ端なら、いくらでも売ってやるよ」")
+	UiKit.add_note(layout, "「契約の切れ端なら、いくらでも売ってやるよ」")
 	status_label = UiKit.add_label(layout, "")
 	content = VBoxContainer.new()
 	content.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -106,16 +106,12 @@ func leave() -> void:
 ## 売り物のカード 3 枚と、戻す・外す・立ち去るボタン。買えないもの (売り切れ・所持金が足りない・この訪問で
 ## 済ませた) は押せない
 func _build_goods() -> void:
-	var row: HBoxContainer = HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
-	content.add_child(row)
+	var row: HBoxContainer = UiKit.add_card_row(content)
 	var sold: Array = run_state.visit.get("sold", [])
 	for card_id: String in NodeRules.card_offers(run_state.node_seed()):
 		var price: int = NodeRules.card_price(card_id)
-		var label: String = "%s\n値段 %d" % [UiKit.offer_text(card_id), price]
-		var button: Button = UiKit.add_card_button(row, label, buy.bind(card_id))
-		if sold.has(card_id):
-			button.text = "%s\n売り切れ" % UiKit.card_summary(card_id)
+		var note: String = "売り切れ" if sold.has(card_id) else "値段 %d" % price
+		var button: Button = UiKit.add_offer_card(row, card_id, note, buy.bind(card_id))
 		button.disabled = sold.has(card_id) or run_state.gold < price
 		card_buttons[card_id] = button
 	restore_button = UiKit.add_button(

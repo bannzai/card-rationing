@@ -1,12 +1,13 @@
 extends Control
-## ボス戦の前の会話の画面 (仮の見た目。見た目は関門 2 で決めた方向を #11 で反映する)。ボスの台詞
-## (scripts/enemies.gd の talk) を Enter / Space / クリックで 1 行ずつ出し、最後の行の後に「戦う」で finished を出す。
+## ボス戦の前の会話の画面。祠の道の絵にボスの絵を置き、ボスの台詞 (scripts/enemies.gd の talk) を羊皮紙の上に
+## Enter / Space / クリックで 1 行ずつ出し、最後の行の後に「戦う」で finished を出す。
 ## 地図のボスの節点 → この会話 → 戦闘 の接続は scripts/main.gd が行う。
-## 日本語のフォントはメインシーンの theme が持つため、メインシーンの子に置いて使う。
+## 日本語のフォントと羊皮紙・ボタンの見た目はメインシーンの theme が持つため、メインシーンの子に置いて使う。
 
 ## 最後の台詞の後に「戦う」を選んだ (1 回の会話で 1 度だけ出す)
 signal finished
 
+const Art := preload("res://scripts/art.gd")
 const Enemies := preload("res://scripts/enemies.gd")
 
 ## 会話するボスの敵 ID
@@ -17,6 +18,7 @@ var line_index: int = 0
 var done: bool = false
 
 ## scenes/boss_talk.tscn のノード
+@onready var boss_art: TextureRect = $Layout/BossArt
 @onready var boss_name_label: Label = $Layout/BossNameLabel
 @onready var line_label: Label = $Layout/LinePanel/LineMargin/LineLabel
 @onready var hint_label: Label = $Layout/BottomRow/HintLabel
@@ -24,6 +26,8 @@ var done: bool = false
 
 
 func _ready() -> void:
+	($Background as TextureRect).texture = Art.BATTLE_BG
+	Art.on_parchment(line_label)
 	fight_button.pressed.connect(advance)
 	refresh()
 
@@ -72,6 +76,7 @@ func _gui_input(event: InputEvent) -> void:
 func refresh() -> void:
 	var lines: Array = _lines()
 	var last: bool = line_index >= lines.size() - 1
+	boss_art.texture = Art.ENEMY_ART[Enemies.ENEMIES[boss_id]["rank"]]
 	boss_name_label.text = Enemies.ENEMIES[boss_id]["name"]
 	line_label.text = lines[line_index]
 	hint_label.text = "" if last else "次へ  Enter / クリック  %d / %d" % [line_index + 1, lines.size()]

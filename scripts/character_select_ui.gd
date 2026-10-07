@@ -7,9 +7,13 @@ signal chosen(character_id: String)
 ## 前の画面へ戻る
 signal back_requested
 
+const Art := preload("res://scripts/art.gd")
 const Cards := preload("res://scripts/cards.gd")
 const Contractors := preload("res://scripts/contractors.gd")
 const UiKit := preload("res://scripts/ui_kit.gd")
+
+## 巡礼者の立ち絵を置く範囲 (画面の左)
+const PORTRAIT_RECT: Rect2 = Rect2(40, 90, 360, 600)
 
 ## 契約者 ID → その契約者を選ぶボタン
 var character_buttons: Dictionary = {}
@@ -20,18 +24,25 @@ var back_button: Button = null
 ## 画面のノードを組み立てる
 func _ready() -> void:
 	var layout: VBoxContainer = UiKit.screen_layout(self, "契約者を選ぶ")
+	# 左に巡礼者の立ち絵を置き、契約者の話とボタンはその右に並べる
+	var portrait: TextureRect = Art.picture(Art.PILGRIM)
+	portrait.position = PORTRAIT_RECT.position
+	portrait.size = PORTRAIT_RECT.size
+	add_child(portrait)
+	layout.offset_left = PORTRAIT_RECT.end.x + 24
 	UiKit.add_label(layout, "巡礼に出る契約者を選ぶ。契約者ごとに、最初に契約している精霊・英霊が違う。")
 	for character_id: String in Contractors.CONTRACTORS:
 		var character: Dictionary = Contractors.CONTRACTORS[character_id]
-		var button: Button = UiKit.add_button(
+		UiKit.add_note(
 			layout,
-			"%s\n%s\n初期デッキ: %s" % [character["name"], character["story"], _deck_text(character_id)],
-			chosen.emit.bind(character_id)
+			"%s\n最初の契約: %s" % [character["story"], _deck_text(character_id)],
+			UiKit.BODY_FONT_SIZE,
+			# 立ち絵の分だけ狭くなった縦並びに収める
+			UiKit.NOTE_TEXT_WIDTH - (layout.offset_left - UiKit.LAYOUT_MARGIN)
 		)
-		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		# 契約者の話は 1 行に収まらない長さがあるため、画面の幅で折り返す
-		button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		character_buttons[character_id] = button
+		character_buttons[character_id] = UiKit.add_button(
+			layout, "%s と巡礼に出る" % character["name"], chosen.emit.bind(character_id)
+		)
 	back_button = UiKit.add_button(layout, "戻る", back_requested.emit)
 	character_buttons[Contractors.FIRST_CONTRACTOR].grab_focus()
 

@@ -29,9 +29,10 @@ const ShrineUiScript := preload("res://scripts/shrine_ui.gd")
 const MAIN_SCENE: PackedScene = preload("res://scenes/main.tscn")
 ## 遊ばせる戦略 (issue #10 の指定)
 const STRATEGY: int = Bots.Strategy.ADAPT
-## 遊ばせる地図のシード。make simulate でこの戦略が踏破したシードから選ぶ取り決め (issue #10) だが、2026-10-07 の
-## 集計 (CI run 37587458764) では 3 つの戦略とも踏破が 0 だったため、この戦略がボス戦まで着いた 59 個のシードの
-## うち最小のものにした (1 幕の最後までの画面を録画に映すため)。踏破するシードが出たら、そこから選び直す
+## 遊ばせる地図のシード。make simulate でこの戦略が踏破したシードから選ぶ取り決め (issue #10)。敵の強さを調整
+## (issue #33) した後の 2026-10-07 の集計 (CI run 37614347476) でこの戦略が踏破した 46 個のシードのうち最小のもの
+## (1 幕の最後まで遊び、踏破の結果の画面までを録画に映すため)。敵・カード・戦略の判断を変えたら、踏破したシード
+## から選び直す
 const PLAYTEST_SEED: int = 7
 ## テストプレイの間に使う保存先 (本番の保存データを触らない)
 const PLAYTEST_SAVE_PATH: String = "user://playtest_run.json"

@@ -6,7 +6,7 @@ extends Control
 signal closed
 
 const ActMap := preload("res://scripts/act_map.gd")
-const Characters := preload("res://scripts/characters.gd")
+const Contractors := preload("res://scripts/contractors.gd")
 const RunStateScript := preload("res://scripts/run_state.gd")
 const UiKit := preload("res://scripts/ui_kit.gd")
 
@@ -37,7 +37,7 @@ static func summary_text(state: RunStateScript) -> String:
 			exhausted_now += 1
 	return "\n".join(
 		[
-			"契約者: %s" % Characters.CHARACTERS[state.character_id]["name"],
+			"契約者: %s" % Contractors.CONTRACTORS[state.character_id]["name"],
 			"到達した階層: %d / %d 階" % [state.path.size(), ActMap.ROWS],
 			"勝った戦闘: %d" % state.battles_won,
 			"使い切った契約: %d 回 (今の契約切れ %d 枚)" % [state.exhausted_count, exhausted_now],

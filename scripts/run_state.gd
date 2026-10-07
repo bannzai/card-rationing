@@ -16,9 +16,9 @@ enum Phase { MAP, BATTLE, REWARD, SHRINE, SHOP, EVENT, DEFEAT, CLEAR }
 
 const ActMap := preload("res://scripts/act_map.gd")
 const Cards := preload("res://scripts/cards.gd")
-const Characters := preload("res://scripts/characters.gd")
+const Contractors := preload("res://scripts/contractors.gd")
 
-## 新しいランの体力・最大体力。動作確認用の敵 (攻撃 3〜7) の攻撃を 10 ターン前後受けられる値で、
+## 新しいランの体力・最大体力。1 幕の前半の敵 (1 体の 1 ターンの攻撃 3〜7) の攻撃を 10 ターン前後受けられる値で、
 ## 自動テストプレイ (#10) の結果で見直す
 const START_HP: int = 50
 ## 新しいランの所持金
@@ -38,8 +38,8 @@ const SAVED_PHASE_KINDS: Dictionary = {
 	Phase.EVENT: [ActMap.Kind.EVENT],
 }
 
-## 契約者 ID (scripts/characters.gd)
-var character_id: String = Characters.DEFAULT_CHARACTER
+## 巡礼に出ている契約者の ID (scripts/contractors.gd の CONTRACTORS のキー)
+var character_id: String = Contractors.FIRST_CONTRACTOR
 ## デッキ。各要素は {"id": カード ID, "uses_left": 残り使用回数} で、同じ ID のカードも別の要素として持つ
 var deck: Array[Dictionary] = []
 ## 巡礼者の体力と最大体力 (戦闘をまたいで持ち越す)
@@ -69,13 +69,15 @@ func _ready() -> void:
 	new_run()
 
 
-## 新しいランを始める。デッキは deck_ids のカードを最大使用回数で持つ (空なら既定の契約者の初期デッキ)。
+## 新しいランを始める。デッキは deck_ids のカードを最大使用回数で持つ (空なら最初の契約者の初期デッキ)。
 ## 地図は seed_value から作る (既定の 0 は地図を問わない検証と起動時のためで、本番の巡礼は
 ## scripts/run_flow.gd の start_run() が乱数のシードを渡す)
 func new_run(deck_ids: Array[String] = [], seed_value: int = 0) -> void:
-	character_id = Characters.DEFAULT_CHARACTER
+	character_id = Contractors.FIRST_CONTRACTOR
 	deck = []
-	var ids: Array = Characters.CHARACTERS[character_id]["deck"] if deck_ids.is_empty() else deck_ids
+	var ids: Array[String] = deck_ids
+	if ids.is_empty():
+		ids = Contractors.starter_deck(character_id)
 	for card_id: String in ids:
 		add_card(card_id)
 	hp = START_HP
@@ -291,7 +293,7 @@ func _is_valid_save(data: Variant) -> bool:
 	var counts_ok: bool = count_keys.all(func(key: String) -> bool: return int(data[key]) >= 0)
 	var character_ok: bool = (
 		typeof(data["character_id"]) == TYPE_STRING
-		and Characters.CHARACTERS.has(data["character_id"])
+		and Contractors.CONTRACTORS.has(data["character_id"])
 	)
 	return (
 		hp_ok

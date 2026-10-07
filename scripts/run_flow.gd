@@ -7,7 +7,7 @@ extends RefCounted
 ## 残り使用回数と体力は保存した値のまま。
 
 const ActMap := preload("res://scripts/act_map.gd")
-const Characters := preload("res://scripts/characters.gd")
+const Contractors := preload("res://scripts/contractors.gd")
 const Enemies := preload("res://scripts/enemies.gd")
 const NodeRules := preload("res://scripts/node_rules.gd")
 const RunStateScript := preload("res://scripts/run_state.gd")
@@ -22,10 +22,10 @@ const KIND_PHASES: Dictionary = {
 	ActMap.Kind.EVENT: RunStateScript.Phase.EVENT,
 }
 ## 戦闘の節点の種類 → 敵の格
-const KIND_TIERS: Dictionary = {
-	ActMap.Kind.BATTLE: Enemies.Tier.NORMAL,
-	ActMap.Kind.ELITE: Enemies.Tier.ELITE,
-	ActMap.Kind.BOSS: Enemies.Tier.BOSS,
+const KIND_RANKS: Dictionary = {
+	ActMap.Kind.BATTLE: Enemies.Rank.NORMAL,
+	ActMap.Kind.ELITE: Enemies.Rank.ELITE,
+	ActMap.Kind.BOSS: Enemies.Rank.BOSS,
 }
 ## 節点を出て地図へ戻れる局面
 const NODE_PHASES: Array = [
@@ -38,9 +38,7 @@ const NODE_PHASES: Array = [
 
 ## character_id の契約者で、地図を seed_value から作って新しい巡礼を始める (地図の局面で保存する)
 static func start_run(state: RunStateScript, character_id: String, seed_value: int) -> void:
-	var deck_ids: Array[String] = []
-	deck_ids.assign(Characters.CHARACTERS[character_id]["deck"])
-	state.new_run(deck_ids, seed_value)
+	state.new_run(Contractors.starter_deck(character_id), seed_value)
 	state.character_id = character_id
 	_change_phase(state, RunStateScript.Phase.MAP)
 
@@ -63,8 +61,8 @@ static func encounter(state: RunStateScript) -> Array[String]:
 	var node: Dictionary = state.current_node()
 	var kind: int = node.get("kind", ActMap.Kind.BATTLE)
 	var row: int = maxi(0, state.path.size() - 1)
-	var tier: Enemies.Tier = KIND_TIERS.get(kind, Enemies.Tier.NORMAL)
-	return Enemies.encounter(tier, row >= ActMap.LATE_ROW, state.node_seed())
+	var rank: int = KIND_RANKS.get(kind, Enemies.Rank.NORMAL)
+	return Enemies.encounter(rank, row >= ActMap.LATE_ROW, state.node_seed())
 
 
 ## 戦闘を終える。負けたら敗北、ボスに勝ったら踏破、ほかの戦闘に勝ったら所持金と体力を受け取って報酬の局面へ。

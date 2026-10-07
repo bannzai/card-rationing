@@ -11,7 +11,10 @@ const BOOT_MESSAGE: String = "card-rationing boot"
 ## 持つため効かなかった)
 const DEFAULT_FONT: Font = preload("res://assets/fonts/NotoSansJP-Variable.ttf")
 const BATTLE_SCENE: PackedScene = preload("res://scenes/battle.tscn")
+const BOSS_TALK_SCENE: PackedScene = preload("res://scenes/boss_talk.tscn")
+const ActMap := preload("res://scripts/act_map.gd")
 const BattleUiScript := preload("res://scripts/battle_ui.gd")
+const BossTalkScript := preload("res://scripts/boss_talk.gd")
 const CharacterSelectUiScript := preload("res://scripts/character_select_ui.gd")
 const DeckListUiScript := preload("res://scripts/deck_list_ui.gd")
 const EventUiScript := preload("res://scripts/event_ui.gd")
@@ -122,15 +125,17 @@ func continue_run() -> void:
 			show_title()
 
 
-## ランの今の局面の画面を出す。戦闘は今いる節点の戦闘を最初から始める (戦闘の途中から再開した時も同じ)
+## ランの今の局面の画面を出す。戦闘は今いる節点の戦闘を最初から始め (戦闘の途中から再開した時も同じ)、
+## ボスの節点ではボス戦の前の会話を先に出す
 func show_run_phase() -> void:
 	match run_state.phase:
 		RunStateScript.Phase.MAP:
 			_set_screen(MapUiScript.new(), true)
 		RunStateScript.Phase.BATTLE:
-			var battle_ui: BattleUiScript = BATTLE_SCENE.instantiate()
-			_set_screen(battle_ui, true)
-			battle_ui.start_battle(run_state.node_seed())
+			if run_state.current_node().get("kind", ActMap.Kind.BATTLE) == ActMap.Kind.BOSS:
+				_show_boss_talk()
+			else:
+				show_battle()
 		RunStateScript.Phase.REWARD:
 			_set_screen(RewardUiScript.new(), true)
 		RunStateScript.Phase.SHRINE:
@@ -143,6 +148,21 @@ func show_run_phase() -> void:
 			var result: ResultUiScript = ResultUiScript.new()
 			result.closed.connect(show_title)
 			_set_screen(result, false)
+
+
+## 今いる節点の戦闘の画面を出す (戦闘は最初のターンから始まる。ボス戦の前の会話の「戦う」からも呼ぶ)
+func show_battle() -> void:
+	var battle_ui: BattleUiScript = BATTLE_SCENE.instantiate()
+	_set_screen(battle_ui, true)
+	battle_ui.start_battle(run_state.node_seed())
+
+
+## ボス戦の前の会話の画面を出す。最後の台詞の後の「戦う」で戦闘に入る (戦闘の途中から再開した時も会話から)
+func _show_boss_talk() -> void:
+	var talk: BossTalkScript = BOSS_TALK_SCENE.instantiate()
+	talk.finished.connect(show_battle)
+	_set_screen(talk, true)
+	talk.start(RunFlow.encounter(run_state)[0])
 
 
 ## 契約の一覧を重ねて開く (開いていれば何もしない)

@@ -16,7 +16,7 @@ const RunStateScript := preload("res://scripts/run_state.gd")
 const ENERGY_PER_TURN: int = 3
 const HAND_SIZE: int = 5
 ## 常に使える基本行動「もがく」のコストとダメージ (使えるカードが無くても詰まないための行動。
-## documents/DIRECTION.md「決めたこと」)。コスト 1 で最弱の攻撃カード (精霊の矢 3) より弱くし、
+## documents/DIRECTION.md「決めたこと」)。コスト 1 で最弱の攻撃カード (火の粉 3) より弱くし、
 ## 契約切れだらけのデッキが弱いという結果を残す
 const STRUGGLE_COST: int = 1
 const STRUGGLE_DAMAGE: int = 2
@@ -33,7 +33,8 @@ var discard_pile: Array[int] = []
 var energy: int = 0
 ## 巡礼者の防御 (自分のターンの開始で 0 に戻る)
 var block: int = 0
-## 敵。各要素は {"id", "name", "hp", "max_hp", "block", "intent": {"move", "value"}}
+## 敵。各要素は {"id", "name", "hp", "max_hp", "block", "intent": {"move", "value", "hits"(省略可)},
+## "next_move": 予告を順に繰り返す敵 (in_order) が次に予告する moves の index}
 var enemies: Array[Dictionary] = []
 ## 何ターン目か (1 始まり)
 var turn: int = 0
@@ -63,6 +64,7 @@ func start(state: RunStateScript, enemy_ids: Array[String], seed_value: int) -> 
 			"max_hp": definition["hp"],
 			"block": 0,
 			"intent": {},
+			"next_move": 0,
 		}
 		enemy["intent"] = _choose_intent(enemy)
 		enemies.append(enemy)
@@ -100,8 +102,8 @@ func can_play(hand_index: int) -> bool:
 	return energy >= run_state.card(deck_index)["cost"] and run_state.can_use(deck_index)
 
 
-## 手札の hand_index 番目のカードを使う。対象を取るカードは target (enemies の index) の敵を狙う。
-## エネルギーを払い、残り使用回数を 1 減らし、効果を出して捨て札へ送る。使えなければ false
+## 手札の hand_index 番目のカードを使う。対象を取るカードは target (enemies の index) の敵を狙い、全体攻撃は
+## 生きている敵すべてを狙う。エネルギーを払い、残り使用回数を 1 減らし、効果を出して捨て札へ送る。使えなければ false
 func play(hand_index: int, target: int = -1) -> bool:
 	if not can_play(hand_index):
 		return false
@@ -115,9 +117,16 @@ func play(hand_index: int, target: int = -1) -> bool:
 	hand.remove_at(hand_index)
 	discard_pile.append(deck_index)
 	if card.has("damage"):
-		_damage_enemy(target, card["damage"])
+		var targets: Array[int] = [target]
+		if card.get("area", false):
+			targets = alive_enemies()
+		for _i: int in range(card.get("hits", 1)):
+			for index: int in targets:
+				_damage_enemy(index, card["damage"])
 	if card.has("block"):
 		block += card["block"]
+	if card.has("energy"):
+		energy += card["energy"]
 	if card.has("draw"):
 		draw(card["draw"])
 	_check_win()
@@ -189,18 +198,25 @@ func _act_enemy(enemy: Dictionary) -> void:
 	var intent: Dictionary = enemy["intent"]
 	if intent["move"] == Enemies.Move.ATTACK:
 		var damage: int = intent["value"]
-		var absorbed: int = mini(block, damage)
-		block -= absorbed
-		run_state.take_damage(damage - absorbed)
+		for _i: int in range(intent.get("hits", 1)):
+			var absorbed: int = mini(block, damage)
+			block -= absorbed
+			run_state.take_damage(damage - absorbed)
 	elif intent["move"] == Enemies.Move.GUARD:
 		enemy["block"] = intent["value"]
 
 
-## 敵の次の行動を候補から乱数で選ぶ
+## 敵の次の行動を候補から選ぶ。予告を順に繰り返す敵 (in_order) は moves の順に、それ以外は乱数で選ぶ
 func _choose_intent(enemy: Dictionary) -> Dictionary:
-	var moves: Array = Enemies.ENEMIES[enemy["id"]]["moves"]
-	var move: Dictionary = moves[rng.randi_range(0, moves.size() - 1)]
-	return move.duplicate()
+	var definition: Dictionary = Enemies.ENEMIES[enemy["id"]]
+	var moves: Array = definition["moves"]
+	var move_index: int = 0
+	if definition.get("in_order", false):
+		move_index = enemy["next_move"] % moves.size()
+		enemy["next_move"] = move_index + 1
+	else:
+		move_index = rng.randi_range(0, moves.size() - 1)
+	return moves[move_index].duplicate()
 
 
 ## 敵をすべて倒していたら勝利にする

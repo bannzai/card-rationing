@@ -15,8 +15,11 @@ const UiKit := preload("res://scripts/ui_kit.gd")
 
 ## pending_hand_index の特別な値: もがくの対象を選んでいる
 const STRUGGLE_PENDING: int = -2
-## 敵の行動の種別の表示名
+## 敵の行動の種別と敵の格の表示名 (戦闘の格の敵には付けない)
 const MOVE_NAMES: Dictionary = {Enemies.Move.ATTACK: "攻撃", Enemies.Move.GUARD: "防御"}
+const RANK_NAMES: Dictionary = {
+	Enemies.Rank.NORMAL: "", Enemies.Rank.ELITE: " [強敵]", Enemies.Rank.BOSS: " [ボス]"
+}
 
 ## 進行中の戦闘
 var battle: Battle = null
@@ -201,16 +204,19 @@ func _refresh_enemies() -> void:
 			button.disabled = true
 			continue
 		var intent: Dictionary = enemy["intent"]
+		var hits: int = intent.get("hits", 1)
 		button.text = (
-			"%d. %s\n体力 %d / %d   防御 %d\n予告: %s %d"
+			"%d. %s%s\n体力 %d / %d   防御 %d\n予告: %s %d%s"
 			% [
 				index + 1,
 				enemy["name"],
+				RANK_NAMES[Enemies.ENEMIES[enemy["id"]]["rank"]],
 				enemy["hp"],
 				enemy["max_hp"],
 				enemy["block"],
 				MOVE_NAMES[intent["move"]],
 				intent["value"],
+				"×%d" % hits if hits > 1 else "",
 			]
 		)
 		button.disabled = false

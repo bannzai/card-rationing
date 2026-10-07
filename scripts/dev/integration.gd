@@ -9,8 +9,9 @@ const ActMap := preload("res://scripts/act_map.gd")
 const BattleScript := preload("res://scripts/battle.gd")
 const BattleUiScript := preload("res://scripts/battle_ui.gd")
 const Cards := preload("res://scripts/cards.gd")
+const BossTalkScript := preload("res://scripts/boss_talk.gd")
 const CharacterSelectUiScript := preload("res://scripts/character_select_ui.gd")
-const Characters := preload("res://scripts/characters.gd")
+const Contractors := preload("res://scripts/contractors.gd")
 const DeckListUiScript := preload("res://scripts/deck_list_ui.gd")
 const Enemies := preload("res://scripts/enemies.gd")
 const EventUiScript := preload("res://scripts/event_ui.gd")
@@ -28,6 +29,8 @@ const TitleUiScript := preload("res://scripts/title_ui.gd")
 
 ## 起動時に表示するメインシーン
 const MAIN_SCENE: PackedScene = preload("res://scenes/main.tscn")
+## ボス戦の前の会話の画面 (台詞の送り方を単体で確かめる。地図のボスの節点からの流れは _check_clear_returns_to_title)
+const BOSS_TALK_SCENE: PackedScene = preload("res://scenes/boss_talk.tscn")
 ## 検証で使う保存先 (本番の保存データを触らない)
 const INTEGRATION_SAVE_PATH: String = "user://integration_run.json"
 const INTEGRATION_SETTINGS_PATH: String = "user://integration_settings.cfg"
@@ -84,6 +87,7 @@ func _run() -> void:
 	await _check_settings_saved(main)
 	main.queue_free()
 	await process_frame
+	await _check_boss_talk()
 	_remove_user_file(INTEGRATION_SAVE_PATH)
 	_remove_user_file(INTEGRATION_SETTINGS_PATH)
 	_finish()
@@ -102,10 +106,10 @@ func _check_title_to_map(main: MainScript) -> void:
 	_check(select != null, "「巡礼を始める」で契約者の選択が出る")
 	if select == null:
 		return
-	await _click(select.character_buttons[Characters.DEFAULT_CHARACTER])
+	await _click(select.character_buttons[Contractors.FIRST_CONTRACTOR])
 	_check(main.screen is MapUiScript, "契約者を選ぶと地図が出る")
 	_check(run_state.phase == RunStateScript.Phase.MAP and run_state.path.is_empty(), "出発前の地図")
-	var starter: Array = Characters.CHARACTERS[Characters.DEFAULT_CHARACTER]["deck"]
+	var starter: Array[String] = Contractors.starter_deck(Contractors.FIRST_CONTRACTOR)
 	_check(run_state.deck.size() == starter.size(), "契約者の初期デッキで始まる")
 	_check(FileAccess.file_exists(INTEGRATION_SAVE_PATH), "巡礼を始めると保存する")
 	_check(main.deck_button.visible, "ランの画面では契約の一覧のボタンが出る")
@@ -129,6 +133,9 @@ func _check_map_to_battle(main: MainScript) -> void:
 	)
 	_check(_hand_buttons(battle_ui).size() == BattleScript.HAND_SIZE, "手札のボタンが 5 枚")
 	_check(_hand_buttons(battle_ui)[0].get_global_rect().size.x > 0, "手札のボタンに大きさがある")
+	# 段 0 の敵は 2 体のこともあるため、対象を選ばずに使えるよう敵 1 体で始め直してからカードを使う
+	_start_battle_with(battle_ui, ["wild_dog"], 1)
+	await _settle()
 	var hand_index: int = _playable_without_target(battle_ui)
 	if hand_index < 0:
 		_check(false, "対象を選ばずに使えるカードが手札にある")
@@ -156,12 +163,12 @@ func _check_target_selection(main: MainScript) -> void:
 	_check(battle_ui.message_label.text.contains("対象"), "対象を選ぶ案内が出る")
 	_check(battle_ui.battle.enemies[1]["hp"] == 22, "まだ骸骨兵の体力 22")
 	await _press_key(KEY_2)
-	_check(battle_ui.battle.enemies[1]["hp"] == 16, "2 を押すと骸骨兵に 6 ダメージ")
+	_check(battle_ui.battle.enemies[1]["hp"] == 16, "2 を押すと骸の巡礼者に 6 ダメージ")
 	_check(battle_ui.pending_hand_index == -1, "使ったら対象の選択が終わる")
 	var other_slash: int = _hand_index_of(battle_ui, "slash")
 	var other_slash_uses: int = run_state.uses_left(battle_ui.battle.hand[other_slash])
 	await _press_key(KEY_1 + other_slash)
-	_check(battle_ui.pending_hand_index == other_slash, "2 枚目の斬撃で対象の選択に入る")
+	_check(battle_ui.pending_hand_index == other_slash, "2 枚目の斬火で対象の選択に入る")
 	await _press_key(KEY_ESCAPE)
 	_check(battle_ui.pending_hand_index == -1, "Esc で対象の選択をやめる")
 	_check(
@@ -184,10 +191,10 @@ func _check_hand_fits_after_draw(main: MainScript) -> void:
 	_set_deck(["breath", "slash", "slash", "guard", "guard", "guard", "spirit_arrow", "slash"])
 	var breath_hand: int = await _start_battle_with_card_in_hand(battle_ui, "breath")
 	if breath_hand < 0:
-		_check(false, "深呼吸が手札に来るシードが見つかる")
+		_check(false, "灯の精が手札に来るシードが見つかる")
 		return
 	await _press_key(KEY_1 + breath_hand)
-	_check(battle_ui.battle.hand.size() == 6, "深呼吸で手札が 6 枚になる")
+	_check(battle_ui.battle.hand.size() == 6, "灯の精で手札が 6 枚になる")
 	var buttons: Array[Button] = _hand_buttons(battle_ui)
 	_check(buttons.size() == 6, "手札のボタンが 6 枚")
 	for button: Button in buttons:
@@ -215,6 +222,8 @@ func _check_battle_resume_keeps_uses(main: MainScript) -> void:
 	main.show_run_phase()
 	await _settle()
 	battle_ui = main.screen as BattleUiScript
+	_start_battle_with(battle_ui, ["wild_dog"], 1)
+	await _settle()
 	var hand_index: int = _playable_without_target(battle_ui)
 	if hand_index < 0:
 		_check(false, "再開の検証: 対象を選ばずに使えるカードが手札にある")
@@ -388,13 +397,24 @@ func _check_save_and_continue(main: MainScript) -> void:
 	_check(main.screen is MapUiScript, "地図で終了したら地図から再開する")
 
 
-## ボスの節点に入って倒すと踏破の画面が出て、「タイトルへ」でタイトルに戻る (保存データは消え、続きからは出ない)
+## ボスの節点に入るとボス戦の前の会話が出て、送り終えるとボスとの戦闘に入り、倒すと踏破の画面が出て、
+## 「タイトルへ」でタイトルに戻る (保存データは消え、続きからは出ない)
 func _check_clear_returns_to_title(main: MainScript) -> void:
 	await _enter_kind(main, ActMap.Kind.BOSS)
+	var talk: BossTalkScript = main.screen as BossTalkScript
+	_check(talk != null, "ボスの節点ではボス戦の前の会話が出る")
+	if talk == null:
+		return
+	_check(talk.boss_id == Enemies.BOSS_ENCOUNTER[0], "会話するのはボスの節点の敵")
+	var lines: int = Enemies.ENEMIES[talk.boss_id]["talk"].size()
+	for _i: int in range(lines):
+		await _press_key(KEY_ENTER)
 	var battle_ui: BattleUiScript = main.screen as BattleUiScript
-	_check(battle_ui != null, "ボスの節点で戦闘に入る")
+	_check(battle_ui != null, "会話の後にボスとの戦闘に入る")
 	if battle_ui == null:
 		return
+	_check(battle_ui.battle.turn == 1, "会話を送った Enter は戦闘のターン終了に届かない")
+	_check(battle_ui.battle.enemies[0]["id"] == Enemies.BOSS_ENCOUNTER[0], "戦う相手はボス")
 	for enemy: Dictionary in battle_ui.battle.enemies:
 		enemy["hp"] = 1
 		enemy["block"] = 0
@@ -420,7 +440,7 @@ func _check_defeat_returns_to_title(main: MainScript) -> void:
 	if select == null:
 		_check(false, "2 回目の巡礼の契約者の選択が出る")
 		return
-	await _click(select.character_buttons[Characters.DEFAULT_CHARACTER])
+	await _click(select.character_buttons[Contractors.FIRST_CONTRACTOR])
 	await _press_key(KEY_1)
 	var battle_ui: BattleUiScript = main.screen as BattleUiScript
 	_check(battle_ui != null, "2 回目の巡礼で戦闘に入る")
@@ -566,6 +586,34 @@ func _playable_without_target(battle_ui: BattleUiScript) -> int:
 		if Cards.CARDS[card_id]["damage"] < enemy["hp"] + enemy["block"]:
 			return hand_index
 	return -1
+
+
+## ボス戦の前の会話: クリックと Enter で台詞が 1 行ずつ進み、最後の台詞でだけ「戦う」が出て、選ぶと finished が
+## 1 度だけ出る
+func _check_boss_talk() -> void:
+	var talk: BossTalkScript = BOSS_TALK_SCENE.instantiate()
+	root.add_child(talk)
+	await _settle()
+	var boss_id: String = Enemies.BOSS_ENCOUNTER[0]
+	var lines: Array = Enemies.ENEMIES[boss_id]["talk"]
+	var finished_count: Array[int] = [0]
+	talk.finished.connect(func() -> void: finished_count[0] += 1)
+	_check(talk.boss_name_label.text == Enemies.ENEMIES[boss_id]["name"], "ボスの名前が出る")
+	_check(talk.line_label.text == lines[0], "最初の台詞が出る")
+	_check(not talk.fight_button.visible, "最初の台詞では「戦う」が出ない")
+	await _click(talk.boss_name_label)
+	_check(talk.line_label.text == lines[1], "クリックで次の台詞へ進む")
+	for _i: int in range(lines.size() - 2):
+		await _press_key(KEY_ENTER)
+	_check(talk.line_label.text == lines[lines.size() - 1], "Enter で最後の台詞まで進む")
+	_check(talk.fight_button.visible, "最後の台詞で「戦う」が出る")
+	_check(finished_count[0] == 0, "最後の台詞を出しただけでは終わらない")
+	await _click(talk.fight_button)
+	_check(finished_count[0] == 1, "「戦う」で finished が出る")
+	await _press_key(KEY_ENTER)
+	_check(finished_count[0] == 1, "finished は 1 度だけ出る")
+	talk.queue_free()
+	await process_frame
 
 
 ## 戦闘画面の手札のボタン (表示中のものだけ)

@@ -6,7 +6,10 @@ extends SceneTree
 
 const ActMap := preload("res://scripts/act_map.gd")
 const BattleUiScript := preload("res://scripts/battle_ui.gd")
-const Characters := preload("res://scripts/characters.gd")
+const BossTalkScript := preload("res://scripts/boss_talk.gd")
+const Cards := preload("res://scripts/cards.gd")
+const Contractors := preload("res://scripts/contractors.gd")
+const Enemies := preload("res://scripts/enemies.gd")
 const MainScript := preload("res://scripts/main.gd")
 const RunFlow := preload("res://scripts/run_flow.gd")
 const RunStateScript := preload("res://scripts/run_state.gd")
@@ -66,6 +69,8 @@ func _capture_scenes() -> bool:
 		[_show_shrine_renew, "shrine-renew"],
 		[_show_shop, "shop"],
 		[_show_event, "event"],
+		[_show_boss_talk, "boss-talk"],
+		[_show_boss_battle, "battle-boss"],
 		[_show_settings, "settings"],
 		[_show_defeat, "defeat"],
 		[_show_clear, "clear"],
@@ -89,7 +94,7 @@ func _show_character_select() -> bool:
 
 ## 地図 (道を MAP_PROGRESS_ROW 段まで進めたところ)
 func _show_map() -> bool:
-	main.start_run(Characters.DEFAULT_CHARACTER, MAP_SEED)
+	main.start_run(Contractors.FIRST_CONTRACTOR, MAP_SEED)
 	_show_at_row(MAP_PROGRESS_ROW, RunStateScript.Phase.MAP)
 	return true
 
@@ -100,17 +105,17 @@ func _show_deck_list() -> bool:
 	return true
 
 
-## 戦闘。5 枚のデッキなら全カードが手札に来るので、残り 1 回 (斬撃) と契約切れ (英霊の一閃) が必ず映る
+## 戦闘。5 枚のデッキなら全カードが手札に来るので、残り 1 回 (斬火) と契約切れ (雷槍の英霊) が必ず映る
 func _show_battle() -> bool:
 	_set_deck(["slash", "guard", "hero_strike", "breath", "spirit_arrow"])
 	run_state.use_card(2)
-	for _i: int in range(3):
+	for _i: int in range(Cards.CARDS["slash"]["max_uses"] - 1):
 		run_state.use_card(0)
 	_show_at_row(0, RunStateScript.Phase.BATTLE)
 	return true
 
 
-## ドローで手札が 6 枚に増えた戦闘 (手札が画面の幅に収まることを見る)。深呼吸が手札に来るシードを順に探す
+## ドローで手札が 6 枚に増えた戦闘 (手札が画面の幅に収まることを見る)。灯の精が手札に来るシードを順に探す
 func _show_battle_drawn() -> bool:
 	var battle_ui: BattleUiScript = main.screen as BattleUiScript
 	_set_deck(["breath", "slash", "slash", "guard", "guard", "guard", "spirit_arrow", "slash"])
@@ -121,7 +126,7 @@ func _show_battle_drawn() -> bool:
 			battle_ui.request_card(breath_hand)
 			break
 	if battle_ui.battle.hand.size() != 6:
-		push_error("深呼吸で手札を 6 枚にできない (手札 %d 枚)" % battle_ui.battle.hand.size())
+		push_error("灯の精で手札を 6 枚にできない (手札 %d 枚)" % battle_ui.battle.hand.size())
 		return false
 	return true
 
@@ -156,6 +161,24 @@ func _show_shop() -> bool:
 func _show_event() -> bool:
 	_show_at_kind(ActMap.Kind.EVENT, RunStateScript.Phase.EVENT)
 	return true
+
+
+## ボスの節点に入り、ボス戦の前の会話を最後の台詞 (「戦う」が出る) まで進める。会話が出なければ false
+func _show_boss_talk() -> bool:
+	_show_at_kind(ActMap.Kind.BOSS, RunStateScript.Phase.BATTLE)
+	var talk: BossTalkScript = main.screen as BossTalkScript
+	if talk == null:
+		push_error("ボスの節点でボス戦の前の会話が出ない")
+		return false
+	for _i: int in range(Enemies.ENEMIES[talk.boss_id]["talk"].size() - 1):
+		talk.advance()
+	return true
+
+
+## 会話の後のボス戦 (敵の格の表示と、複数回の攻撃の予告を見る)
+func _show_boss_battle() -> bool:
+	(main.screen as BossTalkScript).advance()
+	return main.screen is BattleUiScript
 
 
 ## 設定

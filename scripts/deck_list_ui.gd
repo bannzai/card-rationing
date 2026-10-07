@@ -6,8 +6,8 @@ extends Control
 ## 画面を閉じる (呼んだ側が次の画面を出す)
 signal closed
 
-## 並べ方。強さ順は英霊を先にし、同じ区分の中は最大使用回数の少ない順 (1 人目の契約者の中身 (#9) が強さを
-## 定義したら、それに置き換える)。残り回数順は残りの少ない順で、同じ残りの中は強さ順
+## 並べ方。強さ順はカードの強さ (scripts/cards.gd の strength()) の強い順、残り回数順は残りの少ない順で、
+## 同じ残りの中は強さ順
 enum Order { STRENGTH, USES_LEFT }
 
 const Cards := preload("res://scripts/cards.gd")
@@ -100,17 +100,21 @@ func set_order(next_order: Order) -> void:
 
 ## deck の index を sort_order の並べ方で並べた並び (同じ順位はデッキの順)
 static func sorted_indices(deck: Array[Dictionary], sort_order: Order) -> Array[int]:
-	var keys: Dictionary = {}
 	var indices: Array[int] = []
 	for index: int in range(deck.size()):
 		indices.append(index)
-		var card: Dictionary = Cards.CARDS[deck[index]["id"]]
-		# 区分 (英霊が先)・最大使用回数・デッキの順を桁に詰めた 1 つの数 (デッキと回数は 1000 未満)
-		var key: int = (
-			(0 if card["bond"] == Cards.Bond.HERO else 1) * 1000000 + card["max_uses"] * 1000 + index
-		)
-		if sort_order == Order.USES_LEFT:
-			key += deck[index]["uses_left"] * 10000000
-		keys[index] = key
-	indices.sort_custom(func(a: int, b: int) -> bool: return keys[a] < keys[b])
+	indices.sort_custom(
+		func(a: int, b: int) -> bool: return _comes_before(deck, sort_order, a, b)
+	)
 	return indices
+
+
+## sort_order の並べ方で、deck の a 番目が b 番目より前に来るか
+static func _comes_before(deck: Array[Dictionary], sort_order: Order, a: int, b: int) -> bool:
+	if sort_order == Order.USES_LEFT and deck[a]["uses_left"] != deck[b]["uses_left"]:
+		return deck[a]["uses_left"] < deck[b]["uses_left"]
+	var strength_a: float = Cards.strength(deck[a]["id"])
+	var strength_b: float = Cards.strength(deck[b]["id"])
+	if strength_a != strength_b:
+		return strength_a > strength_b
+	return a < b

@@ -21,7 +21,7 @@ const PLAQUE_END_WIDTH: float = 26.0
 const BUTTON_MARGIN: Vector2 = Vector2(26, 9)
 ## 羊皮紙の絵の、引き伸ばさない端の幅と、載せる文の周りの余白 (左右 / 上下)
 const PARCHMENT_EDGE_WIDTH: float = 30.0
-const PARCHMENT_MARGIN: Vector2 = Vector2(34, 24)
+const PARCHMENT_MARGIN: Vector2 = Vector2(42, 24)
 ## 画面の縦並び (screen_layout) の左右の余白と、その縦並びに置く羊皮紙に載せられる文の幅 (project.godot の
 ## viewport の幅 1280 から、縦並びの余白と羊皮紙の余白を引いた幅)
 const LAYOUT_MARGIN: float = 32.0
@@ -41,8 +41,12 @@ static func build_theme() -> Theme:
 	theme.set_color("font_outline_color", "Label", Art.NIGHT)
 	theme.set_constant("outline_size", "Label", Art.OUTLINE_SIZE)
 	_theme_buttons(theme)
-	for panel_type: String in ["Panel", "PanelContainer", "TooltipPanel"]:
-		theme.set_stylebox("panel", panel_type, _parchment_style())
+	# 地図の下地 (Panel) は羊皮紙 1 枚を縦にも引き伸ばす。文を載せる羊皮紙 (PanelContainer) とツールチップは
+	# 絵より低いため、縦は引き伸ばさずに絵の上の部分だけを使う (低い帯に押しつぶすと、染みが横の筋になって
+	# 文に重なるため)
+	theme.set_stylebox("panel", "Panel", _parchment_style(false))
+	for panel_type: String in ["PanelContainer", "TooltipPanel"]:
+		theme.set_stylebox("panel", panel_type, _parchment_style(true))
 	theme.set_color("font_color", "TooltipLabel", Art.INK)
 	theme.set_constant("outline_size", "TooltipLabel", 0)
 	_theme_sliders(theme)
@@ -217,10 +221,13 @@ static func _plaque_style(tint: Color) -> StyleBoxTexture:
 	return style
 
 
-## 羊皮紙の絵を、破れた端を残して引き伸ばす StyleBox
-static func _parchment_style() -> StyleBoxTexture:
+## 羊皮紙の絵を、破れた端を残して引き伸ばす StyleBox。crop_height なら縦は引き伸ばさず、絵の内側を上から
+## 必要な高さだけ使う (絵の内側より高くすると繰り返しの継ぎ目が出るため、絵より低い羊皮紙に使う)
+static func _parchment_style(crop_height: bool) -> StyleBoxTexture:
 	var style: StyleBoxTexture = StyleBoxTexture.new()
 	style.texture = Art.PARCHMENT
+	if crop_height:
+		style.axis_stretch_vertical = StyleBoxTexture.AXIS_STRETCH_MODE_TILE
 	style.set_texture_margin_all(PARCHMENT_EDGE_WIDTH)
 	style.content_margin_left = PARCHMENT_MARGIN.x
 	style.content_margin_right = PARCHMENT_MARGIN.x

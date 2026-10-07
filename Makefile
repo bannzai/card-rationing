@@ -43,11 +43,13 @@ MOVIE_FRAMES ?= 150
 # 数 ms の空回りになり、上限まで数十秒で終わる。フレームの数は実行時間を縛らない (1 ランが長くなっても 1 フレーム)
 # ので、実行時間は CI の simulate job の timeout-minutes で縛る
 SIMULATE_FRAME_LIMIT ?= 3000
-# playtest target が録画するフレーム数の上限 (30 fps 固定。9000 = 5 分)。テストプレイはランの終わりで自分で終わり、
-# ここに達したら playtest OK が出ずに失敗する。録画の長さは scripts/dev/playtest.gd の 1 手・1 画面ごとの
-# フレーム数で決まり、手数はシードと敵の強さで変わるので、通常の長さの倍を目安に取る。CI (Xvfb + llvmpipe) の
-# 録画は 1 フレーム数十 ms で、上限まで回っても screenshot-and-movie job の timeout (30 分) に収まる
-PLAYTEST_FRAME_LIMIT ?= 9000
+# playtest target が録画するフレーム数の上限 (30 fps 固定。6000 = 3 分 20 秒)。テストプレイはランの終わりで自分で
+# 終わり、ここに達したら playtest OK が出ずに失敗する。録画の長さは scripts/dev/playtest.gd の 1 手・1 画面ごとの
+# フレーム数と手数で決まる。2026-10-07 の実測は、ボス戦で敗北するシード 7 が 2030 フレーム、13 階で敗北する
+# シード 1 が 1698 フレーム。ボスを倒し切るまでの手数と、調整で戦闘が長くなる分を見込んで実測の約 3 倍にした。
+# CI (Xvfb + llvmpipe) の録画は 1 フレーム 18〜30 ms (同じ実測) で、上限まで回っても 3 分で、
+# screenshot-and-movie job の timeout (30 分) に収まる
+PLAYTEST_FRAME_LIMIT ?= 6000
 
 .PHONY: import check selfcheck integration lint test simulate screenshot movie playtest run build-macos build-windows build-linux build-all clean
 

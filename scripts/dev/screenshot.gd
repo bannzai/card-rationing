@@ -5,11 +5,13 @@ extends SceneTree
 ## 画面や状態を増やす時は _capture_scenes() に撮影を足す。ランの状態は検証用の保存先に保存し、撮影の後に消す。
 
 const ActMap := preload("res://scripts/act_map.gd")
+const AudioScript := preload("res://scripts/audio.gd")
 const BattleUiScript := preload("res://scripts/battle_ui.gd")
 const BossTalkScript := preload("res://scripts/boss_talk.gd")
 const Cards := preload("res://scripts/cards.gd")
 const Contractors := preload("res://scripts/contractors.gd")
 const Enemies := preload("res://scripts/enemies.gd")
+const HeadlessCheck := preload("res://scripts/dev/headless_check.gd")
 const MainScript := preload("res://scripts/main.gd")
 const RunFlow := preload("res://scripts/run_flow.gd")
 const RunStateScript := preload("res://scripts/run_state.gd")
@@ -45,6 +47,9 @@ func _run() -> void:
 	run_state.save_path = SCREENSHOT_SAVE_PATH
 	if await _capture_scenes():
 		run_state.delete_save()
+		# 撮影の間に鳴らした BGM・効果音を止め、解放を待ってから終える (待たないとリークの WARNING が出る)
+		(root.get_node("Audio") as AudioScript).stop_all()
+		await create_timer(HeadlessCheck.AUDIO_RELEASE_TIME).timeout
 		print("screenshot OK")
 		quit(0)
 

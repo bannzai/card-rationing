@@ -4,8 +4,11 @@ extends "res://scripts/dev/headless_check.gd"
 ## キーは root.push_input() に InputEventKey を、クリックはボタンの中心への InputEventMouseButton を渡して起こす。
 ## 「終了して続きから」は、ラン単位の状態を新しいランで消してからタイトルの「続きから」を押して確かめる
 ## (起動し直した時と同じく、保存データだけから戻す)。
+## 場面ごとに鳴る BGM と効果音は、autoload Audio のプレイヤーが鳴っているかで確かめる (headless でも再生の状態は
+## 進む)。効果音は直前の操作のものが鳴り終わっていないことがあるため、確かめる操作の前に _stop_se() で止める。
 
 const ActMap := preload("res://scripts/act_map.gd")
+const AudioScript := preload("res://scripts/audio.gd")
 const BattleScript := preload("res://scripts/battle.gd")
 const BattleUiScript := preload("res://scripts/battle_ui.gd")
 const Cards := preload("res://scripts/cards.gd")
@@ -15,6 +18,7 @@ const Contractors := preload("res://scripts/contractors.gd")
 const DeckListUiScript := preload("res://scripts/deck_list_ui.gd")
 const Enemies := preload("res://scripts/enemies.gd")
 const EventUiScript := preload("res://scripts/event_ui.gd")
+const Events := preload("res://scripts/events.gd")
 const MainScript := preload("res://scripts/main.gd")
 const MapUiScript := preload("res://scripts/map_ui.gd")
 const NodeRules := preload("res://scripts/node_rules.gd")
@@ -37,10 +41,14 @@ const INTEGRATION_SAVE_PATH: String = "user://integration_run.json"
 const INTEGRATION_SETTINGS_PATH: String = "user://integration_settings.cfg"
 ## 巡礼の地図と戦闘の乱数を固定するシード (値に意味は無く、失敗を再現できるように固定する)
 const RANDOM_SEED: int = 20261006
+## 出来事「血の泉」が出る地図を探すシードの数 (出来事は 3 種で、シード 1 つごとに 1 / 3 で当たる。selfcheck の
+## _state_at_event() と同じ数)
+const EVENT_SEED_LIMIT: int = 300
 
-## autoload RunState (ラン単位の状態) と Settings (設定)
+## autoload RunState (ラン単位の状態)・Settings (設定)・Audio (BGM と効果音)
 var run_state: RunStateScript = null
 var settings: SettingsScript = null
+var audio: AudioScript = null
 
 
 ## tree の準備が終わってから _run() を始める (シーンの追加は _initialize() の後でないとできない)
@@ -52,8 +60,12 @@ func _initialize() -> void:
 func _run() -> void:
 	run_state = root.get_node_or_null("RunState")
 	settings = root.get_node_or_null("Settings")
-	_check(run_state != null and settings != null, "autoload RunState と Settings がある")
-	if run_state == null or settings == null:
+	audio = root.get_node_or_null("Audio")
+	_check(
+		run_state != null and settings != null and audio != null,
+		"autoload RunState と Settings と Audio がある"
+	)
+	if run_state == null or settings == null or audio == null:
 		_finish()
 		return
 	run_state.save_path = INTEGRATION_SAVE_PATH
@@ -75,6 +87,7 @@ func _run() -> void:
 	await _check_title_to_map(main)
 	await _check_map_to_battle(main)
 	await _check_target_selection(main)
+	await _check_battle_sounds(main)
 	await _check_hand_fits_after_draw(main)
 	await _check_battle_resume_keeps_uses(main)
 	await _check_exhausted_deck_battle_and_reward(main)
@@ -82,6 +95,7 @@ func _run() -> void:
 	await _check_deck_grid_follows_focus(main)
 	await _check_shop(main)
 	await _check_event(main)
+	await _check_blood_spring_sound(main)
 	await _check_deck_list(main)
 	await _check_save_and_continue(main)
 	await _check_clear_returns_to_title(main)
@@ -92,6 +106,9 @@ func _run() -> void:
 	await _check_boss_talk()
 	_remove_user_file(INTEGRATION_SAVE_PATH)
 	_remove_user_file(INTEGRATION_SETTINGS_PATH)
+	# 鳴らした BGM・効果音を止め、解放を待ってから終える (待たないとリークの WARNING が出る)
+	audio.stop_all()
+	await create_timer(AUDIO_RELEASE_TIME).timeout
 	_finish()
 
 
@@ -103,6 +120,7 @@ func _check_title_to_map(main: MainScript) -> void:
 		return
 	_check(title.start_button.get_global_rect().size.x > 0, "コントロールがレイアウトされる (大きさが 0 でない)")
 	_check(not title.continue_button.visible, "保存が無ければ「続きから」は出ない")
+	_check(_bgm_is(AudioScript.Bgm.NONE), "タイトルでは BGM を鳴らさない")
 	await _click(title.start_button)
 	var select: CharacterSelectUiScript = main.screen as CharacterSelectUiScript
 	_check(select != null, "「巡礼を始める」で契約者の選択が出る")
@@ -110,6 +128,7 @@ func _check_title_to_map(main: MainScript) -> void:
 		return
 	await _click(select.character_buttons[Contractors.FIRST_CONTRACTOR])
 	_check(main.screen is MapUiScript, "契約者を選ぶと地図が出る")
+	_check(_bgm_is(AudioScript.Bgm.MAP), "地図では地図の曲が鳴る")
 	_check(run_state.phase == RunStateScript.Phase.MAP and run_state.path.is_empty(), "出発前の地図")
 	var starter: Array[String] = Contractors.starter_deck(Contractors.FIRST_CONTRACTOR)
 	_check(run_state.deck.size() == starter.size(), "契約者の初期デッキで始まる")
@@ -127,6 +146,7 @@ func _check_map_to_battle(main: MainScript) -> void:
 	var battle_ui: BattleUiScript = main.screen as BattleUiScript
 	_check(battle_ui != null, "地図で 1 を押すと戦闘に入る")
 	_check(run_state.path.size() == 1 and run_state.path[0] == first, "選んだ節点が道に入る")
+	_check(_bgm_is(AudioScript.Bgm.BATTLE), "戦闘では戦闘の曲が鳴る")
 	if battle_ui == null:
 		return
 	_check(
@@ -146,6 +166,10 @@ func _check_map_to_battle(main: MainScript) -> void:
 	var uses_before: int = run_state.uses_left(deck_index)
 	await _click(_hand_buttons(battle_ui)[hand_index])
 	_check(run_state.uses_left(deck_index) == uses_before - 1, "クリックでカードを使うと残り使用回数が 1 減る")
+	_check(
+		_se_playing(AudioScript.card_use_se(run_state.uses_left(deck_index))),
+		"カードを使うと、使った後の残り使用回数に応じた効果音が鳴る"
+	)
 	var saved: RunStateScript = _load_saved()
 	_check(saved.uses_left(deck_index) == uses_before - 1, "カードを使うたびに保存される")
 	saved.free()
@@ -183,6 +207,51 @@ func _check_target_selection(main: MainScript) -> void:
 	_check(battle_ui.pending_hand_index == -1, "エネルギー 0 ではもがくの対象の選択に入らない")
 	await _press_key(KEY_ENTER)
 	_check(battle_ui.battle.turn == 2, "Enter でターン終了")
+
+
+## カードを使った後の残り使用回数で効果音が変わり (鳴らし分けは scripts/audio.gd の card_use_se())、敵の攻撃で
+## 体力が減った時だけ被弾の効果音が鳴る
+func _check_battle_sounds(main: MainScript) -> void:
+	var battle_ui: BattleUiScript = main.screen as BattleUiScript
+	if battle_ui == null:
+		return
+	# 守りの風 5 枚 (対象を選ばず、敵を倒さない) を全部手札に持ち、デッキの 0〜2 番目を、使った後の残りが
+	# 2・1・0 回になるよう先に減らしておく
+	var expected: Array = [AudioScript.Se.CARD_USE, AudioScript.Se.LAST_ONE, AudioScript.Se.EXPIRED]
+	_set_deck(["guard", "guard", "guard", "guard", "guard"])
+	for deck_index: int in range(expected.size()):
+		while run_state.uses_left(deck_index) > expected.size() - deck_index:
+			run_state.use_card(deck_index)
+	_start_battle_with(battle_ui, ["wild_dog"], 1)
+	await _settle()
+	for deck_index: int in range(expected.size()):
+		_stop_se()
+		await _press_key(KEY_1 + battle_ui.battle.hand.find(deck_index))
+		for se: AudioScript.Se in expected:
+			_check(
+				_se_playing(se) == (se == expected[deck_index]),
+				(
+					"使った後の残り %d 回では効果音 %d だけが鳴る (効果音 %d)"
+					% [run_state.uses_left(deck_index), expected[deck_index], se]
+				)
+			)
+	# 守りの風 3 枚の防御 15 が残っているので、最初の攻撃は受け切る。次のターンは防御が消えて体力が減る
+	for enemy: Dictionary in battle_ui.battle.enemies:
+		enemy["intent"] = {"move": Enemies.Move.ATTACK, "value": 4}
+	_stop_se()
+	var hp_before: int = run_state.hp
+	await _press_key(KEY_ENTER)
+	_check(
+		run_state.hp == hp_before and not _se_playing(AudioScript.Se.HIT),
+		"防御で受け切った攻撃では被弾の効果音が鳴らない"
+	)
+	for enemy: Dictionary in battle_ui.battle.enemies:
+		enemy["intent"] = {"move": Enemies.Move.ATTACK, "value": 4}
+	await _press_key(KEY_ENTER)
+	_check(
+		run_state.hp < hp_before and _se_playing(AudioScript.Se.HIT),
+		"体力が減る攻撃で被弾の効果音が鳴る"
+	)
 
 
 ## ドローで手札が 5 枚を超えても、手札のボタンがすべて画面の幅に収まり押せる
@@ -236,6 +305,7 @@ func _check_battle_resume_keeps_uses(main: MainScript) -> void:
 	await _quit_and_continue(main)
 	battle_ui = main.screen as BattleUiScript
 	_check(battle_ui != null, "戦闘の途中から「続きから」で戦闘に戻る")
+	_check(_bgm_is(AudioScript.Bgm.BATTLE), "「続きから」で戦闘に戻ると戦闘の曲が鳴る")
 	if battle_ui == null:
 		return
 	_check(run_state.deck == deck_after_use, "戦闘の途中から再開しても残り使用回数が戻らない")
@@ -280,6 +350,8 @@ func _check_exhausted_deck_battle_and_reward(main: MainScript) -> void:
 	if reward == null:
 		return
 	_check(run_state.phase == RunStateScript.Phase.REWARD, "勝つと報酬の局面")
+	_check(_se_playing(AudioScript.Se.WIN), "戦闘に勝つと勝利の効果音が鳴る")
+	_check(_bgm_is(AudioScript.Bgm.MAP), "報酬の画面では地図の曲が鳴る")
 	_check(
 		run_state.gold == gold_before + NodeRules.reward_gold(run_state.node_seed(), ActMap.Kind.BATTLE),
 		"勝つと所持金を受け取る"
@@ -312,8 +384,10 @@ func _check_shrine_restores_uses(main: MainScript) -> void:
 		"カードを選ぶ段階では押せる最初のカードにフォーカスがある"
 	)
 	var max_uses: int = run_state.card(index)["max_uses"]
+	_stop_se()
 	await _click(shrine.deck_grid.get_child(index) as Button)
 	_check(run_state.uses_left(index) == max_uses, "祠で契約を更新すると残り使用回数が最大に戻る")
+	_check(_se_playing(AudioScript.Se.RESTORE), "祠で契約を更新すると回数の回復の効果音が鳴る")
 	_check(main.screen is MapUiScript and run_state.phase == RunStateScript.Phase.MAP, "祠の後は地図")
 	var saved: RunStateScript = _load_saved()
 	_check(saved.uses_left(index) == max_uses, "祠の結果が保存される")
@@ -368,7 +442,9 @@ func _check_shop(main: MainScript) -> void:
 	var gold_before: int = run_state.gold
 	await _click(shop.restore_button)
 	if shop.deck_grid != null and index >= 0:
+		_stop_se()
 		await _click(shop.deck_grid.get_child(index) as Button)
+		_check(_se_playing(AudioScript.Se.RESTORE), "商人で残り使用回数を戻すと回数の回復の効果音が鳴る")
 		_check(run_state.uses_left(index) == run_state.card(index)["max_uses"], "商人で残り使用回数を戻せる")
 		_check(run_state.gold == gold_before - NodeRules.RESTORE_PRICE, "戻す値段の分だけ所持金が減る")
 	else:
@@ -388,6 +464,42 @@ func _check_event(main: MainScript) -> void:
 	_check(not last.disabled, "最後の選択肢 (カードを選ばない) を選べる")
 	await _click(last)
 	_check(main.screen is MapUiScript and run_state.phase == RunStateScript.Phase.MAP, "出来事の後は地図")
+
+
+## 出来事「血の泉」で体力を払って残り使用回数を戻すと、回数の回復の効果音が鳴って地図へ戻る (血の泉が出る
+## 地図のシードを 1 から順に探し、その巡礼の出来事の節点に入る。以後の検証はこの巡礼で続ける)
+func _check_blood_spring_sound(main: MainScript) -> void:
+	for seed_value: int in range(1, EVENT_SEED_LIMIT + 1):
+		run_state.new_run([], seed_value)
+		var at: Vector2i = ActMap.find_kind(run_state.rows, ActMap.Kind.EVENT)
+		run_state.path = ActMap.route_to(run_state.rows, at.x, at.y)
+		if Events.event_for(run_state.node_seed()) == "blood_spring":
+			break
+	run_state.use_card(0)
+	run_state.phase = RunStateScript.Phase.EVENT
+	main.show_run_phase()
+	await _settle()
+	var event_ui: EventUiScript = main.screen as EventUiScript
+	if event_ui == null:
+		_check(false, "血の泉の検証: 出来事の画面が出る")
+		return
+	if event_ui.event_id != "blood_spring":
+		_check(false, "血の泉が出る地図が見つかる")
+		await _click(event_ui.option_buttons.back())
+		return
+	await _click(event_ui.option_buttons[0])
+	if event_ui.deck_grid == null:
+		_check(false, "血の泉で残り使用回数を戻すカードを選べる")
+		return
+	await _click(event_ui.deck_grid.get_child(0) as Button)
+	_stop_se()
+	await _click(event_ui.confirm_button)
+	_check(
+		run_state.uses_left(0) == run_state.card(0)["max_uses"],
+		"血の泉で残り使用回数が最大に戻る"
+	)
+	_check(_se_playing(AudioScript.Se.RESTORE), "血の泉で回数の回復の効果音が鳴る")
+	_check(main.screen is MapUiScript, "血の泉の後は地図")
 
 
 ## 地図で D を押すと契約の一覧が開き、全カードを並べ、キーでスクロールでき、並べ方を変えられ、Esc で閉じる
@@ -450,6 +562,7 @@ func _check_clear_returns_to_title(main: MainScript) -> void:
 	if talk == null:
 		return
 	_check(talk.boss_id == Enemies.BOSS_ENCOUNTER[0], "会話するのはボスの節点の敵")
+	_check(_bgm_is(AudioScript.Bgm.BOSS), "ボス戦の前の会話からボスの曲が鳴る")
 	_check(not main.deck_button.visible, "会話の間は契約の一覧のボタンを出さない (「戦う」と重ならない)")
 	var lines: int = Enemies.ENEMIES[talk.boss_id]["talk"].size()
 	for _i: int in range(lines):
@@ -460,6 +573,7 @@ func _check_clear_returns_to_title(main: MainScript) -> void:
 		return
 	_check(battle_ui.battle.turn == 1, "会話を送った Enter は戦闘のターン終了に届かない")
 	_check(battle_ui.battle.enemies[0]["id"] == Enemies.BOSS_ENCOUNTER[0], "戦う相手はボス")
+	_check(_bgm_is(AudioScript.Bgm.BOSS), "ボス戦でもボスの曲が鳴る")
 	for enemy: Dictionary in battle_ui.battle.enemies:
 		enemy["hp"] = 1
 		enemy["block"] = 0
@@ -469,6 +583,10 @@ func _check_clear_returns_to_title(main: MainScript) -> void:
 	if result == null:
 		return
 	_check(result.summary_label.text.contains("到達した階層: 15"), "踏破の結果に到達した階層が出る")
+	_check(
+		_bgm_is(AudioScript.Bgm.NONE) and _se_playing(AudioScript.Se.WIN),
+		"踏破で BGM が止まり、勝利の効果音が鳴る"
+	)
 	_check(not FileAccess.file_exists(INTEGRATION_SAVE_PATH), "踏破で保存データが消える")
 	await _click(result.title_button)
 	var title: TitleUiScript = main.screen as TitleUiScript
@@ -503,13 +621,17 @@ func _check_defeat_returns_to_title(main: MainScript) -> void:
 	if result == null:
 		return
 	_check(result.summary_label.text.contains("到達した階層: 1"), "敗北の結果に到達した階層が出る")
+	_check(
+		_bgm_is(AudioScript.Bgm.NONE) and _se_playing(AudioScript.Se.LOSE),
+		"敗北で BGM が止まり、敗北の効果音が鳴る"
+	)
 	_check(not FileAccess.file_exists(INTEGRATION_SAVE_PATH), "敗北で保存データが消える")
 	_check(not main.deck_button.visible, "結果の画面では契約の一覧のボタンが出ない")
 	await _click(result.title_button)
 	_check(main.screen is TitleUiScript, "敗北の後はタイトルへ戻る")
 
 
-## 設定で音量を変えて戻ると保存され、設定を読み直しても同じ値になる
+## 設定で音量を変えると BGM・効果音のバスに反映されて保存され、設定を読み直しても同じ値になる
 func _check_settings_saved(main: MainScript) -> void:
 	var title: TitleUiScript = main.screen as TitleUiScript
 	if title == null:
@@ -519,9 +641,24 @@ func _check_settings_saved(main: MainScript) -> void:
 	_check(settings_ui != null, "「設定」で設定の画面が出る")
 	if settings_ui == null:
 		return
+	_check(_bgm_is(AudioScript.Bgm.MAP), "設定の画面では音量を確かめるための BGM が鳴る")
+	var bgm_bus: int = AudioServer.get_bus_index(AudioScript.BGM_BUS)
+	var se_bus: int = AudioServer.get_bus_index(AudioScript.SE_BUS)
+	settings_ui.se_slider.value = 0
+	_check(AudioServer.is_bus_mute(se_bus), "効果音の音量 0 で効果音のバスがミュートになる")
+	_stop_se()
 	settings_ui.bgm_slider.value = 35
 	settings_ui.se_slider.value = 60
 	_check(settings.bgm_volume == 35 and settings.se_volume == 60, "スライダーで音量が変わる")
+	_check(
+		(
+			is_equal_approx(AudioServer.get_bus_volume_db(bgm_bus), linear_to_db(0.35))
+			and is_equal_approx(AudioServer.get_bus_volume_db(se_bus), linear_to_db(0.6))
+			and not AudioServer.is_bus_mute(se_bus)
+		),
+		"スライダーの音量が BGM と効果音のバスに反映される"
+	)
+	_check(_se_playing(AudioScript.Se.CARD_USE), "効果音の音量を変えると、確かめるための効果音が鳴る")
 	# 画面を閉じる前 (戻るを押さずにゲームを終えた時) でも保存されている
 	var saved: SettingsScript = SettingsScript.new()
 	saved.settings_path = INTEGRATION_SETTINGS_PATH
@@ -530,6 +667,7 @@ func _check_settings_saved(main: MainScript) -> void:
 	saved.free()
 	await _press_key(KEY_ESCAPE)
 	_check(main.screen is TitleUiScript, "Esc で設定からタイトルへ戻る")
+	_check(_bgm_is(AudioScript.Bgm.NONE), "設定を閉じると BGM が止まる")
 	settings.bgm_volume = 0
 	settings.se_volume = 0
 	settings.load_settings()
@@ -560,6 +698,7 @@ func _quit_and_continue(main: MainScript) -> void:
 	await _settle()
 	var title: TitleUiScript = main.screen as TitleUiScript
 	_check(title.continue_button.visible, "保存があれば「続きから」が出る")
+	_check(_bgm_is(AudioScript.Bgm.NONE), "巡礼の途中でタイトルへ戻ると BGM が止まる")
 	await _click(title.continue_button)
 
 
@@ -659,6 +798,22 @@ func _check_boss_talk() -> void:
 	_check(finished_count[0] == 1, "finished は 1 度だけ出る")
 	talk.queue_free()
 	await process_frame
+
+
+## track の BGM が鳴っているか (NONE なら、BGM が鳴っていないか)
+func _bgm_is(track: AudioScript.Bgm) -> bool:
+	return audio.bgm == track and audio.bgm_player.playing == (track != AudioScript.Bgm.NONE)
+
+
+## se の効果音が鳴っているか
+func _se_playing(se: AudioScript.Se) -> bool:
+	return (audio.se_players[se] as AudioStreamPlayer).playing
+
+
+## 効果音をすべて止める (次の操作で鳴る効果音だけを確かめるため)
+func _stop_se() -> void:
+	for player: AudioStreamPlayer in audio.se_players.values():
+		player.stop()
 
 
 ## 戦闘画面の手札のボタン (表示中のものだけ)

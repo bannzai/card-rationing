@@ -1,0 +1,30 @@
+{
+  "v": 3,
+  "createdOnFiles": { "v": 1, "at": "2026-10-05T12:07:30Z" },
+  "title": "Card Rationing 関門 2 モック",
+  "launch": { "view": "canvas" },
+  "pages": [],
+  "boards": {
+    "Title.dc.html": { "x": 0, "y": 0, "w": 1280, "h": 720, "title": "タイトル" },
+    "Map.dc.html": { "x": 1360, "y": 0, "w": 1280, "h": 720, "title": "巡礼の地図" },
+    "Main.dc.html": { "x": 2720, "y": 0, "w": 1280, "h": 720, "title": "戦闘 (方向 A)" },
+    "Shrine.dc.html": { "x": 0, "y": 840, "w": 1280, "h": 720, "title": "契約の祠" },
+    "Deck.dc.html": { "x": 1360, "y": 840, "w": 1280, "h": 720, "title": "契約の一覧" },
+    "BossTalk.dc.html": { "x": 2720, "y": 840, "w": 1280, "h": 720, "title": "ボス戦の前の会話" },
+    "BattleAlt.dc.html": { "x": 0, "y": 1880, "w": 1280, "h": 720, "title": "戦闘 (方向 B)" }
+  },
+  "order": [
+    "Main.dc.html",
+    "Title.dc.html",
+    "Map.dc.html",
+    "Shrine.dc.html",
+    "Deck.dc.html",
+    "BossTalk.dc.html",
+    "BattleAlt.dc.html"
+  ],
+  "notes": {
+    "dirA": { "x": 0, "y": -300, "text": "方向 A 墨と朱印", "kind": "title1", "maxW": 4000 },
+    "dirB": { "x": 1360, "y": 1880, "w": 420, "maxH": 360, "size": "l", "fill": "teal", "text": "方向 B 星図と青銅 (比較用に戦闘画面だけ)\n\n残り回数を菱形の印の列ではなく、数字のバッジとカードの縁の線の長さで見せる案。方向 A と見比べて、見た目と残り回数の見せ方のどちらを採るかを決める" }
+  },
+  "designSystems": []
+}

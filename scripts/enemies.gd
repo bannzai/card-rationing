@@ -111,7 +111,7 @@ const ENEMIES: Dictionary = {
 	{
 		"name": "封蝋の騎士",
 		"rank": Rank.ELITE,
-		"hp": 72,
+		"hp": 56,
 		"in_order": true,
 		"moves":
 		[

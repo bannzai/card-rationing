@@ -98,8 +98,38 @@ jobs:
             build/card-rationing-linux.tar.gz
           retention-days: 7
 
+  # 戦略 bot の自動テストプレイ。3 つの戦略に 1 幕を各 200 ラン遊ばせた集計 (tmp/simulate.json) を artifact に残す。
+  # 数値は documents/DIRECTION.md の判定基準に照らして判定日に読むので、しきい値では失敗にしない。判定日
+  # (DIRECTION.md の cycle_days: 14) に読めるよう、この artifact だけ 30 日残す
+  simulate:
+    runs-on: ubuntu-24.04
+    # 実行時間の上限 (issue #10 の「10 分を超えない」に、Godot の用意と import の分を足した値)。make simulate の
+    # フレームの上限は実行時間を縛らないため、ここで縛る
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - id: godot
+        uses: ./.github/actions/setup-godot
+        with:
+          # エディタバイナリで動かすため export templates は要らない (tpz を取得しない)
+          templates: ""
+      - name: Simulate
+        run: make simulate GODOT="${{ steps.godot.outputs.godot }}"
+      - name: Upload simulate result
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: card-rationing-simulate
+          path: |
+            tmp/simulate.json
+            tmp/simulate.log
+            tmp/simulate.godot.log
+          if-no-files-found: warn
+          retention-days: 30
+
   # 描画付きの検証。headless の check / selfcheck / integration では見た目の崩れを検出できないため、
-  # Xvfb + Mesa llvmpipe (ソフトウェア GL) 上で代表画面の撮影と起動の録画を行い artifact に残す。
+  # Xvfb + Mesa llvmpipe (ソフトウェア GL) 上で代表画面の撮影・起動の録画・戦略 bot が 1 幕を通して遊ぶテストプレイの
+  # 録画を行い artifact に残す。
   # PR を開いた agent は artifact をダウンロードして PNG と mp4 を目視してから完了報告する (AGENTS.md「検証方法」)
   screenshot-and-movie:
     runs-on: ubuntu-24.04
@@ -128,6 +158,8 @@ jobs:
         run: make screenshot GODOT="${{ steps.godot.outputs.godot }}"
       - name: Movie
         run: make movie GODOT="${{ steps.godot.outputs.godot }}"
+      - name: Playtest
+        run: make playtest GODOT="${{ steps.godot.outputs.godot }}"
       - name: Upload screenshots and movie
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -136,6 +168,8 @@ jobs:
           path: |
             tmp/screenshot-*.png
             tmp/movie.mp4
+            tmp/playtest.mp4
+            tmp/playtest-*.png
             tmp/*.log
           if-no-files-found: warn
           retention-days: 7

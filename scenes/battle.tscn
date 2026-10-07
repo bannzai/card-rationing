@@ -34,13 +34,12 @@ text = "第 1 幕 1 階"
 [node name="HelpLabel" type="Label" parent="."]
 modulate = Color(1, 1, 1, 0.8)
 layout_mode = 0
-offset_left = 560.0
-offset_top = 8.0
-offset_right = 1256.0
-offset_bottom = 28.0
+offset_left = 24.0
+offset_top = 46.0
+offset_right = 720.0
+offset_bottom = 66.0
 theme_override_font_sizes/font_size = 14
 text = "数字キー: カード / 敵を選ぶ  S: もがく  Enter: ターン終了  Esc: 選び直す  D: 契約の一覧"
-horizontal_alignment = 2
 
 [node name="Pilgrim" type="TextureRect" parent="."]
 layout_mode = 0
@@ -55,9 +54,9 @@ stretch_mode = 5
 [node name="EnemyRow" type="HBoxContainer" parent="."]
 layout_mode = 0
 offset_left = 620.0
-offset_top = 30.0
+offset_top = 12.0
 offset_right = 1256.0
-offset_bottom = 458.0
+offset_bottom = 434.0
 theme_override_constants/separation = 8
 alignment = 2
 
@@ -121,7 +120,7 @@ alignment = 1
 [node name="ActionColumn" type="VBoxContainer" parent="."]
 layout_mode = 0
 offset_left = 1104.0
-offset_top = 528.0
+offset_top = 516.0
 offset_right = 1264.0
 offset_bottom = 656.0
 theme_override_constants/separation = 8
@@ -138,4 +137,5 @@ text = "もがく (S)
 layout_mode = 2
 focus_mode = 0
 theme_override_font_sizes/font_size = 16
-text = "ターン終了 (Enter)"
+text = "ターン終了
+(Enter)"

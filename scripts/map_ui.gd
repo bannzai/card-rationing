@@ -15,8 +15,9 @@ const MAP_BOTTOM: float = 668.0
 const ROW_SPACING: float = 44.0
 const MAP_LEFT: float = 124.0
 const COLUMN_SPACING: float = 136.0
-## 地図を載せる羊皮紙を置く範囲
+## 地図を載せる羊皮紙を置く範囲と、右側の説明 (幕と階・凡例・操作) を置く位置と幅 (高さは中身で決まる)
 const SHEET_RECT: Rect2 = Rect2(30, 6, 734, 708)
+const SIDE_RECT: Rect2 = Rect2(800, 20, 450, 0)
 ## 節点の印の大きさ (次に進める節点 / ほか)
 const CHOICE_SIZE: Vector2 = Vector2(46, 46)
 const NODE_SIZE: Vector2 = Vector2(36, 36)
@@ -130,8 +131,8 @@ func _add_node_button(row: int, node: Dictionary) -> void:
 ## 右側の説明: 幕と階・体力と所持金・凡例・操作
 func _build_side_panel() -> void:
 	var panel: VBoxContainer = VBoxContainer.new()
-	panel.position = Vector2(800, 20)
-	panel.custom_minimum_size = Vector2(450, 0)
+	panel.position = SIDE_RECT.position
+	panel.custom_minimum_size = SIDE_RECT.size
 	panel.add_theme_constant_override("separation", 8)
 	add_child(panel)
 	var title: Label = UiKit.add_label(
@@ -154,7 +155,8 @@ func _build_side_panel() -> void:
 			"契約の祠では代価なしで、契約の更新 (残り使用回数を最大まで戻す)・破棄・"
 			+ "新しい契約から 1 つを選べる。\n数字キー / クリック: 次の節点   D: 契約の一覧"
 		),
-		16
+		16,
+		SIDE_RECT.size.x - 2 * UiKit.PARCHMENT_MARGIN.x
 	)
 
 

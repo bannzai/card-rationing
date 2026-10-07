@@ -22,6 +22,10 @@ const BUTTON_MARGIN: Vector2 = Vector2(26, 9)
 ## 羊皮紙の絵の、引き伸ばさない端の幅と、載せる文の周りの余白 (左右 / 上下)
 const PARCHMENT_EDGE_WIDTH: float = 30.0
 const PARCHMENT_MARGIN: Vector2 = Vector2(34, 24)
+## 画面の縦並び (screen_layout) の左右の余白と、その縦並びに置く羊皮紙に載せられる文の幅 (project.godot の
+## viewport の幅 1280 から、縦並びの余白と羊皮紙の余白を引いた幅)
+const LAYOUT_MARGIN: float = 32.0
+const NOTE_TEXT_WIDTH: float = 1280.0 - 2 * LAYOUT_MARGIN - 2 * PARCHMENT_MARGIN.x
 ## ボタンの木の札の色合い: マウスを載せた時・押している時・押せない時
 const HOVER_TINT: Color = Color(1.3, 1.2, 1.05)
 const PRESSED_TINT: Color = Color(0.78, 0.74, 0.7)
@@ -53,9 +57,9 @@ static func screen_layout(parent: Control, title: String) -> VBoxContainer:
 	Art.add_background(parent, Art.BACKDROP)
 	var layout: VBoxContainer = VBoxContainer.new()
 	layout.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	layout.offset_left = 32
+	layout.offset_left = LAYOUT_MARGIN
 	layout.offset_top = 20
-	layout.offset_right = -32
+	layout.offset_right = -LAYOUT_MARGIN
 	layout.offset_bottom = -20
 	layout.add_theme_constant_override("separation", 12)
 	parent.add_child(layout)
@@ -84,12 +88,25 @@ static func add_label(parent: Control, text: String, font_size: int = BODY_FONT_
 	return label
 
 
-## parent に羊皮紙を足し、その上に墨の文字で text を載せる。載せたラベルを返す
-static func add_note(parent: Control, text: String, font_size: int = BODY_FONT_SIZE) -> Label:
+## parent に羊皮紙を足し、その上に墨の文字で text を載せる。載せたラベルを返す。羊皮紙は文の幅に合わせ、
+## 文が text_width を超える時だけその幅で折り返す (短い文で羊皮紙を行の幅いっぱいに引き伸ばすと、破れた端の
+## 絵が横に流れて見えるため)。font_size と text_width を省くと、本文の大きさと画面の縦並びに収まる幅にする
+static func add_note(
+	parent: Control,
+	text: String,
+	font_size: int = BODY_FONT_SIZE,
+	text_width: float = NOTE_TEXT_WIDTH
+) -> Label:
 	var sheet: PanelContainer = PanelContainer.new()
 	sheet.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	sheet.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	parent.add_child(sheet)
 	var label: Label = add_label(sheet, text, font_size)
+	# + 2 は、端数の丸めで最後の 1 字が折り返されないための余裕
+	label.custom_minimum_size.x = minf(
+		text_width,
+		ceilf(Art.FONT.get_multiline_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x) + 2
+	)
 	Art.on_parchment(label)
 	return label
 

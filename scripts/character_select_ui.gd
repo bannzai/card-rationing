@@ -34,7 +34,11 @@ func _ready() -> void:
 	for character_id: String in Contractors.CONTRACTORS:
 		var character: Dictionary = Contractors.CONTRACTORS[character_id]
 		UiKit.add_note(
-			layout, "%s\n最初の契約: %s" % [character["story"], _deck_text(character_id)]
+			layout,
+			"%s\n最初の契約: %s" % [character["story"], _deck_text(character_id)],
+			UiKit.BODY_FONT_SIZE,
+			# 立ち絵の分だけ狭くなった縦並びに収める
+			UiKit.NOTE_TEXT_WIDTH - (layout.offset_left - UiKit.LAYOUT_MARGIN)
 		)
 		character_buttons[character_id] = UiKit.add_button(
 			layout, "%s と巡礼に出る" % character["name"], chosen.emit.bind(character_id)

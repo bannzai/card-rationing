@@ -10,11 +10,12 @@ const MOVE_NAMES: Dictionary = {Enemies.Move.ATTACK: "攻撃", Enemies.Move.GUAR
 const RANK_NAMES: Dictionary = {
 	Enemies.Rank.NORMAL: "", Enemies.Rank.ELITE: " [強敵]", Enemies.Rank.BOSS: " [ボス]"
 }
-## 敵の格 → 見た目の大きさ
+## 敵の格 → 見た目の大きさ。格が上がるほど大きくし、どれも戦闘画面の敵の行 (scenes/battle.tscn の EnemyRow) の
+## 高さに収め、通常の敵は 2 体が横に並ぶ幅にした
 const RANK_SIZES: Dictionary = {
-	Enemies.Rank.NORMAL: Vector2(236, 330),
-	Enemies.Rank.ELITE: Vector2(290, 410),
-	Enemies.Rank.BOSS: Vector2(330, 426),
+	Enemies.Rank.NORMAL: Vector2(236, 320),
+	Enemies.Rank.ELITE: Vector2(290, 400),
+	Enemies.Rank.BOSS: Vector2(330, 420),
 }
 ## 体力の数珠の珠の数と、珠 1 つの大きさ
 const BEADS: int = 10

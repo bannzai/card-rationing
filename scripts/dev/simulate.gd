@@ -72,9 +72,11 @@ func _run() -> void:
 ## strategy の戦略に SEED_COUNT ラン遊ばせた集計。{"name": 戦略の名前, "runs": ランの数, "clears": 踏破した数,
 ## "clear_rate": 踏破率 (%), "average_floor": 平均到達階層, "average_exhausted": 契約を使い切った回数の平均,
 ## "average_unused_strong": ランの終わりに残り使用回数が残っていた強いカードの枚数の平均,
-## "cleared_seeds": 踏破したシードの並び (make playtest で遊ばせるシードを選ぶのに使う)}
+## "cleared_seeds": 踏破したシードの並び, "reached_floors": シードの順 (FIRST_SEED から) に並べた到達階層}。
+## 後ろの 2 つは、make playtest で遊ばせるシードを選ぶのと、どの階層で倒れているかを読むのに使う
 func _simulate(state: RunStateScript, strategy: int) -> Dictionary:
 	var cleared_seeds: Array[int] = []
+	var reached_floors: Array[int] = []
 	var floors: int = 0
 	var exhausted: int = 0
 	var unused_strong: int = 0
@@ -82,6 +84,7 @@ func _simulate(state: RunStateScript, strategy: int) -> Dictionary:
 		var result: Dictionary = Bots.play_run(strategy, state, seed_value)
 		if result["cleared"]:
 			cleared_seeds.append(seed_value)
+		reached_floors.append(result["floor"])
 		floors += result["floor"]
 		exhausted += result["exhausted"]
 		unused_strong += result["unused_strong"]
@@ -95,6 +98,7 @@ func _simulate(state: RunStateScript, strategy: int) -> Dictionary:
 		"average_exhausted": snappedf(float(exhausted) / SEED_COUNT, 0.01),
 		"average_unused_strong": snappedf(float(unused_strong) / SEED_COUNT, 0.01),
 		"cleared_seeds": cleared_seeds,
+		"reached_floors": reached_floors,
 	}
 	print(
 		(

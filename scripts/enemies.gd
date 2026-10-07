@@ -128,10 +128,10 @@ const ENEMIES: Dictionary = {
 		"in_order": true,
 		"moves":
 		[
-			{"move": Move.ATTACK, "value": 8, "hits": 2},
+			{"move": Move.ATTACK, "value": 6, "hits": 2},
 			{"move": Move.GUARD, "value": 20},
-			{"move": Move.ATTACK, "value": 26},
-			{"move": Move.ATTACK, "value": 5, "hits": 4},
+			{"move": Move.ATTACK, "value": 18},
+			{"move": Move.ATTACK, "value": 4, "hits": 3},
 		],
 		"talk":
 		[

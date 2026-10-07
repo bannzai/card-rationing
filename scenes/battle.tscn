@@ -11,75 +11,131 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_battle_ui")
 
-[node name="Background" type="ColorRect" parent="."]
+[node name="Background" type="TextureRect" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.11, 0.1, 0.13, 1)
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 6
 
-[node name="Layout" type="VBoxContainer" parent="."]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
+[node name="FloorLabel" type="Label" parent="."]
+layout_mode = 0
 offset_left = 24.0
-offset_top = 16.0
-offset_right = -24.0
-offset_bottom = -16.0
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_constants/separation = 12
-
-[node name="TopBar" type="HBoxContainer" parent="Layout"]
-layout_mode = 2
-
-[node name="FloorLabel" type="Label" parent="Layout/TopBar"]
-layout_mode = 2
-size_flags_horizontal = 3
+offset_top = 12.0
+offset_right = 520.0
+offset_bottom = 44.0
 theme_override_font_sizes/font_size = 22
 text = "第 1 幕 1 階"
 
-[node name="HelpLabel" type="Label" parent="Layout/TopBar"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 16
+[node name="HelpLabel" type="Label" parent="."]
+modulate = Color(1, 1, 1, 0.8)
+layout_mode = 0
+offset_left = 560.0
+offset_top = 8.0
+offset_right = 1256.0
+offset_bottom = 28.0
+theme_override_font_sizes/font_size = 14
 text = "数字キー: カード / 敵を選ぶ  S: もがく  Enter: ターン終了  Esc: 選び直す  D: 契約の一覧"
+horizontal_alignment = 2
 
-[node name="EnemyRow" type="HBoxContainer" parent="Layout"]
-layout_mode = 2
-size_flags_vertical = 3
-alignment = 1
-theme_override_constants/separation = 24
+[node name="Pilgrim" type="TextureRect" parent="."]
+layout_mode = 0
+offset_left = 36.0
+offset_top = 92.0
+offset_right = 326.0
+offset_bottom = 458.0
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
 
-[node name="MessageLabel" type="Label" parent="Layout"]
-layout_mode = 2
+[node name="EnemyRow" type="HBoxContainer" parent="."]
+layout_mode = 0
+offset_left = 620.0
+offset_top = 30.0
+offset_right = 1256.0
+offset_bottom = 458.0
+theme_override_constants/separation = 8
+alignment = 2
+
+[node name="MessageLabel" type="Label" parent="."]
+layout_mode = 0
+offset_left = 326.0
+offset_top = 150.0
+offset_right = 640.0
+offset_bottom = 330.0
 theme_override_font_sizes/font_size = 24
+text = ""
 horizontal_alignment = 1
-text = ""
+vertical_alignment = 1
+autowrap_mode = 3
 
-[node name="StatusLabel" type="Label" parent="Layout"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 22
-text = ""
+[node name="PlayerPanel" type="VBoxContainer" parent="."]
+layout_mode = 0
+offset_left = 14.0
+offset_top = 474.0
+offset_right = 178.0
+offset_bottom = 708.0
+theme_override_constants/separation = 4
 
-[node name="HandRow" type="HBoxContainer" parent="Layout"]
+[node name="EnergyRow" type="HBoxContainer" parent="PlayerPanel"]
 layout_mode = 2
+theme_override_constants/separation = 6
 alignment = 1
-theme_override_constants/separation = 12
 
-[node name="ActionRow" type="HBoxContainer" parent="Layout"]
+[node name="EnergyLabel" type="Label" parent="PlayerPanel"]
 layout_mode = 2
-alignment = 1
-theme_override_constants/separation = 16
+theme_override_font_sizes/font_size = 15
+text = ""
+horizontal_alignment = 1
 
-[node name="StruggleButton" type="Button" parent="Layout/ActionRow"]
+[node name="HealthRow" type="HBoxContainer" parent="PlayerPanel"]
+layout_mode = 2
+theme_override_constants/separation = 0
+alignment = 1
+
+[node name="StatusLabel" type="Label" parent="PlayerPanel"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 15
+text = ""
+horizontal_alignment = 1
+
+[node name="PileLabel" type="Label" parent="PlayerPanel"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = ""
+horizontal_alignment = 1
+
+[node name="HandRow" type="HBoxContainer" parent="."]
+layout_mode = 0
+offset_left = 184.0
+offset_top = 438.0
+offset_right = 1096.0
+offset_bottom = 712.0
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="ActionColumn" type="VBoxContainer" parent="."]
+layout_mode = 0
+offset_left = 1104.0
+offset_top = 528.0
+offset_right = 1264.0
+offset_bottom = 656.0
+theme_override_constants/separation = 8
+alignment = 2
+
+[node name="StruggleButton" type="Button" parent="ActionColumn"]
 layout_mode = 2
 focus_mode = 0
-text = "もがく (S) コスト 1 / 攻撃 2"
+theme_override_font_sizes/font_size = 16
+text = "もがく (S)
+コスト 1 / 攻撃 2"
 
-[node name="EndTurnButton" type="Button" parent="Layout/ActionRow"]
+[node name="EndTurnButton" type="Button" parent="ActionColumn"]
 layout_mode = 2
 focus_mode = 0
+theme_override_font_sizes/font_size = 16
 text = "ターン終了 (Enter)"

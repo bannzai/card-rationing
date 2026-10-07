@@ -11,7 +11,7 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_boss_talk")
 
-[node name="Background" type="ColorRect" parent="."]
+[node name="Background" type="TextureRect" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -19,7 +19,8 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-color = Color(0.07, 0.07, 0.1, 1)
+expand_mode = 1
+stretch_mode = 6
 
 [node name="Layout" type="VBoxContainer" parent="."]
 layout_mode = 1
@@ -27,42 +28,39 @@ anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 64.0
-offset_top = 32.0
+offset_top = 20.0
 offset_right = -64.0
-offset_bottom = -36.0
+offset_bottom = -24.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-theme_override_constants/separation = 16
+theme_override_constants/separation = 10
 
-[node name="TopSpacer" type="Control" parent="Layout"]
+[node name="BossArt" type="TextureRect" parent="Layout"]
 layout_mode = 2
 size_flags_vertical = 3
 mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
 
 [node name="BossNameLabel" type="Label" parent="Layout"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 44
+theme_override_font_sizes/font_size = 40
 text = "ボス"
 horizontal_alignment = 1
 
-[node name="BottomSpacer" type="Control" parent="Layout"]
-layout_mode = 2
-size_flags_vertical = 3
-mouse_filter = 2
-
 [node name="LinePanel" type="PanelContainer" parent="Layout"]
-custom_minimum_size = Vector2(0, 160)
+custom_minimum_size = Vector2(0, 150)
 layout_mode = 2
 mouse_filter = 2
 
 [node name="LineMargin" type="MarginContainer" parent="Layout/LinePanel"]
 layout_mode = 2
 mouse_filter = 2
-theme_override_constants/margin_left = 32
-theme_override_constants/margin_top = 16
-theme_override_constants/margin_right = 32
-theme_override_constants/margin_bottom = 16
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 4
 
 [node name="LineLabel" type="Label" parent="Layout/LinePanel/LineMargin"]
 layout_mode = 2

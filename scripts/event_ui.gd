@@ -3,6 +3,7 @@ extends Control
 ## 決める。選んだら結果をランに反映して地図へ戻る。処理は scripts/events.gd、選んでいる途中の選択肢と
 ## カードだけをここに持つ。
 
+const CardView := preload("res://scripts/card_view.gd")
 const Events := preload("res://scripts/events.gd")
 const NodeRules := preload("res://scripts/node_rules.gd")
 const RunFlow := preload("res://scripts/run_flow.gd")
@@ -31,7 +32,7 @@ func _ready() -> void:
 	event_id = Events.event_for(run_state.node_seed())
 	event = Events.EVENTS[event_id]
 	var layout: VBoxContainer = UiKit.screen_layout(self, "出来事: %s" % event["title"])
-	UiKit.add_label(layout, event["text"])
+	UiKit.add_note(layout, event["text"])
 	content = VBoxContainer.new()
 	content.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	content.add_theme_constant_override("separation", 10)
@@ -128,8 +129,7 @@ func _build_picks() -> void:
 	)
 	deck_grid = UiKit.add_deck_grid(content, run_state, _can_pick, toggle_pick)
 	for index: int in picks:
-		var button: Button = deck_grid.get_child(index)
-		button.text = "[選択] " + button.text
+		(deck_grid.get_child(index) as CardView).set_picked(true)
 	var row: HBoxContainer = HBoxContainer.new()
 	row.add_theme_constant_override("separation", 12)
 	content.add_child(row)

@@ -6,8 +6,10 @@ extends "res://scripts/dev/headless_check.gd"
 ## (起動し直した時と同じく、保存データだけから戻す)。
 
 const ActMap := preload("res://scripts/act_map.gd")
+const Art := preload("res://scripts/art.gd")
 const BattleScript := preload("res://scripts/battle.gd")
 const BattleUiScript := preload("res://scripts/battle_ui.gd")
+const CardViewScript := preload("res://scripts/card_view.gd")
 const Cards := preload("res://scripts/cards.gd")
 const BossTalkScript := preload("res://scripts/boss_talk.gd")
 const CharacterSelectUiScript := preload("res://scripts/character_select_ui.gd")
@@ -75,6 +77,7 @@ func _run() -> void:
 	await _check_title_to_map(main)
 	await _check_map_to_battle(main)
 	await _check_target_selection(main)
+	await _check_hand_card_seals(main)
 	await _check_hand_fits_after_draw(main)
 	await _check_battle_resume_keeps_uses(main)
 	await _check_exhausted_deck_battle_and_reward(main)
@@ -185,6 +188,36 @@ func _check_target_selection(main: MainScript) -> void:
 	_check(battle_ui.battle.turn == 2, "Enter でターン終了")
 
 
+## 手札のカードは残り使用回数を封蝋の印の列で見せる (残っている印と焼けた印の数が、残りと使った回数に合う)。
+## 残り 1 回のカードにはそう書く
+func _check_hand_card_seals(main: MainScript) -> void:
+	var battle_ui: BattleUiScript = main.screen as BattleUiScript
+	if battle_ui == null:
+		return
+	_set_deck(["slash"])
+	run_state.use_card(0)
+	run_state.use_card(0)
+	_start_battle_with(battle_ui, ["wild_dog"], 1)
+	await _settle()
+	var view: CardViewScript = _hand_buttons(battle_ui)[0] as CardViewScript
+	var max_uses: int = Cards.CARDS["slash"]["max_uses"]
+	_check(
+		_seal_counts(view) == Vector2i(max_uses - 2, 2),
+		"2 回使ったカードは、焼けた印が 2 つで残りが残っている印"
+	)
+	_check(
+		view.face.material == null and view.note_label.text == "",
+		"残りのあるカードは色を保ち、補足の文を出さない"
+	)
+	while run_state.uses_left(0) > 1:
+		run_state.use_card(0)
+	battle_ui.refresh()
+	_check(
+		_seal_counts(view).x == 1 and view.note_label.text == CardViewScript.LAST_USE_NOTE,
+		"残り 1 回のカードは印が 1 つ残り、「最後の 1 回」と出る"
+	)
+
+
 ## ドローで手札が 5 枚を超えても、手札のボタンがすべて画面の幅に収まり押せる
 func _check_hand_fits_after_draw(main: MainScript) -> void:
 	var battle_ui: BattleUiScript = main.screen as BattleUiScript
@@ -199,12 +232,7 @@ func _check_hand_fits_after_draw(main: MainScript) -> void:
 	_check(battle_ui.battle.hand.size() == 6, "灯の精で手札が 6 枚になる")
 	var buttons: Array[Button] = _hand_buttons(battle_ui)
 	_check(buttons.size() == 6, "手札のボタンが 6 枚")
-	for button: Button in buttons:
-		var rect: Rect2 = button.get_global_rect()
-		_check(
-			rect.position.x >= 0 and rect.end.x <= root.size.x,
-			"手札のボタンが画面の幅に収まる: %s" % button.text
-		)
+	_check_buttons_fit(buttons, "手札")
 	var last: int = buttons.size() - 1
 	if battle_ui.battle.can_play(last) and battle_ui.battle.alive_enemies().size() == 1:
 		await _click(buttons[last])
@@ -265,7 +293,16 @@ func _check_exhausted_deck_battle_and_reward(main: MainScript) -> void:
 	await _settle()
 	_check(battle_ui.battle.hand.size() == 3, "契約切れのカードも手札に来る")
 	for button: Button in _hand_buttons(battle_ui):
-		_check(button.disabled and button.text.contains("契約切れ"), "契約切れのカードは押せず、そう表示される")
+		var view: CardViewScript = button as CardViewScript
+		_check(
+			view.disabled and view.note_label.text == CardViewScript.EXHAUSTED_NOTE,
+			"契約切れのカードは押せず、そう表示される"
+		)
+		_check(view.face.material != null, "契約切れのカードは色を失う")
+		_check(
+			_seal_counts(view) == Vector2i(0, Cards.CARDS[view.card_id]["max_uses"]),
+			"契約切れのカードの印はすべて焼けている"
+		)
 	_check(battle_ui.message_label.text.contains("使えるカードが無い"), "使えるカードが無い案内が出る")
 	var gold_before: int = run_state.gold
 	var steps: int = 0
@@ -357,7 +394,7 @@ func _check_shop(main: MainScript) -> void:
 	if shop == null:
 		return
 	_check_buttons_fit(shop.card_buttons.values(), "商人のカード")
-	await _check_longest_cards_fit()
+	await _check_cards_fit(main)
 	var card_id: String = shop.card_buttons.keys()[0]
 	var size_before: int = run_state.deck.size()
 	await _click(shop.card_buttons[card_id])
@@ -684,36 +721,65 @@ func _check_buttons_fit(buttons: Array, label: String) -> void:
 		var rect: Rect2 = button.get_global_rect()
 		_check(
 			rect.position.x >= 0 and rect.end.x <= root.size.x,
-			"%sのボタンが画面の幅に収まる: %s" % [label, button.text]
+			"%sのボタンが画面の幅に収まる: %s" % [label, _button_label(button)]
 		)
 
 
-## 文の最も長いカードを、報酬・祠・商人の 3 枚の並び (値段の行付き) とデッキの格子の 1 行に並べても、画面の
-## 幅に収まる (画面と同じ余白の入れ物に置いて確かめ、確かめた後に消す)
-func _check_longest_cards_fit() -> void:
-	var card_ids: Array = Cards.CARDS.keys()
-	card_ids.sort_custom(
-		func(a: String, b: String) -> bool:
-			return UiKit.offer_text(a).length() > UiKit.offer_text(b).length()
-	)
+## button を失敗の文で指す名前 (カードならカードの名前、ほかはボタンの文)
+func _button_label(button: Button) -> String:
+	var view: CardViewScript = button as CardViewScript
+	return view.name_label.text if view != null else button.text
+
+
+## view の封蝋の印の列の (残っている印の数, 焼けた印の数)
+func _seal_counts(view: CardViewScript) -> Vector2i:
+	var counts: Vector2i = Vector2i.ZERO
+	for icon: TextureRect in view.seal_row.get_children():
+		if not icon.visible:
+			continue
+		if icon.texture == Art.SEAL:
+			counts.x += 1
+		else:
+			counts.y += 1
+	return counts
+
+
+## 報酬・祠・商人の 3 枚の並び (値段の行付き) とデッキの格子が画面の幅に収まり、全カードの名前と効果の文が
+## カードの中に収まる (メインシーンの theme のフォントで、画面と同じ余白の入れ物に置いて確かめ、確かめた後に消す)
+func _check_cards_fit(main: MainScript) -> void:
 	var probe: Control = Control.new()
-	root.add_child(probe)
+	main.add_child(probe)
 	var layout: VBoxContainer = UiKit.screen_layout(probe, "")
-	var row: HBoxContainer = HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
-	layout.add_child(row)
-	var grid: GridContainer = GridContainer.new()
-	grid.columns = UiKit.DECK_GRID_COLUMNS
-	grid.add_theme_constant_override("h_separation", 8)
-	layout.add_child(grid)
-	var buttons: Array[Button] = []
+	var row: HBoxContainer = UiKit.add_card_row(layout)
+	var grid: GridContainer = UiKit.add_card_grid(layout)
+	var views: Array[Button] = []
+	var card_ids: Array = Cards.CARDS.keys()
 	for card_id: String in card_ids.slice(0, NodeRules.OFFER_COUNT):
-		var text: String = "%s\n値段 %d" % [UiKit.offer_text(card_id), NodeRules.card_price(card_id)]
-		buttons.append(UiKit.add_card_button(row, text, func() -> void: pass))
-	for card_id: String in card_ids.slice(0, UiKit.DECK_GRID_COLUMNS):
-		buttons.append(UiKit.add_card_button(grid, UiKit.offer_text(card_id), func() -> void: pass))
+		var note: String = "値段 %d" % NodeRules.card_price(card_id)
+		views.append(UiKit.add_offer_card(row, card_id, note, func() -> void: pass))
+	for card_id: String in card_ids:
+		views.append(UiKit.add_offer_card(grid, card_id, "", func() -> void: pass))
 	await _settle()
-	_check_buttons_fit(buttons, "文の長いカード")
+	_check_buttons_fit(views, "並べたカード")
+	for button: Button in views:
+		var view: CardViewScript = button as CardViewScript
+		var card_name: String = view.name_label.text
+		var name_width: float = (
+			Art.FONT.get_string_size(
+				card_name, HORIZONTAL_ALIGNMENT_LEFT, -1, CardViewScript.NAME_FONT_SIZE
+			).x
+		)
+		_check(
+			name_width <= CardViewScript.NAME_RECT.size.x, "名前がカードの幅に収まる: %s" % card_name
+		)
+		_check(
+			view.effect_label.get_line_count() <= CardViewScript.EFFECT_MAX_LINES,
+			"効果の文がカードの行の数に収まる: %s" % card_name
+		)
+		_check(
+			view.seal_row.get_combined_minimum_size().x <= CardViewScript.SEAL_RECT.size.x,
+			"封蝋の印の列がカードの幅に収まる: %s" % card_name
+		)
 	probe.queue_free()
 	await process_frame
 

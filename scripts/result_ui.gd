@@ -24,7 +24,7 @@ func _ready() -> void:
 	var layout: VBoxContainer = UiKit.screen_layout(
 		self, "踏破 — 第 %d 幕を越えた" % run_state.act if cleared else "敗北 — 巡礼はここで途絶えた"
 	)
-	summary_label = UiKit.add_label(layout, summary_text(run_state))
+	summary_label = UiKit.add_note(layout, summary_text(run_state))
 	title_button = UiKit.add_button(layout, "タイトルへ", closed.emit)
 	title_button.grab_focus()
 

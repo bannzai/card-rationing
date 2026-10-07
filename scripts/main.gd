@@ -5,11 +5,6 @@ extends Control
 ## いつでも重ねて開ける。
 
 const BOOT_MESSAGE: String = "card-rationing boot"
-## 全画面の既定フォント (日本語の字形を持つ。出典は assets/CREDITS.md)。project.godot の gui/theme/custom_font
-## で指定すると、初回の import でフォントの import より先に読もうとして ERROR になるため、起動後にこのノードの
-## theme の default_font として設定する (子の画面にも効く。ThemeDB.fallback_font は既定テーマがフォントを
-## 持つため効かなかった)
-const DEFAULT_FONT: Font = preload("res://assets/fonts/NotoSansJP-Variable.ttf")
 const BATTLE_SCENE: PackedScene = preload("res://scenes/battle.tscn")
 const BOSS_TALK_SCENE: PackedScene = preload("res://scenes/boss_talk.tscn")
 const ActMap := preload("res://scripts/act_map.gd")
@@ -27,6 +22,7 @@ const SettingsUiScript := preload("res://scripts/settings_ui.gd")
 const ShopUiScript := preload("res://scripts/shop_ui.gd")
 const ShrineUiScript := preload("res://scripts/shrine_ui.gd")
 const TitleUiScript := preload("res://scripts/title_ui.gd")
+const UiKit := preload("res://scripts/ui_kit.gd")
 ## 保存データが壊れていた時のタイトルの知らせ
 const CORRUPT_NOTICE: String = "保存データが壊れていたため読み込まずに退避した。新しい巡礼を始めてほしい。"
 ## 保存データを開けなかった時のタイトルの知らせ (保存データは退避せず残っているが、「巡礼を始める」は
@@ -49,9 +45,10 @@ var focus_before_deck_list: Control = null
 
 ## 起動の入口。BOOT_MESSAGE は make check がメインシーンのロードと _ready の実行を確かめる印
 func _ready() -> void:
-	var app_theme: Theme = Theme.new()
-	app_theme.default_font = DEFAULT_FONT
-	theme = app_theme
+	# 全画面の見た目 (フォントを含む) は、このノードの theme として設定する (子の画面にも効く)。フォントを
+	# project.godot の gui/theme/custom_font で指定すると、初回の import でフォントの import より先に読もうとして
+	# ERROR になる (ThemeDB.fallback_font は既定テーマがフォントを持つため効かなかった)
+	theme = UiKit.build_theme()
 	run_state = get_tree().root.get_node_or_null("RunState")
 	if run_state == null:
 		push_error("autoload RunState が無い")
@@ -61,10 +58,11 @@ func _ready() -> void:
 	deck_button.text = "契約の一覧 (D)"
 	deck_button.focus_mode = Control.FOCUS_NONE
 	deck_button.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	deck_button.offset_left = -196
-	deck_button.offset_top = -54
+	deck_button.add_theme_font_size_override("font_size", 16)
+	deck_button.offset_left = -176
+	deck_button.offset_top = -56
 	deck_button.offset_right = -16
-	deck_button.offset_bottom = -16
+	deck_button.offset_bottom = -12
 	deck_button.pressed.connect(open_deck_list)
 	add_child(deck_button)
 	show_title()

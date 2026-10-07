@@ -32,12 +32,9 @@ func _ready() -> void:
 		)
 	)
 	UiKit.add_label(layout, "新しく契約するカードを 1 枚選ぶ (取らなくてもよい)")
-	var row: HBoxContainer = HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
-	layout.add_child(row)
+	var row: HBoxContainer = UiKit.add_card_row(layout)
 	for card_id: String in NodeRules.card_offers(run_state.node_seed()):
-		var button: Button = UiKit.add_card_button(row, UiKit.offer_text(card_id), take.bind(card_id))
-		offer_buttons[card_id] = button
+		offer_buttons[card_id] = UiKit.add_offer_card(row, card_id, "", take.bind(card_id))
 	skip_button = UiKit.add_button(layout, "取らずに地図へ戻る", skip)
 	# 戦闘の Enter (ターン終了) の続けて押しで、見ずにカードと契約しないよう、取らない方に置く
 	skip_button.grab_focus()

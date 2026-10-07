@@ -1,25 +1,27 @@
 extends Control
-## 戦闘画面 (仮の見た目。見た目は関門 2 の後に反映する)。進行は scripts/battle.gd に任せ、ここは表示と
-## 入力 (マウスのクリックとキーボード) だけを受け持つ。手札のカードには残り使用回数を必ず表示し、
-## 残り 1 回と契約切れ (残り 0) を色と文で見分けられるようにする。
+## 戦闘画面。進行は scripts/battle.gd に任せ、ここは表示と入力 (マウスのクリックとキーボード) だけを受け持つ。
+## 見た目は「蝋と灯火」(documents/DIRECTION.md「デザインの方向」): 祠の道の絵の左に巡礼者、右に敵を置き、
+## エネルギーは灯っている蝋燭の数、体力は数珠の珠で示す。手札のカード (scripts/card_view.gd) は残り使用回数を
+## 封蝋の印の列で必ず見せ、契約切れ (残り 0) のカードは色を失う。
 ## カードを使うたびとターンの終わりにランを保存し、勝敗が決まったら scripts/run_flow.gd で戦闘を終える
 ## (報酬・踏破・敗北の画面へは scripts/main.gd が切り替える)。
 
 const ActMap := preload("res://scripts/act_map.gd")
+const Art := preload("res://scripts/art.gd")
 const Battle := preload("res://scripts/battle.gd")
+const CardView := preload("res://scripts/card_view.gd")
 const Cards := preload("res://scripts/cards.gd")
-const Enemies := preload("res://scripts/enemies.gd")
+const EnemyView := preload("res://scripts/enemy_view.gd")
 const RunFlow := preload("res://scripts/run_flow.gd")
 const RunStateScript := preload("res://scripts/run_state.gd")
-const UiKit := preload("res://scripts/ui_kit.gd")
 
 ## pending_hand_index の特別な値: もがくの対象を選んでいる
 const STRUGGLE_PENDING: int = -2
-## 敵の行動の種別と敵の格の表示名 (戦闘の格の敵には付けない)
-const MOVE_NAMES: Dictionary = {Enemies.Move.ATTACK: "攻撃", Enemies.Move.GUARD: "防御"}
-const RANK_NAMES: Dictionary = {
-	Enemies.Rank.NORMAL: "", Enemies.Rank.ELITE: " [強敵]", Enemies.Rank.BOSS: " [ボス]"
-}
+## エネルギーの蝋燭 1 本の大きさと、体力の数珠の珠の数・珠 1 つの大きさ。蝋燭 3 本 (1 ターンの分) と珠 10 個
+## (体力の 1 割ごと) が、手札の行の左に空けた幅 (scenes/battle.tscn の PlayerPanel) に並ぶ大きさにした
+const CANDLE_SIZE: Vector2 = Vector2(38, 64)
+const HEALTH_BEADS: int = 10
+const BEAD_SIZE: Vector2 = Vector2(16, 16)
 
 ## 進行中の戦闘
 var battle: Battle = null
@@ -28,20 +30,28 @@ var run_state: RunStateScript = null
 ## 対象の敵を選んでいる途中の手札の index (-1 なら選んでいない。もがくなら STRUGGLE_PENDING)
 var pending_hand_index: int = -1
 
-## scenes/battle.tscn のノード (enemy_row / hand_row の子のボタンは refresh() が足す)
-@onready var floor_label: Label = $Layout/TopBar/FloorLabel
-@onready var enemy_row: HBoxContainer = $Layout/EnemyRow
-@onready var message_label: Label = $Layout/MessageLabel
-@onready var status_label: Label = $Layout/StatusLabel
-@onready var hand_row: HBoxContainer = $Layout/HandRow
-@onready var struggle_button: Button = $Layout/ActionRow/StruggleButton
-@onready var end_turn_button: Button = $Layout/ActionRow/EndTurnButton
+## scenes/battle.tscn のノード (enemy_row の敵・hand_row のカード・energy_row の蝋燭・health_row の珠は
+## refresh() が足す)
+@onready var floor_label: Label = $FloorLabel
+@onready var enemy_row: HBoxContainer = $EnemyRow
+@onready var message_label: Label = $MessageLabel
+@onready var energy_row: HBoxContainer = $PlayerPanel/EnergyRow
+@onready var energy_label: Label = $PlayerPanel/EnergyLabel
+@onready var health_row: HBoxContainer = $PlayerPanel/HealthRow
+@onready var status_label: Label = $PlayerPanel/StatusLabel
+@onready var pile_label: Label = $PlayerPanel/PileLabel
+@onready var hand_row: HBoxContainer = $HandRow
+@onready var struggle_button: Button = $ActionColumn/StruggleButton
+@onready var end_turn_button: Button = $ActionColumn/EndTurnButton
 
 
 func _ready() -> void:
 	run_state = get_tree().root.get_node_or_null("RunState")
 	if run_state == null:
 		push_error("autoload RunState が無い")
+	($Background as TextureRect).texture = Art.BATTLE_BG
+	($Pilgrim as TextureRect).texture = Art.PILGRIM
+	message_label.add_theme_color_override("font_color", Art.CANDLE)
 	struggle_button.pressed.connect(request_struggle)
 	end_turn_button.pressed.connect(end_turn)
 
@@ -142,18 +152,30 @@ func refresh() -> void:
 		"第 %d 幕 %d 階 %s"
 		% [run_state.act, maxi(1, run_state.path.size()), ActMap.KIND_NAMES[kind]]
 	)
-	status_label.text = (
-		"体力 %d / %d   防御 %d   エネルギー %d / %d   山札 %d   捨て札 %d   ターン %d"
-		% [
-			run_state.hp,
-			run_state.max_hp,
-			battle.block,
-			battle.energy,
-			Battle.ENERGY_PER_TURN,
-			battle.draw_pile.size(),
-			battle.discard_pile.size(),
-			battle.turn,
-		]
+	# カードの効果でエネルギーが 1 ターンの分を超えたら、蝋燭を増やして見せる (増えた分は蝋燭を縮め、手札の
+	# 行にはみ出さないようにする)
+	var candles: int = maxi(battle.energy, Battle.ENERGY_PER_TURN)
+	Art.set_icons(
+		energy_row,
+		Art.CANDLE_LIT,
+		Art.CANDLE_OUT,
+		battle.energy,
+		candles,
+		CANDLE_SIZE * minf(1.0, float(Battle.ENERGY_PER_TURN) / candles)
+	)
+	energy_label.text = "エネルギー %d / %d" % [battle.energy, Battle.ENERGY_PER_TURN]
+	Art.set_icons(
+		health_row,
+		Art.BEAD,
+		Art.BEAD_DULL,
+		Art.lit_count(run_state.hp, run_state.max_hp, HEALTH_BEADS),
+		HEALTH_BEADS,
+		BEAD_SIZE
+	)
+	status_label.text = "体力 %d / %d   防御 %d" % [run_state.hp, run_state.max_hp, battle.block]
+	pile_label.text = (
+		"山札 %d   捨て札 %d\nターン %d"
+		% [battle.draw_pile.size(), battle.discard_pile.size(), battle.turn]
 	)
 	message_label.text = _message_text()
 	_refresh_enemies()
@@ -190,79 +212,47 @@ func _message_text() -> String:
 	return "今使えるカードが無い。もがく (S) かターン終了 (Enter)"
 
 
-## 敵のボタンを敵の数だけ用意して、体力・防御・予告を表示する
+## 敵 (scripts/enemy_view.gd) を敵の数だけ用意して、体力・防御・予告を見せる
 func _refresh_enemies() -> void:
-	_ensure_buttons(enemy_row, battle.enemies.size(), choose_target)
+	_ensure_views(enemy_row, battle.enemies.size(), EnemyView, choose_target)
 	for index: int in range(enemy_row.get_child_count()):
-		var button: Button = enemy_row.get_child(index)
-		button.visible = index < battle.enemies.size()
-		if not button.visible:
-			continue
-		var enemy: Dictionary = battle.enemies[index]
-		if enemy["hp"] <= 0:
-			button.text = "%d. %s\n倒した" % [index + 1, enemy["name"]]
-			button.disabled = true
-			continue
-		var intent: Dictionary = enemy["intent"]
-		var hits: int = intent.get("hits", 1)
-		button.text = (
-			"%d. %s%s\n体力 %d / %d   防御 %d\n予告: %s %d%s"
-			% [
-				index + 1,
-				enemy["name"],
-				RANK_NAMES[Enemies.ENEMIES[enemy["id"]]["rank"]],
-				enemy["hp"],
-				enemy["max_hp"],
-				enemy["block"],
-				MOVE_NAMES[intent["move"]],
-				intent["value"],
-				"×%d" % hits if hits > 1 else "",
-			]
-		)
-		button.disabled = false
+		var view: EnemyView = enemy_row.get_child(index)
+		view.visible = index < battle.enemies.size()
+		if view.visible:
+			view.show_enemy(index + 1, battle.enemies[index])
 
 
-## 手札のボタンを手札の枚数だけ用意して、効果・コスト・残り使用回数を表示する
+## 手札のカード (scripts/card_view.gd) を手札の枚数だけ用意して、数字キーの番号と残り使用回数を見せる。
+## カードは手札の行の幅に収まる大きさに縮め、ドローで手札が増えても画面の外に出さない
 func _refresh_hand() -> void:
-	_ensure_buttons(hand_row, battle.hand.size(), request_card)
+	var count: int = battle.hand.size()
+	_ensure_views(hand_row, count, CardView, request_card)
+	var gaps: float = hand_row.get_theme_constant("separation") * maxi(count - 1, 0)
+	var row_width: float = hand_row.offset_right - hand_row.offset_left
+	var width: float = minf(CardView.BASE_SIZE.x, floorf((row_width - gaps) / maxi(count, 1)))
 	for index: int in range(hand_row.get_child_count()):
-		var button: Button = hand_row.get_child(index)
-		button.visible = index < battle.hand.size()
-		if not button.visible:
+		var view: CardView = hand_row.get_child(index)
+		view.visible = index < count
+		if not view.visible:
 			continue
 		var deck_index: int = battle.hand[index]
-		var card_id: String = run_state.deck[deck_index]["id"]
-		var card: Dictionary = Cards.CARDS[card_id]
-		var uses: int = run_state.uses_left(deck_index)
-		var uses_text: String = "残り %d / %d" % [uses, card["max_uses"]]
-		button.modulate = UiKit.uses_color(uses)
-		if uses == 0:
-			uses_text += "\n契約切れ"
-		elif uses == 1:
-			uses_text += " (最後の 1 回)"
-		button.text = (
-			"%d. %s [%s]\n%s / コスト %d\n%s"
-			% [
-				index + 1,
-				card["name"],
-				UiKit.BOND_NAMES[card["bond"]],
-				Cards.effect_text(card_id),
-				card["cost"],
-				uses_text,
-			]
-		)
-		button.disabled = not battle.can_play(index)
+		view.custom_minimum_size = CardView.BASE_SIZE * (width / CardView.BASE_SIZE.x)
+		view.show_deck_card(run_state.deck[deck_index]["id"], run_state.uses_left(deck_index))
+		view.set_key_number(index + 1)
+		view.disabled = not battle.can_play(index)
 
 
-## row の子のボタンが count 個以上あるようにする。足したボタンの pressed はその位置の index を付けて
-## callback に繋ぐ (ボタンは使い回し、毎回作り直さない)。ボタンは行の幅を等分して並び、ドローで手札が増えても
-## 画面の外に出ない (最小幅 100 なら 10 枚でも 1232 幅の行に収まる)
-func _ensure_buttons(row: HBoxContainer, count: int, callback: Callable) -> void:
+## row の子 (view_script のボタン) が count 個以上あるようにする。足したボタンの pressed はその位置の index を
+## 付けて callback に繋ぐ (ボタンは使い回し、毎回作り直さない)
+func _ensure_views(
+	row: HBoxContainer, count: int, view_script: GDScript, callback: Callable
+) -> void:
 	while row.get_child_count() < count:
-		var button: Button = Button.new()
-		button.focus_mode = Control.FOCUS_NONE
-		button.custom_minimum_size = Vector2(100, 96)
-		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		button.clip_text = true
-		button.pressed.connect(callback.bind(row.get_child_count()))
-		row.add_child(button)
+		var view: Button = view_script.new()
+		view.focus_mode = Control.FOCUS_NONE
+		# 行の下の端に揃える (縮めた手札のカードも、格の違う敵も足元を揃える)
+		view.size_flags_vertical = Control.SIZE_SHRINK_END
+		view.pressed.connect(callback.bind(row.get_child_count()))
+		row.add_child(view)
+
+

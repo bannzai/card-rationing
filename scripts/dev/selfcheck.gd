@@ -3,6 +3,7 @@ extends "res://scripts/dev/selfcheck_run.gd"
 ## イベント) の計算を足したら、ここに検証を足す。実行方法は AGENTS.md「検証方法」を参照。地図・局面の移り変わり・
 ## 報酬・祠・商人・出来事・契約の一覧・設定の検証は継承元の scripts/dev/selfcheck_run.gd にある。
 
+const Art := preload("res://scripts/art.gd")
 const BattleScript := preload("res://scripts/battle.gd")
 
 ## 起動検証 (main_scene の --quit) ではロードされない遷移先も含めた全シーン
@@ -75,9 +76,20 @@ func _initialize() -> void:
 	_check_events()
 	_check_deck_sort()
 	_check_settings()
+	_check_bead_count()
 	# Makefile の WARNING / ERROR 検査が行頭の接頭辞だけを見ることの回帰検査 (この行で落ちてはいけない)
 	print("selfcheck note: a normal line may mention error and warning words")
 	_finish()
+
+
+## 体力を数珠の珠の数で示す計算 (scripts/art.gd の lit_count): 体力が 0 なら珠は残らず、1 でも残れば珠は 1 つ
+## 残り、端数は切り上げ、珠の数を超えない
+func _check_bead_count() -> void:
+	_check(Art.lit_count(0, 50, 10) == 0, "体力 0 なら残る珠は 0")
+	_check(Art.lit_count(1, 50, 10) == 1, "体力が 1 でも残れば珠は 1 つ残る")
+	_check(Art.lit_count(26, 50, 10) == 6, "端数は切り上げる (26 / 50 は珠 6 つ)")
+	_check(Art.lit_count(50, 50, 10) == 10, "体力が最大なら珠はすべて残る")
+	_check(Art.lit_count(60, 50, 10) == 10, "体力が最大を超えても珠の数を超えない")
 
 
 ## project.godot の起動シーンとレンダラが ADR 0001 のとおりか (起動シーンが uid:// で保存されていてもパスで比べる)

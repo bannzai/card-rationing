@@ -110,7 +110,7 @@
 - 改変: 透過の余白を除き、幅 320 に縮小した
 - プロンプト: Game asset for a 2D deck-building roguelike, hand-painted dark fantasy illustration with visible brush strokes and paper grain: one blank dark weathered wooden plaque (a wide horizontal plank sign) seen straight from the front, upright, filling most of the image width. Worn chipped edges, a simple shallow carved groove running along the border, dark stained oak with faint warm candlelight on the grain. Completely empty: no carving in the middle, no nails, no chains, no rope. Fully transparent background outside the plaque (PNG with alpha channel), nothing else in the image, no cast shadow. No legible text or numbers, no metal or chrome or neon gloss, no 3D render, no anime style.
 
-### `token_battle.png`・`token_elite.png`・`token_event.png`・`token_shrine.png`・`token_shop.png`・`token_boss.png`
+### `map_battle.png`・`map_elite.png`・`map_event.png`・`map_shrine.png`・`map_shop.png`・`map_boss.png`
 
 - 用途: 地図の節点の印 (戦闘・強敵・出来事・契約の祠・商人・ボス)
 - 改変: 1 枚のシートを横に 6 等分し、6 つに共通の外接矩形で切り出して高さ 72 に縮小した

@@ -3,6 +3,7 @@ extends Control
 ## 決める。選んだら結果をランに反映して地図へ戻る。処理は scripts/events.gd、選んでいる途中の選択肢と
 ## カードだけをここに持つ。
 
+const AudioScript := preload("res://scripts/audio.gd")
 const Events := preload("res://scripts/events.gd")
 const NodeRules := preload("res://scripts/node_rules.gd")
 const RunFlow := preload("res://scripts/run_flow.gd")
@@ -11,6 +12,8 @@ const UiKit := preload("res://scripts/ui_kit.gd")
 
 ## ラン単位の状態 (autoload RunState)
 var run_state: RunStateScript = null
+## BGM と効果音 (autoload Audio)
+var audio: AudioScript = null
 ## 今いる出来事の ID と定義
 var event_id: String = ""
 var event: Dictionary = {}
@@ -28,6 +31,7 @@ var confirm_button: Button = null
 ## 画面のノードを組み立てる
 func _ready() -> void:
 	run_state = get_tree().root.get_node_or_null("RunState")
+	audio = get_tree().root.get_node_or_null("Audio")
 	event_id = Events.event_for(run_state.node_seed())
 	event = Events.EVENTS[event_id]
 	var layout: VBoxContainer = UiKit.screen_layout(self, "出来事: %s" % event["title"])
@@ -83,9 +87,12 @@ func cancel() -> void:
 	_rebuild()
 
 
-## option_index 番目の選択肢を chosen のカードで決め、地図へ戻る (決められなければ何もしない)
+## option_index 番目の選択肢を chosen のカードで決め、地図へ戻る (決められなければ何もしない)。残り使用回数を
+## 戻す選択肢 (血の泉) なら回数の回復の効果音を鳴らす
 func _decide(option_index: int, chosen: Array[int]) -> void:
 	if Events.choose(run_state, option_index, chosen):
+		if event["options"][option_index]["effect"] == Events.Effect.BLOOD_RESTORE:
+			audio.play_se(AudioScript.Se.RESTORE)
 		RunFlow.leave_node(run_state)
 
 

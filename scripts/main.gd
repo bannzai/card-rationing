@@ -81,7 +81,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		open_deck_list()
 
 
-## タイトル画面を出す (BGM は鳴らさない)。notice はボタンの下に出す知らせ
+## タイトル画面を出す (BGM は鳴らさない)。notice はボタンの上に出す知らせ
 func show_title(notice: String = "") -> void:
 	audio.play_bgm(AudioScript.Bgm.NONE)
 	var title: TitleUiScript = TitleUiScript.new()

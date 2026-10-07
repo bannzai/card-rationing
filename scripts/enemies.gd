@@ -67,7 +67,7 @@ const ENEMIES: Dictionary = {
 		"moves":
 		[
 			{"move": Move.GUARD, "value": 8},
-			{"move": Move.ATTACK, "value": 11},
+			{"move": Move.ATTACK, "value": 8},
 		],
 	},
 	"ash_hound":
@@ -77,8 +77,8 @@ const ENEMIES: Dictionary = {
 		"hp": 23,
 		"moves":
 		[
-			{"move": Move.ATTACK, "value": 5, "hits": 2},
-			{"move": Move.ATTACK, "value": 9},
+			{"move": Move.ATTACK, "value": 3, "hits": 2},
+			{"move": Move.ATTACK, "value": 7},
 		],
 	},
 	"fallen_guard":
@@ -89,9 +89,9 @@ const ENEMIES: Dictionary = {
 		"in_order": true,
 		"moves":
 		[
-			{"move": Move.ATTACK, "value": 12},
+			{"move": Move.ATTACK, "value": 9},
 			{"move": Move.GUARD, "value": 10},
-			{"move": Move.ATTACK, "value": 6, "hits": 2},
+			{"move": Move.ATTACK, "value": 4, "hits": 2},
 		],
 	},
 	"candle_warden":

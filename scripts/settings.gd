@@ -1,7 +1,10 @@
 extends Node
 ## 設定 (BGM・効果音の音量) の autoload (登録名 Settings)。起動時に読み込み、設定画面を閉じる時に保存する。
-## 音そのものは BGM と効果音の issue (#12) で鳴らし、ここの値を使う。
+## 音量をバスに反映して音を鳴らすのは autoload Audio (scripts/audio.gd)。
 ## --script の検証から使う時は root.get_node_or_null("Settings") で取るか、このスクリプトを new() する。
+
+## 音量が変わった (設定画面での変更と読み込み。autoload Audio が受けてバスに反映する)
+signal volume_changed
 
 ## 本番の保存先
 const SETTINGS_PATH: String = "user://settings.cfg"
@@ -17,9 +20,15 @@ const BGM_KEY: String = "bgm_volume"
 const SE_KEY: String = "se_volume"
 
 ## BGM の音量 (0〜MAX_VOLUME)
-var bgm_volume: int = DEFAULT_VOLUME
+var bgm_volume: int = DEFAULT_VOLUME:
+	set(value):
+		bgm_volume = value
+		volume_changed.emit()
 ## 効果音の音量 (0〜MAX_VOLUME)
-var se_volume: int = DEFAULT_VOLUME
+var se_volume: int = DEFAULT_VOLUME:
+	set(value):
+		se_volume = value
+		volume_changed.emit()
 ## 保存先 (検証は本番と別の保存先に差し替える)
 var settings_path: String = SETTINGS_PATH
 

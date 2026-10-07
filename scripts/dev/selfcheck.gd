@@ -1,7 +1,7 @@
 extends "res://scripts/dev/selfcheck_run.gd"
 ## 純粋なロジックとプロジェクト設定の検証 (headless)。ゲームのルール (カードの残り使用回数・戦闘・マップ・
 ## イベント) の計算を足したら、ここに検証を足す。実行方法は AGENTS.md「検証方法」を参照。地図・局面の移り変わり・
-## 報酬・祠・商人・出来事・契約の一覧・設定の検証は継承元の scripts/dev/selfcheck_run.gd にある。
+## 報酬・祠・商人・出来事・契約の一覧・設定・音・素材の記録の検証は継承元の scripts/dev/selfcheck_run.gd にある。
 
 const BattleScript := preload("res://scripts/battle.gd")
 const Bots := preload("res://scripts/dev/strategy_bots.gd")
@@ -78,6 +78,8 @@ func _initialize() -> void:
 	_check_events()
 	_check_deck_sort()
 	_check_settings()
+	_check_audio()
+	_check_credits()
 	_check_strategy_bots()
 	# Makefile の WARNING / ERROR 検査が行頭の接頭辞だけを見ることの回帰検査 (この行で落ちてはいけない)
 	print("selfcheck note: a normal line may mention error and warning words")

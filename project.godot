@@ -19,6 +19,7 @@ config/features=PackedStringArray("4.7", "GL Compatibility")
 
 RunState="*res://scripts/run_state.gd"
 Settings="*res://scripts/settings.gd"
+Audio="*res://scripts/audio.gd"
 
 [display]
 

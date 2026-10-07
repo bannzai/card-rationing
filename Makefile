@@ -29,7 +29,7 @@ SCRIPT_FLAGS = --quit-after $(SCRIPT_FRAME_LIMIT)
 # warning の語があっても落ちない。続く「   at: ...」の行は対象外 (本体の行で検出できる)
 LOG_ERROR_PATTERN := ^(SCRIPT |SHADER )?(ERROR|WARNING):
 
-# 描画付きで起動する target (screenshot / movie) の共通オプション。headless では描画されないため付けない。
+# 描画付きで起動する target (screenshot / movie / playtest) の共通オプション。headless では描画されないため付けない。
 # CI の Linux では Xvfb + Mesa llvmpipe 上で実行する
 WINDOWED_FLAGS := --audio-driver Dummy --rendering-driver opengl3 --resolution 1280x720 --windowed --position 0,0
 # 描画付き起動でだけ出る、描画に影響しない OS / ドライバ由来の行。ログの WARNING / ERROR 検査から除外する
@@ -38,8 +38,18 @@ WINDOWED_LOG_NOISE := -e 'Could not set V-Sync mode' -e 'IMKCFRunLoopWakeUpRelia
 # movie target が録画するフレーム数 (30 fps 固定。150 = 5 秒)。操作なしの起動〜メインシーン表示の確認には
 # 数秒あれば足り、CI の録画時間と artifact のサイズを抑えるため
 MOVIE_FRAMES ?= 150
+# simulate target の上限 (フレーム数)。scripts/dev/simulate.gd は 1 ランごとに 1 フレーム進めるので、正常なら
+# 3 つの戦略 × 200 ラン = 600 フレームと数フレームで終わる。その 5 倍。途中の実行時エラーで止まった後は 1 フレームが
+# 数 ms の空回りになり、上限まで数十秒で終わる。フレームの数は実行時間を縛らない (1 ランが長くなっても 1 フレーム)
+# ので、実行時間は CI の simulate job の timeout-minutes で縛る
+SIMULATE_FRAME_LIMIT ?= 3000
+# playtest target が録画するフレーム数の上限 (30 fps 固定。9000 = 5 分)。テストプレイはランの終わりで自分で終わり、
+# ここに達したら playtest OK が出ずに失敗する。録画の長さは scripts/dev/playtest.gd の 1 手・1 画面ごとの
+# フレーム数で決まり、手数はシードと敵の強さで変わるので、通常の長さの倍を目安に取る。CI (Xvfb + llvmpipe) の
+# 録画は 1 フレーム数十 ms で、上限まで回っても screenshot-and-movie job の timeout (30 分) に収まる
+PLAYTEST_FRAME_LIMIT ?= 9000
 
-.PHONY: import check selfcheck integration lint test screenshot movie run build-macos build-windows build-linux build-all clean
+.PHONY: import check selfcheck integration lint test simulate screenshot movie playtest run build-macos build-windows build-linux build-all clean
 
 # ログ・撮影の出力先。.gdignore を置き、撮影した PNG を Godot に import させない
 $(LOG_DIR)/.gdignore:
@@ -87,8 +97,20 @@ lint:
 	gdlint scripts/
 
 # headless 検証の一括実行 (CI の lint job と、check-and-export job のうちエクスポートを除いた部分。描画付きの
-# screenshot / movie は含まない)
+# screenshot / movie / playtest と、数値を集計する simulate は含まない)
 test: lint check selfcheck integration
+
+# 戦略 bot の自動テストプレイ (headless)。3 つの戦略に同じシードの 1 幕を各 200 ラン遊ばせ、戦略ごとの踏破率などを
+# tmp/simulate.json に書く (中身は scripts/dev/simulate.gd)。数値は documents/DIRECTION.md の判定基準に照らして
+# 判定日に読み、ここではしきい値で失敗にしない
+simulate: import
+	rm -f $(LOG_DIR)/simulate.json
+	"$(GODOT)" --headless $(ENGINE_LOG) --path . --quit-after $(SIMULATE_FRAME_LIMIT) --script res://scripts/dev/simulate.gd > $(LOG_DIR)/simulate.log 2>&1; \
+	echo "exit=$$?" >> $(LOG_DIR)/simulate.log; \
+	grep -q '^simulate OK$$' $(LOG_DIR)/simulate.log
+	tail -n 1 $(LOG_DIR)/simulate.log | grep -q '^exit=0$$'
+	! grep -E '$(LOG_ERROR_PATTERN)' $(LOG_DIR)/simulate.log
+	test -s $(LOG_DIR)/simulate.json
 
 # 実際の描画で代表画面を撮影する (headless の検証では見た目の崩れを検出できない)。撮影した PNG は目視してから
 # 完了報告する。全部の撮影を終えた印の `screenshot OK` の行も検査する (上限で止まった時に、1 枚目の PNG だけで
@@ -115,6 +137,20 @@ movie: import
 	rm -f $(LOG_DIR)/movie.avi
 	ffmpeg -v error -sseof -1 -i $(LOG_DIR)/movie.mp4 -frames:v 1 -vf signalstats,metadata=print:key=lavfi.signalstats.YAVG:file=- -f null - \
 	  | awk -F= '/YAVG/ { found = 1; exit ($$2 >= 32) ? 0 : 1 } END { if (!found) exit 1 }'
+
+# 「状況で使い分ける」戦略 bot が 1 幕を通して遊ぶテストプレイを Movie Maker モードで録画して mp4 にし、地図・戦闘・
+# 契約の祠・ボス戦の時点の静止画 tmp/playtest-*.png を書き出す (中身は scripts/dev/playtest.gd)。録画と静止画は
+# 目視する。途中で進めなくなった時ほど録画で原因を見るため、成否の検査より先に mp4 へ変換する
+playtest: import
+	rm -f $(LOG_DIR)/playtest.avi $(LOG_DIR)/playtest.mp4 $(LOG_DIR)/playtest-*.png
+	"$(GODOT)" $(ENGINE_LOG) --path . $(WINDOWED_FLAGS) --write-movie $(LOG_DIR)/playtest.avi --fixed-fps 30 --quit-after $(PLAYTEST_FRAME_LIMIT) --script res://scripts/dev/playtest.gd > $(LOG_DIR)/playtest.log 2>&1; \
+	echo "exit=$$?" >> $(LOG_DIR)/playtest.log
+	ffmpeg -loglevel error -y -i $(LOG_DIR)/playtest.avi -c:v libx264 -pix_fmt yuv420p $(LOG_DIR)/playtest.mp4
+	rm -f $(LOG_DIR)/playtest.avi
+	grep -q '^playtest OK$$' $(LOG_DIR)/playtest.log
+	tail -n 1 $(LOG_DIR)/playtest.log | grep -q '^exit=0$$'
+	! grep -E '$(LOG_ERROR_PATTERN)' $(LOG_DIR)/playtest.log | grep -v $(WINDOWED_LOG_NOISE) | grep -q .
+	ls $(LOG_DIR)/playtest-*.png
 
 # エディタなしでゲームを起動する (人が遊んで確かめる)。先にアセットをインポートする (.godot/ が無い初回や素材の
 # 追加後に、エディタを開かずに起動すると素材が読み込めず起動に失敗するため)
@@ -146,8 +182,9 @@ build-all: build-macos build-windows build-linux
 # ディレクトリごとや *.log をまとめては消さない)。ログは target ごとの <target>.log と、ENGINE_LOG の <target>.godot.log
 clean:
 	rm -rf build
-	rm -f $(foreach target,import check selfcheck integration screenshot movie run build-macos build-windows build-linux,$(LOG_DIR)/$(target).log $(LOG_DIR)/$(target).godot.log)
+	rm -f $(foreach target,import check selfcheck integration simulate screenshot movie playtest run build-macos build-windows build-linux,$(LOG_DIR)/$(target).log $(LOG_DIR)/$(target).godot.log)
 	rm -f $(LOG_DIR)/screenshot-*.png $(LOG_DIR)/movie.avi $(LOG_DIR)/movie.mp4
+	rm -f $(LOG_DIR)/simulate.json $(LOG_DIR)/playtest.avi $(LOG_DIR)/playtest.mp4 $(LOG_DIR)/playtest-*.png
 
 # 引数なしの make で run を実行する (人が手で動作確認するための入口。検査・テストは CI が行う)
 .DEFAULT_GOAL := run

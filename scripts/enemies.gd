@@ -124,7 +124,7 @@ const ENEMIES: Dictionary = {
 	{
 		"name": "灯喰らいの司祭",
 		"rank": Rank.BOSS,
-		"hp": 150,
+		"hp": 100,
 		"in_order": true,
 		"moves":
 		[

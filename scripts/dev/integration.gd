@@ -397,6 +397,8 @@ func _check_deck_list(main: MainScript) -> void:
 	for _i: int in range(12):
 		ids.append_array(["slash", "guard", "breath", "spirit_arrow"])
 	_set_deck(ids)
+	# 次の「続きから」の検証は保存データと今の状態を比べるため、変えたデッキを保存しておく
+	run_state.autosave()
 	await _press_key(KEY_D)
 	var deck_list: DeckListUiScript = main.deck_list
 	_check(deck_list != null, "D で契約の一覧が開く")

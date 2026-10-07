@@ -4,6 +4,7 @@ extends "res://scripts/dev/selfcheck_run.gd"
 ## 報酬・祠・商人・出来事・契約の一覧・設定の検証は継承元の scripts/dev/selfcheck_run.gd にある。
 
 const BattleScript := preload("res://scripts/battle.gd")
+const Bots := preload("res://scripts/dev/strategy_bots.gd")
 
 ## 起動検証 (main_scene の --quit) ではロードされない遷移先も含めた全シーン
 const SCENES: Array[String] = [
@@ -41,6 +42,8 @@ const MOVE_HITS_RANGE: Array[int] = [1, 5]
 ## 短い文言 (カード・敵・契約者の名前、カードの効果の文) に使わない句読点
 ## (~/.claude/rules/coding-rules-general-user-facing-short-copy-punctuation.md)
 const SHORT_COPY_PUNCTUATION: Array[String] = ["、", "。", "，", "．"]
+## 戦略 bot の検証で遊ばせる地図のシード (値に意味は無く、検証のたびに同じ地図になるよう固定する)
+const BOT_SEED: int = 7
 ## 起動時に表示するシーン
 const MAIN_SCENE_PATH: String = "res://scenes/main.tscn"
 ## ADR 0001 で決めたレンダラ (CI の Xvfb + Mesa llvmpipe で描画できるもの)
@@ -75,6 +78,7 @@ func _initialize() -> void:
 	_check_events()
 	_check_deck_sort()
 	_check_settings()
+	_check_strategy_bots()
 	# Makefile の WARNING / ERROR 検査が行頭の接頭辞だけを見ることの回帰検査 (この行で落ちてはいけない)
 	print("selfcheck note: a normal line may mention error and warning words")
 	_finish()
@@ -657,6 +661,52 @@ func _check_exhausted_deck_battle() -> void:
 		steps += 1
 	_check(battle.outcome != BattleScript.Outcome.NONE, "契約切れだけのデッキでも勝敗まで進む")
 	state.free()
+
+
+## 自動テストプレイの戦略 bot (scripts/dev/strategy_bots.gd): 同じシードなら 1 幕の結果が同じで、ランの終わり
+## まで進む。回数の少ないカード (残り 1 回の雷槍の英霊だけの手札) を使うかが、戦略と状況で分かれる
+func _check_strategy_bots() -> void:
+	_remove_user_file(SELFCHECK_SAVE_PATH)
+	var state: RunStateScript = RunStateScript.new()
+	state.save_path = SELFCHECK_SAVE_PATH
+	for strategy: int in Bots.Strategy.values():
+		var bot_name: String = Bots.STRATEGY_NAMES[strategy]
+		var first: Dictionary = Bots.play_run(strategy, state, BOT_SEED)
+		_check(Bots.is_run_over(state), "ランの終わりまで進む: %s" % bot_name)
+		_check(_in_range(first["floor"], [1, ActMap.ROWS]), "到達した階層が地図の範囲内: %s" % bot_name)
+		_check(first == Bots.play_run(strategy, state, BOT_SEED), "同じシードなら同じ結果: %s" % bot_name)
+	state.new_run(["hero_strike"], BOT_SEED)
+	state.path = ActMap.route_to(state.rows, 0, state.rows[0][0]["column"])
+	var battle: BattleScript = BattleScript.new()
+	battle.start(state, ["skeleton"], 1)
+	_check(_bot_move(Bots.Strategy.SPEND, battle, state) == Bots.BattleMove.PLAY, "出し惜しみしないは使う")
+	_check(
+		_bot_move(Bots.Strategy.HOARD, battle, state) == Bots.BattleMove.STRUGGLE,
+		"温存し続けるは使わずにもがく"
+	)
+	_check(
+		_bot_move(Bots.Strategy.ADAPT, battle, state) == Bots.BattleMove.STRUGGLE,
+		"状況で使い分けるは、祠が遠い通常の戦闘では使わない"
+	)
+	state.hp = 1
+	_check(
+		_bot_move(Bots.Strategy.HOARD, battle, state) == Bots.BattleMove.PLAY,
+		"温存し続けるも、体力が危険なら使う"
+	)
+	state.hp = state.max_hp
+	var elite: Vector2i = ActMap.find_kind(state.rows, ActMap.Kind.ELITE)
+	state.path = ActMap.route_to(state.rows, elite.x, elite.y)
+	_check(
+		_bot_move(Bots.Strategy.ADAPT, battle, state) == Bots.BattleMove.PLAY,
+		"状況で使い分けるは、強敵との戦闘では使う"
+	)
+	state.free()
+	_remove_user_file(SELFCHECK_SAVE_PATH)
+
+
+## strategy の戦略が battle で次に取る 1 手の種類 (Bots.BattleMove)
+func _bot_move(strategy: int, battle: BattleScript, state: RunStateScript) -> int:
+	return Bots.battle_move(strategy, battle, state)["move"]
 
 
 ## battle の手札の中で card_id のカードがある位置 (無ければ -1)

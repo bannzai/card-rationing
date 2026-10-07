@@ -27,8 +27,10 @@ const ShrineUiScript := preload("res://scripts/shrine_ui.gd")
 const MAIN_SCENE: PackedScene = preload("res://scenes/main.tscn")
 ## 遊ばせる戦略 (issue #10 の指定)
 const STRATEGY: int = Bots.Strategy.ADAPT
-## 遊ばせる地図のシード。make simulate の結果が出るまでの仮の値 (結果が出たら、この戦略が踏破したシードから選ぶ)
-const PLAYTEST_SEED: int = 1
+## 遊ばせる地図のシード。make simulate でこの戦略が踏破したシードから選ぶ取り決め (issue #10) だが、2026-10-07 の
+## 集計 (CI run 37587458764) では 3 つの戦略とも踏破が 0 だったため、この戦略がボス戦まで着いた 59 個のシードの
+## うち最小のものにした (1 幕の最後までの画面を録画に映すため)。踏破するシードが出たら、そこから選び直す
+const PLAYTEST_SEED: int = 7
 ## テストプレイの間に使う保存先 (本番の保存データを触らない)
 const PLAYTEST_SAVE_PATH: String = "user://playtest_run.json"
 ## 録画に映すフレーム数 (録画の fps は Makefile の playtest target が決め、30 フレームが 1 秒)。

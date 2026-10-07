@@ -157,28 +157,20 @@ const LATE_ENCOUNTERS: Dictionary = {
 const BOSS_ENCOUNTER: Array[String] = ["wick_eater"]
 
 
-## 敵の格 (Rank の値) と、幕の後半か (late_half) に応じた敵の組み合わせの候補。地図 (#7) が節点の種類と
-## 階層から選ぶ
+## 敵の格 (Rank の値) と、幕の後半か (late_half) に応じた敵の組み合わせの候補。地図の節点の種類と段で
+## scripts/run_flow.gd の encounter() が選ぶ
 static func encounter_candidates(rank: int, late_half: bool) -> Array:
 	if rank == Rank.BOSS:
 		return [BOSS_ENCOUNTER]
 	return (LATE_ENCOUNTERS if late_half else EARLY_ENCOUNTERS)[rank]
 
 
-## 地図 (#7) ができるまでの仮の 1 幕の道順。前半の戦闘 → 前半の強敵 → 後半の戦闘 → 後半の強敵 → ボスの順に、
-## 候補を並び順に 1 つずつ戦う
-static func provisional_route() -> Array:
-	var route: Array = []
-	for late_half: bool in [false, true]:
-		for rank: int in [Rank.NORMAL, Rank.ELITE]:
-			route.append_array(encounter_candidates(rank, late_half))
-	route.append(BOSS_ENCOUNTER)
-	return route
-
-
-## 仮の道順で、階層 (0 始まり) に対応する敵 ID の並び。末尾 (ボス) より先の階層は末尾を繰り返す
-static func encounter_for_floor(floor_index: int) -> Array[String]:
-	var route: Array = provisional_route()
+## 敵の格 (Rank の値) と幕の後半か (late_half) の候補から、seed_value で選んだ敵 ID の並び (同じシードなら
+## 同じ組み合わせ。地図の節点のシードを渡す)
+static func encounter(rank: int, late_half: bool, seed_value: int) -> Array[String]:
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	rng.seed = seed_value
+	var candidates: Array = encounter_candidates(rank, late_half)
 	var ids: Array[String] = []
-	ids.assign(route[mini(floor_index, route.size() - 1)])
+	ids.assign(candidates[rng.randi_range(0, candidates.size() - 1)])
 	return ids

@@ -1,12 +1,9 @@
-extends "res://scripts/dev/headless_check.gd"
+extends "res://scripts/dev/selfcheck_run.gd"
 ## 純粋なロジックとプロジェクト設定の検証 (headless)。ゲームのルール (カードの残り使用回数・戦闘・マップ・
-## イベント) の計算を足したら、ここに検証を足す。実行方法は AGENTS.md「検証方法」を参照。
+## イベント) の計算を足したら、ここに検証を足す。実行方法は AGENTS.md「検証方法」を参照。地図・局面の移り変わり・
+## 報酬・祠・商人・出来事・契約の一覧・設定の検証は継承元の scripts/dev/selfcheck_run.gd にある。
 
-const RunStateScript := preload("res://scripts/run_state.gd")
 const BattleScript := preload("res://scripts/battle.gd")
-const Cards := preload("res://scripts/cards.gd")
-const Contractors := preload("res://scripts/contractors.gd")
-const Enemies := preload("res://scripts/enemies.gd")
 
 ## 起動検証 (main_scene の --quit) ではロードされない遷移先も含めた全シーン
 const SCENES: Array[String] = [
@@ -48,8 +45,6 @@ const SHORT_COPY_PUNCTUATION: Array[String] = ["、", "。", "，", "．"]
 const MAIN_SCENE_PATH: String = "res://scenes/main.tscn"
 ## ADR 0001 で決めたレンダラ (CI の Xvfb + Mesa llvmpipe で描画できるもの)
 const RENDERING_METHOD: String = "gl_compatibility"
-## 保存と読み込みの検証に使う保存先 (本番の RunState.SAVE_PATH とは別)
-const SELFCHECK_SAVE_PATH: String = "user://selfcheck_save.json"
 
 
 ## すべての検証を順に行い、結果を exit code と「selfcheck OK」の行で返して終える (シーンを tree に置かないため
@@ -72,6 +67,14 @@ func _initialize() -> void:
 	_check_battle_keeps_uses()
 	_check_draw_with_small_deck()
 	_check_exhausted_deck_battle()
+	_check_map_generation()
+	_check_run_flow()
+	_check_battle_rewards()
+	_check_shrine()
+	_check_shop()
+	_check_events()
+	_check_deck_sort()
+	_check_settings()
 	# Makefile の WARNING / ERROR 検査が行頭の接頭辞だけを見ることの回帰検査 (この行で落ちてはいけない)
 	print("selfcheck note: a normal line may mention error and warning words")
 	_finish()
@@ -231,7 +234,7 @@ func _check_enemies() -> void:
 
 
 ## 敵の組み合わせ: 候補が定義済みの同じ格の敵だけからなり、全部の敵がどこかに出て、後半の敵は前半より体力が多く、
-## ボスはどの強敵より体力が多い。仮の道順 (地図ができるまで) はボスで終わる
+## ボスはどの強敵より体力が多い。節点のシードで選ぶ組み合わせは候補の 1 つで、同じシードなら同じ
 func _check_encounters() -> void:
 	var used: Dictionary = {}
 	for late_half: bool in [false, true]:
@@ -264,16 +267,14 @@ func _check_encounters() -> void:
 		_encounter_hps(Enemies.Rank.BOSS, false).min() > late_elite.max(),
 		"ボスはどの強敵より体力が多い"
 	)
-	var route: Array = Enemies.provisional_route()
-	for floor_index: int in range(route.size() + 1):
-		var ids: Array[String] = Enemies.encounter_for_floor(floor_index)
-		_check(not ids.is_empty(), "仮の道順の階層 %d に敵がいる" % floor_index)
-		for enemy_id: String in ids:
-			_check(Enemies.ENEMIES.has(enemy_id), "階層 %d の敵が定義済み: %s" % [floor_index, enemy_id])
-	_check(
-		Enemies.encounter_for_floor(route.size() - 1) == Enemies.BOSS_ENCOUNTER,
-		"仮の道順の最後の階層がボス"
-	)
+	for rank: int in [Enemies.Rank.NORMAL, Enemies.Rank.ELITE, Enemies.Rank.BOSS]:
+		var first_pick: Array[String] = Enemies.encounter(rank, true, 42)
+		var second_pick: Array[String] = Enemies.encounter(rank, true, 42)
+		_check(first_pick == second_pick, "同じシードなら同じ組み合わせ (格 %d)" % rank)
+		_check(
+			Enemies.encounter_candidates(rank, true).has(first_pick),
+			"選んだ組み合わせが候補の 1 つ (格 %d)" % rank
+		)
 
 
 ## 残り使用回数: 使うと 1 減り、0 (契約切れ) では使えず、回復で戻る (最大を超えない)。体力は 0 未満にならない
@@ -315,19 +316,28 @@ func _check_save_and_load() -> void:
 		"無い保存先は NOT_FOUND"
 	)
 	_check(other.deck == state.deck, "NOT_FOUND では状態を変えない")
+	state.new_run([], 7)
 	state.use_card(0)
 	state.use_card(0)
 	state.use_card(Contractors.starter_deck(Contractors.FIRST_CONTRACTOR).find("hero_strike"))
 	state.take_damage(7)
-	state.advance_floor()
+	state.path.append(ActMap.next_columns(state.rows, state.path)[0])
+	state.phase = RunStateScript.Phase.BATTLE
 	state.gold = 12
+	state.battles_won = 2
 	_check(state.save_to(SELFCHECK_SAVE_PATH) == OK, "保存できる")
+	_check(not FileAccess.file_exists(SELFCHECK_SAVE_PATH + ".tmp"), "保存の後に書きかけのファイルが残らない")
+	_check(state.save_to(SELFCHECK_SAVE_PATH) == OK, "既にある保存データを置き換えて保存できる")
 	_check(
 		other.load_from(SELFCHECK_SAVE_PATH) == RunStateScript.LoadResult.LOADED, "保存データを読み込める"
 	)
 	_check(other.deck == state.deck, "往復で残り使用回数が保たれる")
 	_check(other.hp == 43 and other.max_hp == 50, "往復で体力が保たれる")
-	_check(other.gold == 12 and other.floor_index == 1 and other.act == 1, "往復で所持金・階層が保たれる")
+	_check(other.gold == 12 and other.act == 1, "往復で所持金・幕が保たれる")
+	_check(other.map_seed == 7 and other.rows == state.rows, "往復で地図 (シード) が保たれる")
+	_check(other.path == state.path and other.phase == state.phase, "往復で通った道と局面が保たれる")
+	_check(other.exhausted_count == 1 and other.battles_won == 2, "往復でランの結果の数が保たれる")
+	_check(other.character_id == Contractors.FIRST_CONTRACTOR, "往復で契約者が保たれる")
 	_remove_user_file(SELFCHECK_SAVE_PATH)
 	state.free()
 	other.free()
@@ -338,10 +348,31 @@ func _check_corrupt_save() -> void:
 	var corrupt_path: String = SELFCHECK_SAVE_PATH + ".corrupt"
 	# 全キーが揃った正しい形を土台に、欠陥を 1 つだけ入れる (検査の各分岐を 1 つずつ通す)
 	var base: Dictionary = {
-		"version": 1, "deck": [], "hp": 1, "max_hp": 1, "gold": 0, "act": 1, "floor_index": 0
+		"version": RunStateScript.SAVE_VERSION,
+		"character_id": Contractors.FIRST_CONTRACTOR,
+		"deck": [],
+		"hp": 1,
+		"max_hp": 1,
+		"gold": 0,
+		"act": 1,
+		"map_seed": 0,
+		"path": [],
+		"phase": RunStateScript.Phase.MAP,
+		"exhausted_count": 0,
+		"battles_won": 0,
 	}
+	# シード 0 の地図の段 0 の最初の列 (戦闘) と、そこから行けない列
+	var rows: Array = ActMap.generate(0)
+	var first: int = rows[0][0]["column"]
+	var unreachable: int = -1
+	var no_path: Array[int] = []
+	for column: int in range(ActMap.COLUMNS):
+		if not ActMap.next_columns(rows, no_path).has(column):
+			unreachable = column
+	# ボスまで進んだ道 (地図の局面ではこの先に選べる節点が無い)
+	var boss_route: Array[int] = ActMap.route_to(rows, ActMap.BOSS_ROW, ActMap.BOSS_COLUMN)
 	var broken: Array[Dictionary] = [
-		{"version": 99},
+		{"version": 1},
 		{"version": []},
 		{"hp": "x"},
 		{"hp": 1.5},
@@ -352,7 +383,20 @@ func _check_corrupt_save() -> void:
 		{"max_hp": 0},
 		{"gold": -1},
 		{"act": 0},
-		{"floor_index": -1},
+		{"exhausted_count": -1},
+		{"battles_won": -1},
+		{"character_id": "nope"},
+		{"character_id": 1},
+		{"map_seed": 0.5},
+		{"path": "x"},
+		{"path": [0.5]},
+		{"path": [first, 99]},
+		{"path": [unreachable]},
+		{"phase": 99},
+		{"phase": RunStateScript.Phase.DEFEAT},
+		{"phase": RunStateScript.Phase.BATTLE},
+		{"path": [first], "phase": RunStateScript.Phase.SHOP},
+		{"path": boss_route, "phase": RunStateScript.Phase.MAP},
 		{"deck": "x"},
 		{"deck": [1]},
 		{"deck": [{"id": "nope", "uses_left": 1}]},
@@ -389,6 +433,17 @@ func _check_corrupt_save() -> void:
 	var state: RunStateScript = RunStateScript.new()
 	_check(state.load_from(SELFCHECK_SAVE_PATH) == RunStateScript.LoadResult.LOADED, "土台の保存データは読み込める")
 	_check(state.hp == 1 and state.deck.is_empty(), "土台の保存データの値が入る")
+	# 段 0 の戦闘の節点で戦闘の局面にいる保存データも読み込める
+	var in_battle: Dictionary = base.duplicate(true)
+	in_battle.merge({"path": [first], "phase": RunStateScript.Phase.BATTLE}, true)
+	file = FileAccess.open(SELFCHECK_SAVE_PATH, FileAccess.WRITE)
+	file.store_string(JSON.stringify(in_battle))
+	file.close()
+	_check(state.load_from(SELFCHECK_SAVE_PATH) == RunStateScript.LoadResult.LOADED, "戦闘中の保存データは読み込める")
+	_check(
+		state.path.size() == 1 and state.path[0] == first and state.phase == RunStateScript.Phase.BATTLE,
+		"戦闘中の局面と道が入る"
+	)
 	state.free()
 	# 上のループが最後に退避した .corrupt が残っているため、読めないデータの検証の前に消す
 	_remove_user_file(corrupt_path)
@@ -632,9 +687,3 @@ func _encounter_hps(rank: int, late_half: bool) -> Array[int]:
 		for enemy_id: String in ids:
 			hps.append(Enemies.ENEMIES[enemy_id]["hp"])
 	return hps
-
-
-## user:// のファイルを消す (無ければ何もしない)
-func _remove_user_file(path: String) -> void:
-	if FileAccess.file_exists(path):
-		DirAccess.open(path.get_base_dir()).remove(path.get_file())

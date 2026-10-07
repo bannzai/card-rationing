@@ -15,9 +15,10 @@ ENGINE_LOG = --log-file "$(CURDIR)/$(LOG_DIR)/$@.godot.log"
 # `--quit-after` でこのフレーム数に達したら Godot を終わらせる (CI の Linux とローカルの macOS の両方で動く。
 # macOS には timeout コマンドが無い)。上限で終わると exit code は 0 だが、各 target は完了の行 (`selfcheck OK` /
 # `integration OK` / `screenshot OK`) も検査するので失敗になる。
-# 12000 の根拠: headless は 1 フレームが数 ms で、正常な検証は数十フレームで終わる。描画付きの screenshot は
-# llvmpipe の fps が読めず (数十〜数千 fps)、0.3 秒の待ちを撮影ごと (今は 5 回、合計 1.5 秒) に挟むため、
-# 数千 fps の環境でも待ちの合計に収まる値にした (撮影を足して待ちの合計が 2 秒を超えるなら上限も見直す)。
+# 12000 の根拠: headless は 1 フレームが数 ms で、正常な検証は数百フレームで終わる。描画付きの screenshot は
+# llvmpipe の fps が読めず (数十〜数千 fps)、最初の撮影の前だけ 0.3 秒を時間で待ち、以後の撮影はフレームの数
+# (撮影ごとに 4 フレーム) で待つため、数千 fps の環境でも収まる値にした (時間で待つ撮影を足して待ちの合計が
+# 2 秒を超えるなら上限も見直す)。
 # GDScript の無限ループはフレームが進まず止められないため、そちらは CI の timeout-minutes が最後の砦
 SCRIPT_FRAME_LIMIT ?= 12000
 SCRIPT_FLAGS = --quit-after $(SCRIPT_FRAME_LIMIT)

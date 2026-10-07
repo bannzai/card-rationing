@@ -1,7 +1,7 @@
 extends RefCounted
 ## 契約者 (プレイヤーキャラクター) の定義。1 人の定義は CONTRACTORS の 1 要素 (キーが契約者 ID) で、
 ## starter_deck が新しい巡礼 (ラン) の初期デッキ (カード ID の並び。同じ ID が複数あればその枚数だけ別のカード)。
-## 契約者の選択画面は画面の流れの issue (#8) で作る。それまでは FIRST_CONTRACTOR で巡礼を始める。
+## 巡礼の開始で契約者の選択画面 (scripts/character_select_ui.gd) から選ぶ。
 
 ## 契約者 ID → 定義
 const CONTRACTORS: Dictionary = {
@@ -28,7 +28,7 @@ const CONTRACTORS: Dictionary = {
 		],
 	},
 }
-## 契約者の選択画面 (#8) ができるまで、新しい巡礼で使う契約者
+## 契約者を指定しない新しい巡礼 (起動時・検証) で使う契約者と、契約者の選択画面で最初にフォーカスする契約者
 const FIRST_CONTRACTOR: String = "yura"
 
 

@@ -45,7 +45,9 @@ func _ready() -> void:
 	)
 	logo.add_theme_constant_override("outline_size", LOGO_OUTLINE_SIZE)
 	logo.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	var subtitle: Label = UiKit.add_label(heading, "契約の印 — 1 回の巡礼で命令できる回数は決まっている")
+	# 副題は遊びの核をそのまま言う文で、公開サイト (docs/index.html の .tagline・docs/og.svg) と同じ文にする
+	# (documents/DIRECTION.md「決めたこと」2026-10-11)
+	var subtitle: Label = UiKit.add_label(heading, "強いカードほど使うのが惜しい")
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	var menu: VBoxContainer = _add_column(MENU_RECT, 12)
 	menu.alignment = BoxContainer.ALIGNMENT_END

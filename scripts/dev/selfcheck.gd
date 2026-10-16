@@ -689,6 +689,13 @@ func _check_strategy_bots() -> void:
 		_check(Bots.is_run_over(state), "ランの終わりまで進む: %s" % bot_name)
 		_check(_in_range(first["floor"], [1, ActMap.ROWS]), "到達した階層が地図の範囲内: %s" % bot_name)
 		_check(first == Bots.play_run(strategy, state, BOT_SEED), "同じシードなら同じ結果: %s" % bot_name)
+		_check(first["battles"] >= 1, "戦闘を数える: %s" % bot_name)
+	# 攻撃が尽きたかは、攻撃カードの残り使用回数だけで決まる (防御・技の回数は数えない)
+	state.new_run(["slash", "guard", "breath"], BOT_SEED)
+	_check(Bots.attack_uses_left(state) == Cards.CARDS["slash"]["max_uses"], "攻撃の残りは斬火の回数")
+	while state.use_card(0):
+		pass
+	_check(Bots.attack_uses_left(state) == 0, "攻撃カードが契約切れなら攻撃の残りは 0")
 	state.new_run(["hero_strike"], BOT_SEED)
 	state.path = ActMap.route_to(state.rows, 0, state.rows[0][0]["column"])
 	var battle: BattleScript = BattleScript.new()

@@ -21,7 +21,7 @@ const CARDS: Dictionary = {
 		"kind": Kind.ATTACK,
 		"bond": Bond.SPIRIT,
 		"cost": 1,
-		"max_uses": 5,
+		"max_uses": 6,
 		"damage": 6,
 	},
 	"spirit_arrow":

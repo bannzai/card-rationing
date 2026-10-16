@@ -31,8 +31,9 @@ const MAIN_SCENE: PackedScene = preload("res://scenes/main.tscn")
 const STRATEGY: int = Bots.Strategy.ADAPT
 ## 遊ばせる地図のシード。make simulate でこの戦略が踏破したシードから選ぶ取り決め (issue #10)。敵の強さを調整
 ## (issue #33) した後の 2026-10-07 の集計 (CI run 37614347476) でこの戦略が踏破した 46 個のシードのうち最小のもの
-## (1 幕の最後まで遊び、踏破の結果の画面までを録画に映すため)。敵・カード・戦略の判断を変えたら、踏破したシード
-## から選び直す
+## (1 幕の最後まで遊び、踏破の結果の画面までを録画に映すため)。攻撃カードの回数を調整 (issue #38) した後の
+## 2026-10-16 の集計 (CI run 38892512862) でも踏破したため、調整の前後で同じ地図の録画を見比べられるよう残した。
+## 敵・カード・戦略の判断を変えたら、踏破したシードから選び直す
 const PLAYTEST_SEED: int = 7
 ## テストプレイの間に使う保存先 (本番の保存データを触らない)
 const PLAYTEST_SAVE_PATH: String = "user://playtest_run.json"
@@ -150,6 +151,11 @@ func _play_battle() -> bool:
 	var battle_ui: BattleUiScript = main.screen as BattleUiScript
 	if battle_ui == null or not _capture_once("boss" if boss else "battle"):
 		return _fail("戦闘の画面が出ない")
+	var floor_number: int = run_state.path.size()
+	var start_frame: int = Engine.get_process_frames()
+	var started_attackless: bool = Bots.attack_uses_left(run_state) == 0
+	var struggles: int = 0
+	var attackless_struggles: int = 0
 	while run_state.phase == RunStateScript.Phase.BATTLE:
 		if battle_ui.battle.turn > Bots.TURN_LIMIT:
 			return _fail("戦闘が %d ターンで終わらない" % Bots.TURN_LIMIT)
@@ -158,6 +164,8 @@ func _play_battle() -> bool:
 			Bots.BattleMove.PLAY:
 				battle_ui.request_card(move["hand_index"])
 			Bots.BattleMove.STRUGGLE:
+				struggles += 1
+				attackless_struggles += 0 if Bots.hand_has_attack(battle_ui.battle, run_state) else 1
 				battle_ui.request_struggle()
 			Bots.BattleMove.END_TURN:
 				battle_ui.end_turn()
@@ -166,6 +174,20 @@ func _play_battle() -> bool:
 			await _wait(MOVE_FRAMES)
 			battle_ui.choose_target(move["target"])
 		await _wait(MOVE_FRAMES)
+	# 録画のどこで攻撃が尽きてもがいているかを、フレームの位置で切り出せるようにする (録画の 30 フレームが 1 秒)
+	print(
+		(
+			"playtest: %d 階の戦闘 フレーム %d〜%d もがく %d 回 (手札に攻撃が無かった時 %d 回)%s"
+			% [
+				floor_number,
+				start_frame,
+				Engine.get_process_frames(),
+				struggles,
+				attackless_struggles,
+				" 攻撃が尽きて始まった" if started_attackless else "",
+			]
+		)
+	)
 	return true
 
 

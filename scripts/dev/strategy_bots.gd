@@ -181,36 +181,90 @@ static func shrine_distance(state: RunStateScript) -> int:
 	return ActMap.ROWS
 
 
-## strategy の戦略で、battle の戦闘を勝敗が決まるまで進める (ゲームのロジックを直接呼ぶ)。勝ったら true
-static func play_battle(strategy: int, battle: Battle, state: RunStateScript) -> bool:
+## strategy の戦略で、battle の戦闘を勝敗が決まるまで進める (ゲームのロジックを直接呼ぶ)。勝ったら true。
+## counts (new_counts() の形) に、ターンの数・使ったカード・もがいた回数を足す
+static func play_battle(
+	strategy: int, battle: Battle, state: RunStateScript, counts: Dictionary
+) -> bool:
+	var counted_turn: int = 0
 	while battle.outcome == Battle.Outcome.NONE:
 		if battle.turn > TURN_LIMIT:
 			push_error("戦闘が %d ターンで終わらない (シード %d)" % [TURN_LIMIT, state.map_seed])
 			return false
+		if battle.turn != counted_turn:
+			counted_turn = battle.turn
+			counts["turns"] += 1
+			counts["attackless_turns"] += 0 if hand_has_attack(battle, state) else 1
 		var move: Dictionary = battle_move(strategy, battle, state)
 		var applied: bool = false
 		match move["move"]:
 			BattleMove.PLAY:
 				applied = battle.play(move["hand_index"], move["target"])
+				if applied:
+					counts["plays"] += 1
 			BattleMove.STRUGGLE:
+				var attackless: bool = not hand_has_attack(battle, state)
 				applied = battle.struggle(move["target"])
+				if applied:
+					counts["struggles"] += 1
+					counts["attackless_struggles"] += 1 if attackless else 0
 		if not applied:
 			battle.end_turn()
 	return battle.outcome == Battle.Outcome.WIN
 
 
+## 1 ランの戦闘の数え上げの初期値。{"battles": 戦った戦闘の数, "attackless_battles": デッキの攻撃の残り使用回数
+## (attack_uses_left()) が 0 で始まった戦闘の数, "turns": 戦ったターンの数, "attackless_turns": 手札に残り使用回数の
+## ある攻撃カードが無い (hand_has_attack() が false) まま始まったターンの数, "plays": 使ったカードの数,
+## "struggles": もがいた回数, "attackless_struggles": もがいた回数のうち、手札に残り使用回数のある攻撃カードが
+## 無かった時の回数 (温存のためではなく、攻撃の手段がもがくしかなかった回数), "attack_out_floor": デッキの攻撃の
+## 残り使用回数が初めて 0 になった戦闘の階層 (0 にならなければ -1)}
+static func new_counts() -> Dictionary:
+	return {
+		"battles": 0,
+		"attackless_battles": 0,
+		"turns": 0,
+		"attackless_turns": 0,
+		"plays": 0,
+		"struggles": 0,
+		"attackless_struggles": 0,
+		"attack_out_floor": -1,
+	}
+
+
+## battle の手札に、残り使用回数のある攻撃カードがあるか (エネルギーと、戦略が温存するかは問わない)
+static func hand_has_attack(battle: Battle, state: RunStateScript) -> bool:
+	for deck_index: int in battle.hand:
+		if state.card(deck_index)["kind"] == Cards.Kind.ATTACK and state.uses_left(deck_index) > 0:
+			return true
+	return false
+
+
+## デッキの攻撃カードの残り使用回数の合計 (0 なら、手札・山札・捨て札のどこにも使える攻撃カードが無い)
+static func attack_uses_left(state: RunStateScript) -> int:
+	var uses: int = 0
+	for index: int in range(state.deck.size()):
+		if state.card(index)["kind"] == Cards.Kind.ATTACK:
+			uses += state.uses_left(index)
+	return uses
+
+
 ## strategy の戦略で、seed_value の 1 幕を最初の契約者でランの終わり (敗北か踏破) まで遊ぶ (ゲームのロジックを
-## 直接呼ぶ。地図・敵・報酬・出来事・戦闘の山札の混ぜ直しはすべて seed_value から決まる)。run_result() を返す
+## 直接呼ぶ。地図・敵・報酬・出来事・戦闘の山札の混ぜ直しはすべて seed_value から決まる)。run_result() に
+## 戦闘の数え上げ (new_counts() のキー) を足したものを返す
 static func play_run(strategy: int, state: RunStateScript, seed_value: int) -> Dictionary:
 	RunFlow.start_run(state, Contractors.FIRST_CONTRACTOR, seed_value)
+	var counts: Dictionary = new_counts()
 	# 1 つの節点で通る局面は多くて 3 つ (地図 → 戦闘 → 報酬)。その数だけ進めても終わらなければ不具合
 	for _step: int in range(ActMap.ROWS * 3):
 		if is_run_over(state):
 			break
-		_advance(strategy, state)
+		_advance(strategy, state, counts)
 	if not is_run_over(state):
 		push_error("ランが終わらない (シード %d)" % seed_value)
-	return run_result(state)
+	var result: Dictionary = run_result(state)
+	result.merge(counts)
+	return result
 
 
 ## ランが終わったか (敗北か踏破)
@@ -235,15 +289,21 @@ static func run_result(state: RunStateScript) -> Dictionary:
 	}
 
 
-## ランの今の局面を 1 つ進める (地図なら次の節点に入り、節点なら用を済ませて地図へ戻る)
-static func _advance(strategy: int, state: RunStateScript) -> void:
+## ランの今の局面を 1 つ進める (地図なら次の節点に入り、節点なら用を済ませて地図へ戻る)。戦闘は counts
+## (new_counts() の形) に数える
+static func _advance(strategy: int, state: RunStateScript, counts: Dictionary) -> void:
 	match state.phase:
 		RunStateScript.Phase.MAP:
 			RunFlow.enter_node(state, choose_column(state))
 		RunStateScript.Phase.BATTLE:
 			var battle: Battle = Battle.new()
 			battle.start(state, RunFlow.encounter(state), state.node_seed())
-			RunFlow.finish_battle(state, play_battle(strategy, battle, state))
+			counts["battles"] += 1
+			counts["attackless_battles"] += 1 if attack_uses_left(state) == 0 else 0
+			var won: bool = play_battle(strategy, battle, state, counts)
+			if counts["attack_out_floor"] < 0 and attack_uses_left(state) == 0:
+				counts["attack_out_floor"] = state.path.size()
+			RunFlow.finish_battle(state, won)
 		RunStateScript.Phase.REWARD:
 			NodeRules.take_reward_card(state, choose_reward(state))
 			RunFlow.leave_node(state)

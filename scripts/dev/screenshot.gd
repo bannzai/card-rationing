@@ -5,6 +5,7 @@ extends SceneTree
 ## 画面や状態を増やす時は _capture_scenes() に撮影を足す。ランの状態は検証用の保存先に保存し、撮影の後に消す。
 
 const ActMap := preload("res://scripts/act_map.gd")
+const Art := preload("res://scripts/art.gd")
 const AudioScript := preload("res://scripts/audio.gd")
 const BattleUiScript := preload("res://scripts/battle_ui.gd")
 const BossTalkScript := preload("res://scripts/boss_talk.gd")
@@ -45,6 +46,9 @@ func _run() -> void:
 		quit(1)
 		return
 	run_state.save_path = SCREENSHOT_SAVE_PATH
+	# 撮影はフレームの数で待ち、fps が固定でない (動きのどの瞬間が写るかが毎回変わる) ので、戦闘の動きを止める。
+	# 動きの途中は fps を固定して録画する make playtest で見る
+	Art.motion_scale = 0.0
 	if await _capture_scenes():
 		run_state.delete_save()
 		# 撮影の間に鳴らした BGM・効果音を止め、解放を待ってから終える (待たないとリークの WARNING が出る)

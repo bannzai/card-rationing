@@ -1,5 +1,5 @@
 extends RefCounted
-## 見た目「蝋と灯火」の素材 (絵・フォント・色) の置き場と、絵を並べるだけの小さな部品。方向の定義は
+## 見た目「蝋と灯火」の素材 (絵・フォント・色) の置き場と、絵を並べる・戦闘の動きを付けるだけの小さな部品。方向の定義は
 ## documents/DIRECTION.md「デザインの方向」、素材の出典は assets/CREDITS.md。
 ## カードの絵は種別ごと、敵の絵は格ごと、地図の印は節点の種類ごとに共有する (1 枚ごと・1 体ごとの絵は #13)。
 ## autoload のスクリプト (scripts/run_state.gd・scripts/settings.gd) とそこから読まれるスクリプトには
@@ -69,6 +69,49 @@ const ASH: Color = Color(0.56, 0.53, 0.5)
 ## 絵の上の文字の縁取りの太さ
 const OUTLINE_SIZE: int = 4
 
+## 戦闘の動きの長さ (秒) と強さ (scripts/battle_ui.gd・scripts/enemy_view.gd が使う)。動きは表示だけで、戦闘の
+## 状態 (scripts/battle.gd) は動きを待たずに更新し、次の入力も待たせない (勝った時の画面の切り替えだけは
+## WIN_DELAY 待つ)。長さは 1 つの出来事を目で追える 0.1〜0.4 秒 (issue #39 の目安) にした。
+## カードを使う: 持ち上げ (CARD_LIFT_TIME で CARD_LIFT 上へ。カードの高さ 272 の 1 割強で、持ち上がったと分かり
+## 上の敵の行には届かない) → 封蝋の印が光ってから焼ける (SEAL_FLASH_TIME) → 敵の方へ縮みながら消える
+## (CARD_FLY_TIME で CARD_FLY_SCALE の大きさへ)。残り 1 回・契約切れになった時は、印が焼けた後に
+## STRONG_TIME だけカードを STRONG_SCALE に膨らませて STRONG_FLASH の色で光らせる (普通の使用と見分けられる
+## よう、印の光の 2 倍の長さにした)
+const CARD_LIFT_TIME: float = 0.1
+const CARD_LIFT: float = 36.0
+const SEAL_FLASH_TIME: float = 0.15
+const CARD_FLY_TIME: float = 0.25
+const CARD_FLY_SCALE: float = 0.4
+const STRONG_TIME: float = 0.3
+const STRONG_SCALE: float = 1.15
+## 光らせる色。GL Compatibility では 1 を超えた分も掛け算で明るくなる (封蝋の赤の印は橙に光る)
+const SEAL_FLASH: Color = Color(2.4, 2.0, 1.4)
+const STRONG_FLASH: Color = Color(1.7, 0.8, 0.6)
+## 被弾: HIT_TIME で揺れて (敵は ENEMY_SHAKE、巡礼者は PLAYER_SHAKE。巡礼者の絵は敵より小さく、手札のすぐ上に
+## あるので小さくする) HIT_FLASH の赤から元の色に戻る
+const HIT_TIME: float = 0.25
+const ENEMY_SHAKE: float = 10.0
+const PLAYER_SHAKE: float = 6.0
+const HIT_FLASH: Color = Color(1.0, 0.3, 0.3)
+## 減った体力・防御で受けた量の数字: FLOAT_TIME で FLOAT_RISE 上へ浮きながら消える。数字を読めるよう、ほかの
+## 動きより長い 0.6 秒にした (playtest の 1 手 0.2 秒の 3 手分。次の手の数字と重なっても読める高さだけ浮かせる)
+const FLOAT_TIME: float = 0.6
+const FLOAT_RISE: float = 48.0
+const FLOAT_FONT_SIZE: int = 30
+## 減った体力の数字 (赤) と、防御で受けた量の数字 (防御の印象の青)
+const DAMAGE_COLOR: Color = Color(1.0, 0.38, 0.3)
+const BLOCKED_COLOR: Color = Color(0.62, 0.8, 1.0)
+## 倒した敵が倒した時の見た目へ薄くなる長さと、最後の敵を倒してから報酬・結果の画面へ移るまでの待ち (倒す動きと
+## 決めの 1 枚が焼ける動きが見えるよう、カードを使う動きの合計 0.5 秒を少し超える長さにした)
+const DEFEAT_TIME: float = 0.4
+const WIN_DELAY: float = 0.6
+## 敵の予告の切り替えと、ターンの始まりの手札のフェード
+const FADE_TIME: float = 0.2
+
+## 戦闘の動きの長さに掛ける倍率。0 なら動きを作らない (tween・使ったカードの複製・数字を作らず、勝った時の
+## 画面の切り替えも待たない)。fps が固定でない検証 (integration・screenshot) が 0 にして、同じ瞬間を確かめ・撮る
+static var motion_scale: float = 1.0
+
 
 ## 画面の全面に texture の絵を敷く (縦横比を保って画面を覆う)。マウスは通す
 static func add_background(parent: Control, texture: Texture2D) -> TextureRect:
@@ -127,3 +170,61 @@ static func on_picture(label: Label, color: Color = PAPER) -> void:
 static func on_parchment(label: Label, color: Color = INK) -> void:
 	label.add_theme_color_override("font_color", color)
 	label.add_theme_constant_override("outline_size", 0)
+
+
+## 戦闘の動きを作るか (motion_scale が 0 でない)
+static func motion_on() -> bool:
+	return motion_scale > 0.0
+
+
+## 被弾の tween。前の動き previous を止め、HIT_TIME で shaken を位置 base から左右に distance の幅で 2 往復
+## 揺らして (だんだん小さく) base に戻し、flashed を HIT_FLASH の赤から白に戻す (shaken に束ねるので、画面と
+## 一緒に消える)
+static func hit(
+	shaken: Control, flashed: CanvasItem, previous: Tween, base: Vector2, distance: float
+) -> Tween:
+	if previous != null:
+		previous.kill()
+	var tween: Tween = shaken.create_tween()
+	tween.tween_method(
+		func(progress: float) -> void: _hit_step(progress, shaken, flashed, base, distance),
+		0.0,
+		1.0,
+		HIT_TIME * motion_scale
+	)
+	return tween
+
+
+## hit() の動きの進み progress (0〜1) の時点の、shaken の位置と flashed の色
+static func _hit_step(
+	progress: float, shaken: Control, flashed: CanvasItem, base: Vector2, distance: float
+) -> void:
+	shaken.position = base + Vector2(distance * sin(progress * TAU * 2.0) * (1.0 - progress), 0)
+	flashed.self_modulate = HIT_FLASH.lerp(Color.WHITE, progress)
+
+
+## parent の at (parent の座標) の上に text の数字を color で出し、FLOAT_RISE 上へ浮かせながら消す
+static func float_text(parent: Control, at: Vector2, text: String, color: Color) -> void:
+	var label: Label = Label.new()
+	label.text = text
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.add_theme_font_size_override("font_size", FLOAT_FONT_SIZE)
+	on_picture(label, color)
+	parent.add_child(label)
+	label.position = at - label.get_combined_minimum_size() / 2.0
+	var tween: Tween = label.create_tween().set_parallel()
+	tween.tween_property(label, "position:y", label.position.y - FLOAT_RISE, FLOAT_TIME * motion_scale)
+	tween.tween_property(label, "modulate:a", 0.0, FLOAT_TIME * motion_scale).set_ease(
+		Tween.EASE_IN
+	)
+	tween.chain().tween_callback(label.queue_free)
+
+
+## node を、前のフェード previous を止めて透明から FADE_TIME で現す tween
+static func fade_in(node: CanvasItem, previous: Tween) -> Tween:
+	if previous != null:
+		previous.kill()
+	node.modulate.a = 0.0
+	var tween: Tween = node.create_tween()
+	tween.tween_property(node, "modulate:a", 1.0, FADE_TIME * motion_scale)
+	return tween

@@ -6,6 +6,9 @@ extends Control
 ## カードを使うたびとターンの終わりにランを保存し、勝敗が決まったら scripts/run_flow.gd で戦闘を終える
 ## (報酬・踏破・敗北の画面へは scripts/main.gd が切り替える)。
 ## カードを使った後の残り使用回数・被弾・勝敗に合わせて効果音を鳴らす (回数の増減を耳でも分かるように)。
+## 操作の前後の差で戦闘の動き (使ったカードが持ち上がって封蝋の印が焼け、敵の方へ消える・被弾の揺れと数字・倒した
+## 敵が薄くなる・ターンの始まりのフェード。長さと強さは scripts/art.gd) を付ける。動きは表示だけで、戦闘の状態は
+## 即時に変わり、次の入力も待たせない。最後の敵を倒した時だけ、動きが見えるよう画面の切り替えを待つ。
 
 const ActMap := preload("res://scripts/act_map.gd")
 const Art := preload("res://scripts/art.gd")
@@ -33,10 +36,19 @@ var run_state: RunStateScript = null
 var audio: AudioScript = null
 ## 対象の敵を選んでいる途中の手札の index (-1 なら選んでいない。もがくなら STRUGGLE_PENDING)
 var pending_hand_index: int = -1
+## 戦闘の動き (使ったカードの複製・浮かぶ数字) を描く層。最後の子にして手札と敵の上に描き、マウスは通す
+var effects_layer: Control = null
+## 巡礼者の絵の元の位置 (被弾で揺らした後に戻す) と、動いている被弾・手札のフェードの tween
+var pilgrim_base: Vector2 = Vector2.ZERO
+var pilgrim_tween: Tween = null
+var hand_tween: Tween = null
+## 勝敗が決まった後の戦闘の終わりを予約したか (勝った後の待ちの間の入力で、戦闘を 2 度終えないように)
+var finish_scheduled: bool = false
 
 ## scenes/battle.tscn のノード (enemy_row の敵・hand_row のカード・energy_row の蝋燭・health_row の珠は
 ## refresh() が足す)
 @onready var floor_label: Label = $FloorLabel
+@onready var pilgrim: TextureRect = $Pilgrim
 @onready var enemy_row: HBoxContainer = $EnemyRow
 @onready var message_label: Label = $MessageLabel
 @onready var energy_row: HBoxContainer = $PlayerPanel/EnergyRow
@@ -55,10 +67,15 @@ func _ready() -> void:
 	if run_state == null or audio == null:
 		push_error("autoload RunState か Audio が無い")
 	($Background as TextureRect).texture = Art.BATTLE_BG
-	($Pilgrim as TextureRect).texture = Art.PILGRIM
+	pilgrim.texture = Art.PILGRIM
+	pilgrim_base = pilgrim.position
 	message_label.add_theme_color_override("font_color", Art.CANDLE)
 	struggle_button.pressed.connect(request_struggle)
 	end_turn_button.pressed.connect(end_turn)
+	effects_layer = Control.new()
+	effects_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	effects_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(effects_layer)
 
 
 ## キーボード操作。数字キーでカード (対象を選んでいる時は敵)、S でもがく、Enter でターン終了、
@@ -82,6 +99,7 @@ func start_battle(seed_value: int) -> void:
 	battle = Battle.new()
 	battle.start(run_state, RunFlow.encounter(run_state), seed_value)
 	pending_hand_index = -1
+	finish_scheduled = false
 	refresh()
 
 
@@ -97,6 +115,7 @@ func select_number(number: int) -> void:
 func request_card(hand_index: int) -> void:
 	if pending_hand_index != -1 or not battle.can_play(hand_index):
 		return
+	var before: Dictionary = _snapshot()
 	var card_id: String = run_state.deck[battle.hand[hand_index]]["id"]
 	if Cards.needs_target(card_id):
 		var alive: Array[int] = battle.alive_enemies()
@@ -106,7 +125,7 @@ func request_card(hand_index: int) -> void:
 			pending_hand_index = hand_index
 	else:
 		_play_card(hand_index)
-	_after_action()
+	_after_action(before)
 
 
 ## もがく。敵が 2 体以上いれば対象の選択に入る。エネルギーが足りない時は何もしない (対象の選択に入ると
@@ -116,24 +135,26 @@ func request_struggle() -> void:
 		return
 	if battle.energy < Battle.STRUGGLE_COST:
 		return
+	var before: Dictionary = _snapshot()
 	var alive: Array[int] = battle.alive_enemies()
 	if alive.size() == 1:
 		battle.struggle(alive[0])
 	elif alive.size() > 1:
 		pending_hand_index = STRUGGLE_PENDING
-	_after_action()
+	_after_action(before)
 
 
 ## 対象の選択中に敵 (enemies の index) を選ぶ。選択中でなければ何もしない
 func choose_target(enemy_index: int) -> void:
 	if pending_hand_index == -1 or not battle.is_alive(enemy_index):
 		return
+	var before: Dictionary = _snapshot()
 	if pending_hand_index == STRUGGLE_PENDING:
 		battle.struggle(enemy_index)
 	else:
 		_play_card(pending_hand_index, enemy_index)
 	pending_hand_index = -1
-	_after_action()
+	_after_action(before)
 
 
 ## 対象の選択をやめる
@@ -143,15 +164,15 @@ func cancel_target() -> void:
 
 
 ## ターンを終える (敵の行動の後、次のターンの手札が配られる)。敵の攻撃で体力が減ったら被弾の効果音を鳴らす
-## (防御で受け切った時は鳴らさない)
+## (防御で受け切った時は鳴らさない)。勝敗が決まった後 (勝った後の画面の切り替えの待ちの間) は何もしない
 func end_turn() -> void:
-	if pending_hand_index != -1:
+	if pending_hand_index != -1 or battle.outcome != Battle.Outcome.NONE:
 		return
-	var hp_before: int = run_state.hp
+	var before: Dictionary = _snapshot()
 	battle.end_turn()
-	if run_state.hp < hp_before:
+	if run_state.hp < before["hp"]:
 		audio.play_se(AudioScript.Se.HIT)
-	_after_action()
+	_after_action(before, true)
 
 
 ## 戦闘の状態を画面に反映する
@@ -195,25 +216,160 @@ func refresh() -> void:
 
 
 ## 手札の hand_index 番目のカードを target の敵に使う (対象を取らないカードは target を省く)。使えた時は、
-## 回数が減ったことを耳で知らせる効果音を鳴らす (使ったカードは捨て札へ行き、残りの表示が見えなくなるため)
+## 回数が減ったことを耳で知らせる効果音を鳴らし (使ったカードは捨て札へ行き、残りの表示が見えなくなるため)、
+## 使ったカードの複製で使う動きを見せる (手札の表示は refresh() で詰めるので、元の位置を先に控える)
 func _play_card(hand_index: int, target: int = -1) -> void:
 	var deck_index: int = battle.hand[hand_index]
+	var card_id: String = run_state.deck[deck_index]["id"]
+	var from: Rect2 = (hand_row.get_child(hand_index) as Control).get_global_rect()
+	var uses_before: int = run_state.uses_left(deck_index)
 	if battle.play(hand_index, target):
-		audio.play_se(AudioScript.card_use_se(run_state.uses_left(deck_index)))
+		var uses: int = run_state.uses_left(deck_index)
+		audio.play_se(AudioScript.card_use_se(uses))
+		_animate_card(card_id, uses_before, uses, from, _card_destination(card_id, target))
 
 
 ## 操作の後: ランを保存し (戦闘の途中で終えても、使った回数と受けた傷が戻らないように)、勝敗が決まっていれば
-## 戦闘を終えて勝利・敗北の効果音を鳴らす (画面の切り替えは scripts/main.gd が局面の変化で行う)。画面を更新する
-func _after_action() -> void:
+## 戦闘を終える (画面の切り替えは scripts/main.gd が局面の変化で行う)。勝った時は倒す動きと決めの 1 枚の動きが
+## 見えるよう Art.WIN_DELAY 待ってから終え、待つ前に保存する (待ちの間に終了しても、使った回数が戻らないように)。
+## 画面を更新し、操作の前の値 before (_snapshot()) との差で動きを付ける。enemy_acted は敵が行動した (ターン終了)
+func _after_action(before: Dictionary, enemy_acted: bool = false) -> void:
 	if battle.outcome == Battle.Outcome.NONE:
-		var status: Error = run_state.autosave()
-		if status != OK:
-			push_error("自動保存に失敗: %s (%s)" % [run_state.save_path, error_string(status)])
-	elif RunFlow.finish_battle(run_state, battle.outcome == Battle.Outcome.WIN):
+		_autosave()
+	elif not finish_scheduled:
+		finish_scheduled = true
+		if battle.outcome == Battle.Outcome.WIN and Art.motion_on():
+			_autosave()
+			var wait: Tween = create_tween()
+			wait.tween_interval(Art.WIN_DELAY * Art.motion_scale)
+			wait.tween_callback(_finish_battle)
+		else:
+			_finish_battle()
+	refresh()
+	# 戦闘を終えて画面が切り替わった (scripts/main.gd が隠した) 後は動きを付けない
+	if visible:
+		_animate_changes(before, enemy_acted)
+
+
+## ランを保存する。失敗したら ERROR を出す
+func _autosave() -> void:
+	var status: Error = run_state.autosave()
+	if status != OK:
+		push_error("自動保存に失敗: %s (%s)" % [run_state.save_path, error_string(status)])
+
+
+## 決まった勝敗で戦闘を終え、勝利・敗北の効果音を鳴らす
+func _finish_battle() -> void:
+	if RunFlow.finish_battle(run_state, battle.outcome == Battle.Outcome.WIN):
 		audio.play_se(
 			AudioScript.Se.WIN if battle.outcome == Battle.Outcome.WIN else AudioScript.Se.LOSE
 		)
-	refresh()
+
+
+## 操作の前に控える、動きを付けるために比べる値 (巡礼者の体力・ターン・敵ごとの体力と防御)
+func _snapshot() -> Dictionary:
+	var enemies: Array[Dictionary] = []
+	for enemy: Dictionary in battle.enemies:
+		enemies.append({"hp": enemy["hp"], "block": enemy["block"]})
+	return {"hp": run_state.hp, "turn": battle.turn, "enemies": enemies}
+
+
+## 操作の前の値 before との差で動きを付ける: 巡礼者と敵の被弾 (揺れ・赤い光・減った体力の数字。防御で受けた量は
+## 別の色の数字)、倒した敵が薄くなる、ターンが変わったら手札と敵の予告をフェードで現す
+func _animate_changes(before: Dictionary, enemy_acted: bool) -> void:
+	if not Art.motion_on():
+		return
+	var lost: int = before["hp"] - run_state.hp
+	var blocked: int = battle.blocked_last_enemy_turn if enemy_acted else 0
+	if lost > 0 or blocked > 0:
+		pilgrim_tween = Art.hit(pilgrim, pilgrim, pilgrim_tween, pilgrim_base, Art.PLAYER_SHAKE)
+		_show_numbers(pilgrim.get_global_rect().get_center(), lost, blocked)
+	var turn_changed: bool = battle.turn != before["turn"]
+	if turn_changed:
+		hand_tween = Art.fade_in(hand_row, hand_tween)
+	var old_enemies: Array[Dictionary] = before["enemies"]
+	for index: int in range(mini(old_enemies.size(), battle.enemies.size())):
+		var enemy: Dictionary = battle.enemies[index]
+		var view: EnemyView = enemy_row.get_child(index)
+		var lost_hp: int = old_enemies[index]["hp"] - enemy["hp"]
+		# 敵の防御は敵の行動で消えて付け直すので、受けた量は巡礼者の操作の時だけ見る
+		var absorbed: int = 0 if enemy_acted else old_enemies[index]["block"] - enemy["block"]
+		if lost_hp > 0 or absorbed > 0:
+			view.play_hit()
+			_show_numbers(view.art.get_global_rect().get_center(), lost_hp, absorbed)
+		if lost_hp > 0 and enemy["hp"] <= 0:
+			view.play_defeat()
+		elif turn_changed and enemy["hp"] > 0:
+			view.fade_in_intent()
+
+
+## 全体の座標 at の上に、減った体力 lost (赤) と防御で受けた量 blocked (青。減った体力の数字の下) の数字を
+## 浮かべる (0 の数字は出さない)
+func _show_numbers(at: Vector2, lost: int, blocked: int) -> void:
+	var local: Vector2 = at - effects_layer.global_position
+	if lost > 0:
+		Art.float_text(effects_layer, local, "-%d" % lost, Art.DAMAGE_COLOR)
+	if blocked > 0:
+		Art.float_text(
+			effects_layer,
+			local + Vector2(0, Art.FLOAT_FONT_SIZE),
+			"防御 %d" % blocked,
+			Art.BLOCKED_COLOR
+		)
+
+
+## card_id のカードを target の敵に使った時に、カードの複製が飛んでいく先 (全体の座標)。攻撃は狙った敵
+## (全体攻撃は敵の行) の絵へ、攻撃でないカードは巡礼者へ
+func _card_destination(card_id: String, target: int) -> Vector2:
+	if not Cards.CARDS[card_id].has("damage"):
+		return pilgrim.get_global_rect().get_center()
+	if target >= 0 and target < enemy_row.get_child_count():
+		return (enemy_row.get_child(target) as EnemyView).art.get_global_rect().get_center()
+	return enemy_row.get_global_rect().get_center()
+
+
+## 使ったカード card_id (残り uses_before 回 → uses 回) の複製を、手札で元のカードがあった全体の矩形 from に置き、
+## 持ち上げ → 使った封蝋の印を光らせて焼けた印に (残り 1 回・契約切れはカードを膨らませて光らせる) → 全体の座標
+## to へ縮みながら消える、と動かす。複製は入力を受けない (下の手札と敵をそのまま押せる)
+func _animate_card(card_id: String, uses_before: int, uses: int, from: Rect2, to: Vector2) -> void:
+	if not Art.motion_on():
+		return
+	var ghost: CardView = CardView.new()
+	ghost.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ghost.focus_mode = Control.FOCUS_NONE
+	ghost.custom_minimum_size = from.size
+	effects_layer.add_child(ghost)
+	ghost.show_deck_card(card_id, uses_before)
+	ghost.position = from.position - effects_layer.global_position
+	ghost.size = from.size
+	ghost.pivot_offset = from.size / 2.0
+	var seal: CanvasItem = ghost.seal_row.get_child(uses)
+	var scale_of: float = Art.motion_scale
+	var tween: Tween = ghost.create_tween()
+	tween.tween_property(
+		ghost, "position:y", ghost.position.y - Art.CARD_LIFT, Art.CARD_LIFT_TIME * scale_of
+	)
+	tween.tween_property(seal, "modulate", Art.SEAL_FLASH, Art.SEAL_FLASH_TIME * scale_of)
+	tween.tween_callback(_burn_seal.bind(ghost, seal, card_id, uses))
+	if uses <= 1:
+		var half: float = Art.STRONG_TIME * scale_of / 2.0
+		tween.tween_property(ghost, "scale", Vector2.ONE * Art.STRONG_SCALE, half)
+		tween.parallel().tween_property(ghost, "modulate", Art.STRONG_FLASH, half)
+		tween.tween_property(ghost, "scale", Vector2.ONE, half)
+		tween.parallel().tween_property(ghost, "modulate", Color.WHITE, half)
+	var fly: float = Art.CARD_FLY_TIME * scale_of
+	var landing: Vector2 = to - effects_layer.global_position - from.size / 2.0
+	tween.tween_property(ghost, "position", landing, fly).set_ease(Tween.EASE_IN)
+	tween.parallel().tween_property(ghost, "scale", Vector2.ONE * Art.CARD_FLY_SCALE, fly)
+	tween.parallel().tween_property(ghost, "modulate:a", 0.0, fly).set_ease(Tween.EASE_IN)
+	tween.tween_callback(ghost.queue_free)
+
+
+## 使ったカードの複製 ghost の光らせた封蝋の印 seal を戻し、使った後の残り uses 回で見せ直す (光った印が焼けた印に
+## なり、残り 1 回・契約切れの文と契約切れの色抜きが出る)
+func _burn_seal(ghost: CardView, seal: CanvasItem, card_id: String, uses: int) -> void:
+	seal.modulate = Color.WHITE
+	ghost.show_deck_card(card_id, uses)
 
 
 ## 状況に応じた案内の文

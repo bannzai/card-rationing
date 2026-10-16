@@ -39,6 +39,8 @@ var enemies: Array[Dictionary] = []
 ## 何ターン目か (1 始まり)
 var turn: int = 0
 var outcome: Outcome = Outcome.NONE
+## 直前の敵の行動で、巡礼者の防御が受けたダメージの合計 (戦闘画面が数字を見せるためだけの値で、進行には使わない)
+var blocked_last_enemy_turn: int = 0
 
 
 ## 戦闘を始める。state のデッキ全体 (契約切れのカードを含む) から山札を作り、最初のターンを始める
@@ -54,6 +56,7 @@ func start(state: RunStateScript, enemy_ids: Array[String], seed_value: int) -> 
 	block = 0
 	turn = 0
 	outcome = Outcome.NONE
+	blocked_last_enemy_turn = 0
 	enemies = []
 	for enemy_id: String in enemy_ids:
 		var definition: Dictionary = Enemies.ENEMIES[enemy_id]
@@ -151,6 +154,7 @@ func end_turn() -> void:
 		return
 	discard_pile.append_array(hand)
 	hand = []
+	blocked_last_enemy_turn = 0
 	for enemy: Dictionary in enemies:
 		if enemy["hp"] <= 0:
 			continue
@@ -201,6 +205,7 @@ func _act_enemy(enemy: Dictionary) -> void:
 		for _i: int in range(intent.get("hits", 1)):
 			var absorbed: int = mini(block, damage)
 			block -= absorbed
+			blocked_last_enemy_turn += absorbed
 			run_state.take_damage(damage - absorbed)
 	elif intent["move"] == Enemies.Move.GUARD:
 		enemy["block"] = intent["value"]

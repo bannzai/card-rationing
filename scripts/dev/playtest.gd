@@ -3,6 +3,7 @@ extends SceneTree
 ## テストプレイ。Makefile の playtest target が描画付きで起動して Movie Maker モードで録画し、agent が録画と
 ## 静止画を目視する (実行方法は AGENTS.md「検証方法」)。判断は make simulate と同じ関数で、同じシードなら
 ## 同じ道・同じ手になる。地図・戦闘・契約の祠・ボス戦に最初に着いた時点を tmp/playtest-<場面>.png に撮る。
+## カードを使ったフレームを、使った後の残りの区分ごとに最初の 1 回だけログに出す (録画から戦闘の動きのコマを切り出す)。
 ## ランの終わり (踏破か敗北) の結果の画面を映してから「playtest OK」の行を出して quit(0) する。踏破できずに
 ## 敗北しても失敗にはせず、到達した所までを録画する (ボス戦に着かなければボスの静止画は無い)。
 ## 画面を進められない時は quit(1) で終わる。保存データは本番と別の保存先に書き、ランの終わりに消える。
@@ -51,6 +52,8 @@ var main: MainScript = null
 var run_state: RunStateScript = null
 ## 撮影済みの場面の名前 (同じ場面は最初の 1 回だけ撮る)
 var captured: Dictionary = {}
+## カードを使ったフレームを出した、使った後の残りの区分 (_log_card_use())
+var logged_uses: Dictionary = {}
 
 
 ## tree の準備が終わってから _run() を始める (シーンの追加は _initialize() の後でないとできない)
@@ -159,7 +162,15 @@ func _play_battle() -> bool:
 	while run_state.phase == RunStateScript.Phase.BATTLE:
 		if battle_ui.battle.turn > Bots.TURN_LIMIT:
 			return _fail("戦闘が %d ターンで終わらない" % Bots.TURN_LIMIT)
+		# 勝った後、画面が切り替わるまでの待ち (Art.WIN_DELAY) の間は手を打たない (もがくの回数に数えないため)
+		if battle_ui.battle.outcome != BattleUiScript.Battle.Outcome.NONE:
+			await _wait(MOVE_FRAMES)
+			continue
 		var move: Dictionary = Bots.battle_move(STRATEGY, battle_ui.battle, run_state)
+		var deck_index: int = -1
+		if move["move"] == Bots.BattleMove.PLAY:
+			deck_index = battle_ui.battle.hand[move["hand_index"]]
+		var uses_before: int = run_state.uses_left(deck_index) if deck_index >= 0 else 0
 		match move["move"]:
 			Bots.BattleMove.PLAY:
 				battle_ui.request_card(move["hand_index"])
@@ -173,6 +184,8 @@ func _play_battle() -> bool:
 		if battle_ui.pending_hand_index != -1:
 			await _wait(MOVE_FRAMES)
 			battle_ui.choose_target(move["target"])
+		if deck_index >= 0 and run_state.uses_left(deck_index) < uses_before:
+			_log_card_use(run_state.uses_left(deck_index))
 		await _wait(MOVE_FRAMES)
 	# 録画のどこで攻撃が尽きてもがいているかを、フレームの位置で切り出せるようにする (録画の 30 フレームが 1 秒)
 	print(
@@ -189,6 +202,16 @@ func _play_battle() -> bool:
 		)
 	)
 	return true
+
+
+## カードを使ったフレームを、使った後の残り (2 回以上・1 回・0 回) ごとに最初の 1 回だけ出す (録画から、カードを使う
+## 動きの途中と、最後の 1 回・契約切れの強い動きのコマを切り出すため。録画のコマは、このフレームの数コマ後)
+func _log_card_use(uses: int) -> void:
+	var kind: int = mini(uses, 2)
+	if logged_uses.has(kind):
+		return
+	logged_uses[kind] = true
+	print("playtest: カードを使った (フレーム %d、残り %d 回)" % [Engine.get_process_frames(), uses])
 
 
 ## 契約の祠で、戦略が選んだ方 (契約の更新か新しい契約) の段階を映してから選ぶ

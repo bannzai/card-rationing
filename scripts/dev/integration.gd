@@ -1,4 +1,4 @@
-extends "res://scripts/dev/headless_check.gd"
+extends "res://scripts/dev/integration_base.gd"
 ## メインシーンを tree に置いて動かす入力統合テスト (headless)。画面の遷移やキー・クリックで変わる振る舞いを
 ## 足したら、ここに検証を足す。実行方法は AGENTS.md「検証方法」を参照。
 ## キーは root.push_input() に InputEventKey を、クリックはボタンの中心への InputEventMouseButton を渡して起こす。
@@ -6,51 +6,12 @@ extends "res://scripts/dev/headless_check.gd"
 ## (起動し直した時と同じく、保存データだけから戻す)。
 ## 場面ごとに鳴る BGM と効果音は、autoload Audio のプレイヤーが鳴っているかで確かめる (headless でも再生の状態は
 ## 進む)。効果音は直前の操作のものが鳴り終わっていないことがあるため、確かめる操作の前に _stop_se() で止める。
+## 定数・autoload の参照・操作の部品は scripts/dev/integration_base.gd に置く。
 
-const ActMap := preload("res://scripts/act_map.gd")
-const Art := preload("res://scripts/art.gd")
-const AudioScript := preload("res://scripts/audio.gd")
-const BattleScript := preload("res://scripts/battle.gd")
-const BattleUiScript := preload("res://scripts/battle_ui.gd")
-const CardViewScript := preload("res://scripts/card_view.gd")
-const Cards := preload("res://scripts/cards.gd")
-const BossTalkScript := preload("res://scripts/boss_talk.gd")
-const CharacterSelectUiScript := preload("res://scripts/character_select_ui.gd")
-const Contractors := preload("res://scripts/contractors.gd")
-const DeckListUiScript := preload("res://scripts/deck_list_ui.gd")
-const Enemies := preload("res://scripts/enemies.gd")
-const EventUiScript := preload("res://scripts/event_ui.gd")
-const Events := preload("res://scripts/events.gd")
-const MainScript := preload("res://scripts/main.gd")
-const MapUiScript := preload("res://scripts/map_ui.gd")
-const NodeRules := preload("res://scripts/node_rules.gd")
-const ResultUiScript := preload("res://scripts/result_ui.gd")
-const RewardUiScript := preload("res://scripts/reward_ui.gd")
-const RunStateScript := preload("res://scripts/run_state.gd")
-const SettingsScript := preload("res://scripts/settings.gd")
-const SettingsUiScript := preload("res://scripts/settings_ui.gd")
-const ShopUiScript := preload("res://scripts/shop_ui.gd")
-const ShrineUiScript := preload("res://scripts/shrine_ui.gd")
-const TitleUiScript := preload("res://scripts/title_ui.gd")
-const UiKit := preload("res://scripts/ui_kit.gd")
-
-## 起動時に表示するメインシーン
-const MAIN_SCENE: PackedScene = preload("res://scenes/main.tscn")
-## ボス戦の前の会話の画面 (台詞の送り方を単体で確かめる。地図のボスの節点からの流れは _check_clear_returns_to_title)
-const BOSS_TALK_SCENE: PackedScene = preload("res://scenes/boss_talk.tscn")
-## 検証で使う保存先 (本番の保存データを触らない)
-const INTEGRATION_SAVE_PATH: String = "user://integration_run.json"
-const INTEGRATION_SETTINGS_PATH: String = "user://integration_settings.cfg"
-## 巡礼の地図と戦闘の乱数を固定するシード (値に意味は無く、失敗を再現できるように固定する)
-const RANDOM_SEED: int = 20261006
-## 出来事「血の泉」が出る地図を探すシードの数 (出来事は 3 種で、シード 1 つごとに 1 / 3 で当たる。selfcheck の
-## _state_at_event() と同じ数)
-const EVENT_SEED_LIMIT: int = 300
-
-## autoload RunState (ラン単位の状態)・Settings (設定)・Audio (BGM と効果音)
-var run_state: RunStateScript = null
-var settings: SettingsScript = null
-var audio: AudioScript = null
+## 戦闘の動きの終わりを実時間で待つ時の余裕 (秒)。headless の 1 フレームは数 ms (Makefile の SCRIPT_FRAME_LIMIT の
+## 根拠) なので、動きの最後のフレームの後に queue_free が済むまでには数十 ms で足り、CI の runner の遅れを見込んで
+## 0.2 秒にした
+const MOTION_MARGIN: float = 0.2
 
 
 ## tree の準備が終わってから _run() を始める (シーンの追加は _initialize() の後でないとできない)
@@ -72,6 +33,10 @@ func _run() -> void:
 		return
 	run_state.save_path = INTEGRATION_SAVE_PATH
 	settings.settings_path = INTEGRATION_SETTINGS_PATH
+	# 入力の直後の画面を確かめる検証が、勝った後の画面の切り替えの待ちや動きの途中の表示に左右されないよう、戦闘の
+	# 動きを止める (動きを付けたまま確かめるのは、倍率を 1 に戻して呼ぶ _check_input_during_motion() と
+	# _check_win_waits_for_motion() だけ。途中で return しても 0 に戻るよう、倍率は呼ぶ側で切り替える)
+	Art.motion_scale = 0.0
 	_remove_user_file(INTEGRATION_SAVE_PATH)
 	_remove_user_file(INTEGRATION_SETTINGS_PATH)
 	seed(RANDOM_SEED)
@@ -92,8 +57,14 @@ func _run() -> void:
 	await _check_hand_card_seals(main)
 	await _check_battle_sounds(main)
 	await _check_hand_fits_after_draw(main)
+	Art.motion_scale = 1.0
+	await _check_input_during_motion(main)
+	Art.motion_scale = 0.0
 	await _check_battle_resume_keeps_uses(main)
 	await _check_exhausted_deck_battle_and_reward(main)
+	Art.motion_scale = 1.0
+	await _check_win_waits_for_motion(main)
+	Art.motion_scale = 0.0
 	await _check_shrine_restores_uses(main)
 	await _check_deck_grid_follows_focus(main)
 	await _check_shop(main)
@@ -112,6 +83,8 @@ func _run() -> void:
 	# 鳴らした BGM・効果音を止め、解放を待ってから終える (待たないとリークの WARNING が出る)
 	audio.stop_all()
 	await create_timer(AUDIO_RELEASE_TIME).timeout
+	# 戦闘の動きの終わりを実時間で待つ検証があるので、Makefile の SCRIPT_FRAME_LIMIT との余裕を CI のログで見る
+	print("integration: %d フレーム" % Engine.get_process_frames())
 	_finish()
 
 
@@ -306,6 +279,158 @@ func _check_hand_fits_after_draw(main: MainScript) -> void:
 	if battle_ui.battle.can_play(last) and battle_ui.battle.alive_enemies().size() == 1:
 		await _click(buttons[last])
 		_check(battle_ui.battle.hand.size() == 5, "右端のカードをクリックで使える")
+
+
+## 戦闘の動きの途中に続けて入力しても、戦闘の状態と表示が壊れない: カードを使う動きの最中に次のカードをキーで
+## 使い、手札をクリックで使い、ターンを終えると防御で受けた量の数字が出る。動きの層は入力を受けない。動きが
+## 終わると、複製と数字が消え、揺らした・光らせた・フェードした表示が元に戻る
+func _check_input_during_motion(main: MainScript) -> void:
+	var battle_ui: BattleUiScript = main.screen as BattleUiScript
+	if battle_ui == null:
+		_check(false, "動きの検証: 戦闘の画面が出ている")
+		return
+	_set_deck(["guard", "guard", "slash", "slash", "slash"])
+	_start_battle_with(battle_ui, ["wild_dog"], 1)
+	await _settle()
+	var guards: Array[int] = []
+	for hand_index: int in range(battle_ui.battle.hand.size()):
+		if run_state.deck[battle_ui.battle.hand[hand_index]]["id"] == "guard":
+			guards.append(battle_ui.battle.hand[hand_index])
+	await _click(_hand_buttons(battle_ui)[battle_ui.battle.hand.find(guards[0])])
+	_check(battle_ui.effects_layer.get_child_count() > 0, "カードを使うと、使ったカードの複製が動いている")
+	await _press_key(KEY_1 + battle_ui.battle.hand.find(guards[1]))
+	var guard: Dictionary = Cards.CARDS["guard"]
+	_check(
+		(
+			battle_ui.battle.energy == BattleScript.ENERGY_PER_TURN - 2 * guard["cost"]
+			and battle_ui.battle.hand.size() == 3
+			and battle_ui.battle.block == 2 * guard["block"]
+			and run_state.uses_left(guards[0]) == guard["max_uses"] - 1
+			and run_state.uses_left(guards[1]) == guard["max_uses"] - 1
+		),
+		"動きの途中に続けて使ったカードも、エネルギー・手札・防御・残り使用回数に反映される"
+	)
+	_check(_ignores_mouse(battle_ui.effects_layer), "動きの層 (複製と数字) はすべてマウスを通す")
+	var enemy: Dictionary = battle_ui.battle.enemies[0]
+	var hp_before: int = enemy["hp"]
+	await _click(_hand_buttons(battle_ui)[0])
+	_check(
+		enemy["hp"] == hp_before - Cards.CARDS["slash"]["damage"] and battle_ui.battle.hand.size() == 2,
+		"複製が動いている間も手札をクリックで使える"
+	)
+	enemy["intent"] = {"move": Enemies.Move.ATTACK, "value": 4}
+	var player_hp: int = run_state.hp
+	await _press_key(KEY_ENTER)
+	_check(
+		battle_ui.battle.turn == 2 and run_state.hp == player_hp,
+		"動きの途中に Enter でターンを終え、防御で受け切る"
+	)
+	_check(
+		_has_label(battle_ui.effects_layer, "防御 %d" % 4), "防御で受けた量の数字が出る"
+	)
+	for index: int in range(battle_ui.battle.hand.size()):
+		var view: CardViewScript = _hand_buttons(battle_ui)[index] as CardViewScript
+		var deck_index: int = battle_ui.battle.hand[index]
+		_check(
+			(
+				view.card_id == run_state.deck[deck_index]["id"]
+				and view.uses_left == run_state.uses_left(deck_index)
+			),
+			"動きの途中に配られた手札の %d 枚目が、手札のカードと残り使用回数を見せる" % (index + 1)
+		)
+	await create_timer(_motion_settle_time()).timeout
+	await _settle()
+	_check(battle_ui.effects_layer.get_child_count() == 0, "動きが終わると複製と数字が消える")
+	var enemy_view: EnemyViewScript = battle_ui.enemy_row.get_child(0) as EnemyViewScript
+	_check(
+		(
+			battle_ui.hand_row.modulate.is_equal_approx(Color.WHITE)
+			and enemy_view.column.position.is_equal_approx(Vector2.ZERO)
+			and enemy_view.art.self_modulate.is_equal_approx(Color.WHITE)
+			and enemy_view.intent_label.modulate.is_equal_approx(Color.WHITE)
+			and battle_ui.pilgrim.position.is_equal_approx(battle_ui.pilgrim_base)
+			and battle_ui.pilgrim.self_modulate.is_equal_approx(Color.WHITE)
+		),
+		"動きが終わると、手札・敵・巡礼者の位置と色が元に戻る"
+	)
+
+
+## 最後の敵を倒すと、倒す動きが見えるよう Art.WIN_DELAY だけ戦闘の画面のまま待ってから報酬の画面へ移る。待つ前に
+## 保存し、待ちの間の入力 (Enter・S) では戦闘を 2 度終えない (勝った戦闘の数と所持金は 1 回分だけ増える)
+func _check_win_waits_for_motion(main: MainScript) -> void:
+	await _enter_kind(main, ActMap.Kind.BATTLE)
+	var battle_ui: BattleUiScript = main.screen as BattleUiScript
+	if battle_ui == null:
+		_check(false, "勝った後の待ちの検証: 戦闘の画面が出る")
+		return
+	_set_deck(["slash"])
+	_start_battle_with(battle_ui, ["wild_dog"], 1)
+	battle_ui.battle.enemies[0]["hp"] = 1
+	battle_ui.refresh()
+	await _settle()
+	var won_before: int = run_state.battles_won
+	var gold_before: int = run_state.gold
+	await _press_key(KEY_1)
+	_check(
+		(
+			battle_ui.battle.outcome == BattleScript.Outcome.WIN
+			and main.screen == battle_ui
+			and run_state.phase == RunStateScript.Phase.BATTLE
+		),
+		"最後の敵を倒した直後は、戦闘の画面のまま待つ"
+	)
+	var saved: RunStateScript = _load_saved()
+	_check(
+		saved.uses_left(0) == Cards.CARDS["slash"]["max_uses"] - 1,
+		"勝った後に待つ前に、使ったカードの残り使用回数を保存する"
+	)
+	saved.free()
+	await _press_key(KEY_ENTER)
+	await _press_key(KEY_S)
+	_check(run_state.battles_won == won_before, "待ちの間の Enter と S では戦闘を終えない")
+	await create_timer(Art.WIN_DELAY + MOTION_MARGIN).timeout
+	await _settle()
+	_check(main.screen is RewardUiScript, "待った後に報酬の画面へ移る")
+	_check(
+		(
+			run_state.battles_won == won_before + 1
+			and (
+				run_state.gold
+				== gold_before + NodeRules.reward_gold(run_state.node_seed(), ActMap.Kind.BATTLE)
+			)
+		),
+		"勝った戦闘の数と所持金は 1 回分だけ増える"
+	)
+
+
+## 戦闘の動きがすべて終わるまで待つ時間 (秒)。最も長い動き (残り 1 回・契約切れになったカードを使う動きと、浮かぶ
+## 数字の大きい方) に MOTION_MARGIN を足す
+func _motion_settle_time() -> float:
+	return (
+		maxf(
+			Art.CARD_LIFT_TIME + Art.SEAL_FLASH_TIME + Art.STRONG_TIME + Art.CARD_FLY_TIME,
+			Art.FLOAT_TIME
+		)
+		+ MOTION_MARGIN
+	)
+
+
+## node と、その下のすべての Control がマウスを通すか
+func _ignores_mouse(node: Node) -> bool:
+	if node is Control and (node as Control).mouse_filter != Control.MOUSE_FILTER_IGNORE:
+		return false
+	for child: Node in node.get_children():
+		if not _ignores_mouse(child):
+			return false
+	return true
+
+
+## parent の子に、文が text のラベルがあるか
+func _has_label(parent: Node, text: String) -> bool:
+	for child: Node in parent.get_children():
+		if child is Label and (child as Label).text == text:
+			return true
+	return false
 
 
 ## 戦闘の途中で終了して「続きから」で再開しても、使ったカードの残り使用回数と受けた傷は戻らない
@@ -711,104 +836,6 @@ func _check_settings_saved(main: MainScript) -> void:
 	_check(settings.bgm_volume == 35 and settings.se_volume == 60, "保存した音量を読み直すと同じ値")
 
 
-## kind の最初の節点の 1 つ手前まで道を進めた地図を出し、その節点をクリックして入る
-func _enter_kind(main: MainScript, kind: ActMap.Kind) -> void:
-	var at: Vector2i = ActMap.find_kind(run_state.rows, kind)
-	var route: Array[int] = ActMap.route_to(run_state.rows, at.x, at.y)
-	route.pop_back()
-	run_state.path = route
-	run_state.phase = RunStateScript.Phase.MAP
-	main.show_run_phase()
-	await _settle()
-	var map_ui: MapUiScript = main.screen as MapUiScript
-	var button: Button = map_ui.node_button(at.x, at.y) if map_ui != null else null
-	_check(button != null and not button.disabled, "地図で %s の節点を選べる" % ActMap.KIND_NAMES[kind])
-	if button != null:
-		await _click(button)
-
-
-## ゲームを終了して起動し直し、タイトルの「続きから」を押す (ラン単位の状態は新しいランで消し、保存データ
-## だけから戻す)
-func _quit_and_continue(main: MainScript) -> void:
-	run_state.new_run()
-	main.show_title()
-	await _settle()
-	var title: TitleUiScript = main.screen as TitleUiScript
-	_check(title.continue_button.visible, "保存があれば「続きから」が出る")
-	_check(_bgm_is(AudioScript.Bgm.NONE), "巡礼の途中でタイトルへ戻ると BGM が止まる")
-	await _click(title.continue_button)
-
-
-## 戦闘画面の今の戦闘を、敵 enemy_ids とシード seed_value で始め直す (局面と道はそのまま)
-func _start_battle_with(
-	battle_ui: BattleUiScript, enemy_ids: Array[String], seed_value: int
-) -> void:
-	battle_ui.battle.start(run_state, enemy_ids, seed_value)
-	battle_ui.pending_hand_index = -1
-	battle_ui.refresh()
-
-
-## card_id のカードが手札に来るシードで戦闘を始め、そのカードの手札の位置を返す (シードを 1 から順に試し、
-## 見つからなければ -1)
-func _start_battle_with_card_in_hand(battle_ui: BattleUiScript, card_id: String) -> int:
-	for seed_value: int in range(1, 51):
-		_start_battle_with(battle_ui, ["wild_dog"], seed_value)
-		var hand_index: int = _hand_index_of(battle_ui, card_id)
-		if hand_index >= 0:
-			await _settle()
-			return hand_index
-	return -1
-
-
-## デッキを ids のカード (最大使用回数) にする (局面と道はそのまま)
-func _set_deck(ids: Array[String]) -> void:
-	run_state.deck.clear()
-	for card_id: String in ids:
-		run_state.add_card(card_id)
-
-
-## 新しいランの初期デッキの要素の並び
-func _starter_deck_entries() -> Array[Dictionary]:
-	var fresh: RunStateScript = RunStateScript.new()
-	fresh.new_run()
-	var entries: Array[Dictionary] = fresh.deck.duplicate(true)
-	fresh.free()
-	return entries
-
-
-## 保存データを読み込んだ別のラン単位の状態 (呼んだ側が free する)
-func _load_saved() -> RunStateScript:
-	var saved: RunStateScript = RunStateScript.new()
-	_check(saved.load_from(INTEGRATION_SAVE_PATH) == RunStateScript.LoadResult.LOADED, "保存データを読める")
-	return saved
-
-
-## デッキで残り使用回数が最大より減っている最初のカード (無ければ最初のカードを 1 回使ってそれを返す)
-func _first_used_card() -> int:
-	for index: int in range(run_state.deck.size()):
-		if run_state.uses_left(index) < run_state.card(index)["max_uses"]:
-			return index
-	return 0 if run_state.use_card(0) else -1
-
-
-## 手札の中で、対象を選ばずに使え (攻撃でないか、敵が 1 体)、使っても戦闘が終わらない (敵を倒さない) カードの
-## 位置 (無ければ -1)
-func _playable_without_target(battle_ui: BattleUiScript) -> int:
-	var alive: Array[int] = battle_ui.battle.alive_enemies()
-	for hand_index: int in range(battle_ui.battle.hand.size()):
-		var card_id: String = run_state.deck[battle_ui.battle.hand[hand_index]]["id"]
-		if not battle_ui.battle.can_play(hand_index):
-			continue
-		if not Cards.needs_target(card_id):
-			return hand_index
-		if alive.size() != 1:
-			continue
-		var enemy: Dictionary = battle_ui.battle.enemies[alive[0]]
-		if Cards.CARDS[card_id]["damage"] < enemy["hp"] + enemy["block"]:
-			return hand_index
-	return -1
-
-
 ## ボス戦の前の会話: クリックと Enter で台詞が 1 行ずつ進み、最後の台詞でだけ「戦う」が出て、選ぶと finished が
 ## 1 度だけ出る
 func _check_boss_talk() -> void:
@@ -835,68 +862,6 @@ func _check_boss_talk() -> void:
 	_check(finished_count[0] == 1, "finished は 1 度だけ出る")
 	talk.queue_free()
 	await process_frame
-
-
-## track の BGM が鳴っているか (NONE なら、BGM が鳴っていないか)
-func _bgm_is(track: AudioScript.Bgm) -> bool:
-	return audio.bgm == track and audio.bgm_player.playing == (track != AudioScript.Bgm.NONE)
-
-
-## se の効果音が鳴っているか
-func _se_playing(se: AudioScript.Se) -> bool:
-	return (audio.se_players[se] as AudioStreamPlayer).playing
-
-
-## 効果音をすべて止める (次の操作で鳴る効果音だけを確かめるため)
-func _stop_se() -> void:
-	for player: AudioStreamPlayer in audio.se_players.values():
-		player.stop()
-
-
-## 戦闘画面の手札のボタン (表示中のものだけ)
-func _hand_buttons(battle_ui: BattleUiScript) -> Array[Button]:
-	var buttons: Array[Button] = []
-	for child: Button in battle_ui.hand_row.get_children():
-		if child.visible:
-			buttons.append(child)
-	return buttons
-
-
-## 手札の中で card_id のカードがある位置 (無ければ -1)
-func _hand_index_of(battle_ui: BattleUiScript, card_id: String) -> int:
-	for hand_index: int in range(battle_ui.battle.hand.size()):
-		if run_state.deck[battle_ui.battle.hand[hand_index]]["id"] == card_id:
-			return hand_index
-	return -1
-
-
-## buttons のすべてが画面の幅に収まるか (label は失敗の文の頭に付ける)
-func _check_buttons_fit(buttons: Array, label: String) -> void:
-	for button: Button in buttons:
-		var rect: Rect2 = button.get_global_rect()
-		_check(
-			rect.position.x >= 0 and rect.end.x <= root.size.x,
-			"%sのボタンが画面の幅に収まる: %s" % [label, _button_label(button)]
-		)
-
-
-## button を失敗の文で指す名前 (カードならカードの名前、ほかはボタンの文)
-func _button_label(button: Button) -> String:
-	var view: CardViewScript = button as CardViewScript
-	return view.name_label.text if view != null else button.text
-
-
-## view の封蝋の印の列の (残っている印の数, 焼けた印の数)
-func _seal_counts(view: CardViewScript) -> Vector2i:
-	var counts: Vector2i = Vector2i.ZERO
-	for icon: TextureRect in view.seal_row.get_children():
-		if not icon.visible:
-			continue
-		if icon.texture == Art.SEAL:
-			counts.x += 1
-		else:
-			counts.y += 1
-	return counts
 
 
 ## 報酬・祠・商人の 3 枚の並び (値段の行付き) とデッキの格子が画面の幅に収まり、全カードの名前と効果の文が
@@ -937,46 +902,3 @@ func _check_cards_fit(main: MainScript) -> void:
 		)
 	probe.queue_free()
 	await process_frame
-
-
-## parent の表示中の子の数
-func _visible_children(parent: Node) -> int:
-	var count: int = 0
-	for child: Node in parent.get_children():
-		if child is CanvasItem and (child as CanvasItem).visible:
-			count += 1
-	return count
-
-
-## keycode のキーを押して、画面の更新とレイアウトが終わるまで待つ
-func _press_key(keycode: int) -> void:
-	var event: InputEventKey = InputEventKey.new()
-	event.keycode = keycode as Key
-	event.pressed = true
-	root.push_input(event)
-	await _settle()
-
-
-## control の中心を左クリック (押して離す) して、画面の更新とレイアウトが終わるまで待つ
-func _click(control: Control) -> void:
-	var center: Vector2 = control.get_global_rect().get_center()
-	for pressed: bool in [true, false]:
-		var event: InputEventMouseButton = InputEventMouseButton.new()
-		event.button_index = MOUSE_BUTTON_LEFT
-		event.pressed = pressed
-		event.position = center
-		event.global_position = center
-		root.push_input(event)
-	await _settle()
-
-
-## 画面の更新とコンテナのレイアウト (次のフレームに遅延する) が終わるまで 2 フレーム待つ
-func _settle() -> void:
-	await process_frame
-	await process_frame
-
-
-## user:// のファイルを消す (無ければ何もしない)
-func _remove_user_file(path: String) -> void:
-	if FileAccess.file_exists(path):
-		DirAccess.open(path.get_base_dir()).remove(path.get_file())

@@ -28,7 +28,8 @@ const STATUS_FONT_SIZE: int = 15
 const DEFEATED_MODULATE: Color = Color(0.3, 0.3, 0.36, 0.5)
 const HOVER_TONE: float = 1.16
 
-## 予告・絵・名前・体力の数珠・体力と防御の文
+## 中身を縦に並べる列 (被弾の時に揺らす)・予告・絵・名前・体力の数珠・体力と防御の文
+var column: VBoxContainer = null
 var intent_label: Label = null
 var art: TextureRect = null
 var name_label: Label = null
@@ -36,13 +37,17 @@ var bead_row: HBoxContainer = null
 var status_label: Label = null
 ## 倒した敵を見せているか
 var defeated: bool = false
+## 動いている被弾・倒した時・予告のフェードの tween (次の同じ動きを始める前に止める)
+var hit_tween: Tween = null
+var defeat_tween: Tween = null
+var intent_tween: Tween = null
 
 
 ## 中身のノードを組み立てる
 func _init() -> void:
 	for style_name: String in ["normal", "hover", "pressed", "disabled"]:
 		add_theme_stylebox_override(style_name, StyleBoxEmpty.new())
-	var column: VBoxContainer = VBoxContainer.new()
+	column = VBoxContainer.new()
 	column.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.add_theme_constant_override("separation", 2)
@@ -77,6 +82,9 @@ func show_enemy(number: int, enemy: Dictionary) -> void:
 	name_label.text = "%d. %s%s" % [number, enemy["name"], RANK_NAMES[rank]]
 	defeated = enemy["hp"] <= 0
 	disabled = defeated
+	if not defeated and defeat_tween != null:
+		defeat_tween.kill()
+		defeat_tween = null
 	Art.set_icons(
 		bead_row,
 		Art.BEAD,
@@ -98,6 +106,25 @@ func show_enemy(number: int, enemy: Dictionary) -> void:
 	)
 	status_label.text = "体力 %d / %d   防御 %d" % [enemy["hp"], enemy["max_hp"], enemy["block"]]
 	queue_redraw()
+
+
+## 被弾の動き: 絵と文を揺らし、絵を赤く光らせる
+func play_hit() -> void:
+	hit_tween = Art.hit(column, art, hit_tween, Vector2.ZERO, Art.ENEMY_SHAKE)
+
+
+## 倒した時の動き: 絵を赤く光らせてから、倒した敵の見た目 (DEFEATED_MODULATE) へ薄くする
+func play_defeat() -> void:
+	if defeat_tween != null:
+		defeat_tween.kill()
+	art.modulate = Art.HIT_FLASH
+	defeat_tween = create_tween()
+	defeat_tween.tween_property(art, "modulate", DEFEATED_MODULATE, Art.DEFEAT_TIME * Art.motion_scale)
+
+
+## 予告が変わった時の動き: 予告の文をフェードで現す
+func fade_in_intent() -> void:
+	intent_tween = Art.fade_in(intent_label, intent_tween)
 
 
 ## column に、中央に寄せた文字の大きさ font_size のラベルを足す

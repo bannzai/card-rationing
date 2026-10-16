@@ -182,7 +182,7 @@ static func shrine_distance(state: RunStateScript) -> int:
 
 
 ## strategy の戦略で、battle の戦闘を勝敗が決まるまで進める (ゲームのロジックを直接呼ぶ)。勝ったら true。
-## counts (new_counts() の形) に、使ったカードともがいた回数を足す
+## counts (new_counts() の形) に、ターンの数・使ったカード・もがいた回数を足す
 static func play_battle(
 	strategy: int, battle: Battle, state: RunStateScript, counts: Dictionary
 ) -> bool:

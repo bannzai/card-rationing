@@ -31,8 +31,9 @@ const MAIN_SCENE: PackedScene = preload("res://scenes/main.tscn")
 const STRATEGY: int = Bots.Strategy.ADAPT
 ## 遊ばせる地図のシード。make simulate でこの戦略が踏破したシードから選ぶ取り決め (issue #10)。敵の強さを調整
 ## (issue #33) した後の 2026-10-07 の集計 (CI run 37614347476) でこの戦略が踏破した 46 個のシードのうち最小のもの
-## (1 幕の最後まで遊び、踏破の結果の画面までを録画に映すため)。敵・カード・戦略の判断を変えたら、踏破したシード
-## から選び直す
+## (1 幕の最後まで遊び、踏破の結果の画面までを録画に映すため)。攻撃カードの回数を調整 (issue #38) した後の
+## 2026-10-16 の集計 (CI run 38892512862) でも踏破したため、調整の前後で同じ地図の録画を見比べられるよう残した。
+## 敵・カード・戦略の判断を変えたら、踏破したシードから選び直す
 const PLAYTEST_SEED: int = 7
 ## テストプレイの間に使う保存先 (本番の保存データを触らない)
 const PLAYTEST_SAVE_PATH: String = "user://playtest_run.json"

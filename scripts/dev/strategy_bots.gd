@@ -186,10 +186,15 @@ static func shrine_distance(state: RunStateScript) -> int:
 static func play_battle(
 	strategy: int, battle: Battle, state: RunStateScript, counts: Dictionary
 ) -> bool:
+	var counted_turn: int = 0
 	while battle.outcome == Battle.Outcome.NONE:
 		if battle.turn > TURN_LIMIT:
 			push_error("戦闘が %d ターンで終わらない (シード %d)" % [TURN_LIMIT, state.map_seed])
 			return false
+		if battle.turn != counted_turn:
+			counted_turn = battle.turn
+			counts["turns"] += 1
+			counts["attackless_turns"] += 0 if hand_has_attack(battle, state) else 1
 		var move: Dictionary = battle_move(strategy, battle, state)
 		var applied: bool = false
 		match move["move"]:
@@ -198,7 +203,7 @@ static func play_battle(
 				if applied:
 					counts["plays"] += 1
 			BattleMove.STRUGGLE:
-				var attackless: bool = attack_uses_left(state) == 0
+				var attackless: bool = not hand_has_attack(battle, state)
 				applied = battle.struggle(move["target"])
 				if applied:
 					counts["struggles"] += 1
@@ -209,19 +214,30 @@ static func play_battle(
 
 
 ## 1 ランの戦闘の数え上げの初期値。{"battles": 戦った戦闘の数, "attackless_battles": デッキの攻撃の残り使用回数
-## (attack_uses_left()) が 0 で始まった戦闘の数, "plays": 使ったカードの数, "struggles": もがいた回数,
-## "attackless_struggles": もがいた回数のうち、デッキの攻撃の残り使用回数が 0 だった時の回数 (温存のためではなく
-## もがくしかなかった回数), "attack_out_floor": デッキの攻撃の残り使用回数が初めて 0 になった戦闘の階層
-## (0 にならなければ -1)}
+## (attack_uses_left()) が 0 で始まった戦闘の数, "turns": 戦ったターンの数, "attackless_turns": 手札に残り使用回数の
+## ある攻撃カードが無い (hand_has_attack() が false) まま始まったターンの数, "plays": 使ったカードの数,
+## "struggles": もがいた回数, "attackless_struggles": もがいた回数のうち、手札に残り使用回数のある攻撃カードが
+## 無かった時の回数 (温存のためではなく、攻撃の手段がもがくしかなかった回数), "attack_out_floor": デッキの攻撃の
+## 残り使用回数が初めて 0 になった戦闘の階層 (0 にならなければ -1)}
 static func new_counts() -> Dictionary:
 	return {
 		"battles": 0,
 		"attackless_battles": 0,
+		"turns": 0,
+		"attackless_turns": 0,
 		"plays": 0,
 		"struggles": 0,
 		"attackless_struggles": 0,
 		"attack_out_floor": -1,
 	}
+
+
+## battle の手札に、残り使用回数のある攻撃カードがあるか (エネルギーと、戦略が温存するかは問わない)
+static func hand_has_attack(battle: Battle, state: RunStateScript) -> bool:
+	for deck_index: int in battle.hand:
+		if state.card(deck_index)["kind"] == Cards.Kind.ATTACK and state.uses_left(deck_index) > 0:
+			return true
+	return false
 
 
 ## デッキの攻撃カードの残り使用回数の合計 (0 なら、手札・山札・捨て札のどこにも使える攻撃カードが無い)

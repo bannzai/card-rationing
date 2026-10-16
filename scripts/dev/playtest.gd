@@ -164,7 +164,7 @@ func _play_battle() -> bool:
 				battle_ui.request_card(move["hand_index"])
 			Bots.BattleMove.STRUGGLE:
 				struggles += 1
-				attackless_struggles += 1 if Bots.attack_uses_left(run_state) == 0 else 0
+				attackless_struggles += 0 if Bots.hand_has_attack(battle_ui.battle, run_state) else 1
 				battle_ui.request_struggle()
 			Bots.BattleMove.END_TURN:
 				battle_ui.end_turn()
@@ -176,7 +176,7 @@ func _play_battle() -> bool:
 	# 録画のどこで攻撃が尽きてもがいているかを、フレームの位置で切り出せるようにする (録画の 30 フレームが 1 秒)
 	print(
 		(
-			"playtest: %d 階の戦闘 フレーム %d〜%d もがく %d 回 (攻撃が尽きていた時 %d 回)%s"
+			"playtest: %d 階の戦闘 フレーム %d〜%d もがく %d 回 (手札に攻撃が無かった時 %d 回)%s"
 			% [
 				floor_number,
 				start_frame,

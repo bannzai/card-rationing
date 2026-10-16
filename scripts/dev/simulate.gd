@@ -74,8 +74,9 @@ func _run() -> void:
 ## "clear_rate": 踏破率 (%), "average_floor": 平均到達階層, "average_exhausted": 契約を使い切った回数の平均,
 ## "average_unused_strong": ランの終わりに残り使用回数が残っていた強いカードの枚数の平均,
 ## "attackless_battle_rate": 攻撃が尽きて始まった戦闘 (デッキの攻撃カードの残り使用回数の合計が 0) の、戦った
-## 戦闘に占める割合 (%), "struggle_rate": もがいた回数の、使ったカードともがいた回数の合計に占める割合 (%),
-## "attackless_struggle_rate": そのうち攻撃が尽きていた時にもがいた回数の割合 (%。温存のためのもがくを除く),
+## 戦闘に占める割合 (%), "attackless_turn_rate": 手札に残り使用回数のある攻撃カードが無いまま始まったターンの、
+## 戦ったターンに占める割合 (%), "struggle_rate": もがいた回数の、使ったカードともがいた回数の合計に占める割合 (%),
+## "attackless_struggle_rate": そのうち手札に攻撃カードが無かった時にもがいた回数の割合 (%。温存のためのもがくを除く),
 ## "average_struggles": 1 ランでもがいた回数の平均, "attack_out_runs": 攻撃が尽きたランの数,
 ## "average_attack_out_floor": 攻撃が尽きたランで、初めて尽きた戦闘の階層の平均 (尽きたランが無ければ -1),
 ## "cleared_seeds": 踏破したシードの並び, "reached_floors": シードの順 (FIRST_SEED から) に並べた到達階層}。
@@ -114,6 +115,7 @@ func _simulate(state: RunStateScript, strategy: int) -> Dictionary:
 		"average_exhausted": snappedf(float(exhausted) / SEED_COUNT, 0.01),
 		"average_unused_strong": snappedf(float(unused_strong) / SEED_COUNT, 0.01),
 		"attackless_battle_rate": _percent(counts["attackless_battles"], counts["battles"]),
+		"attackless_turn_rate": _percent(counts["attackless_turns"], counts["turns"]),
 		"struggle_rate": _percent(counts["struggles"], moves),
 		"attackless_struggle_rate": _percent(counts["attackless_struggles"], moves),
 		"average_struggles": snappedf(float(counts["struggles"]) / SEED_COUNT, 0.01),
@@ -140,12 +142,13 @@ func _simulate(state: RunStateScript, strategy: int) -> Dictionary:
 	print(
 		(
 			(
-				"simulate: %s 攻撃が尽きて始まった戦闘 %.1f%% もがく %.1f%% (尽きていた時 %.1f%%) "
-				+ "攻撃が尽きたラン %d (初めて尽きた階層の平均 %.2f)"
+				"simulate: %s 攻撃が尽きて始まった戦闘 %.1f%% 手札に攻撃が無いターン %.1f%% "
+				+ "もがく %.1f%% (手札に攻撃が無かった時 %.1f%%) 攻撃が尽きたラン %d (初めて尽きた階層の平均 %.2f)"
 			)
 			% [
 				stats["name"],
 				stats["attackless_battle_rate"],
+				stats["attackless_turn_rate"],
 				stats["struggle_rate"],
 				stats["attackless_struggle_rate"],
 				stats["attack_out_runs"],

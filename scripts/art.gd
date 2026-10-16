@@ -102,9 +102,10 @@ const FLOAT_FONT_SIZE: int = 30
 const DAMAGE_COLOR: Color = Color(1.0, 0.38, 0.3)
 const BLOCKED_COLOR: Color = Color(0.62, 0.8, 1.0)
 ## 倒した敵が倒した時の見た目へ薄くなる長さと、最後の敵を倒してから報酬・結果の画面へ移るまでの待ち (倒す動きと
-## 決めの 1 枚が焼ける動きが見えるよう、カードを使う動きの合計 0.5 秒を少し超える長さにした)
+## 決めの 1 枚が消えるまでが見えるよう、最も長いカードを使う動き (残り 1 回・契約切れになった時の合計 0.8 秒) を
+## 少し超える長さにした)
 const DEFEAT_TIME: float = 0.4
-const WIN_DELAY: float = 0.6
+const WIN_DELAY: float = 0.9
 ## 敵の予告の切り替えと、ターンの始まりの手札のフェード
 const FADE_TIME: float = 0.2
 

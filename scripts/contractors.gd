@@ -18,6 +18,7 @@ const CONTRACTORS: Dictionary = {
 			"slash",
 			"slash",
 			"slash",
+			"slash",
 			"guard",
 			"guard",
 			"guard",

@@ -1,7 +1,8 @@
 extends SceneTree
 ## 戦略 bot の自動テストプレイ (headless。Makefile の simulate target)。3 つの戦略 (scripts/dev/strategy_bots.gd)
 ## に、同じシードの 1 幕を SEED_COUNT ランずつ遊ばせ、戦略ごとの踏破率・平均到達階層・使い切った契約の数・
-## 最後まで使わずに残った強いカードの数と、踏破率の差を OUTPUT_PATH に JSON で書く。数値の読み方
+## 最後まで使わずに残った強いカードの数・攻撃が尽きる速さ (攻撃が尽きて始まった戦闘の割合など) と、踏破率の差を
+## OUTPUT_PATH に JSON で書く。数値の読み方
 ## (判定基準としきい値) は documents/DIRECTION.md で、ここではしきい値で失敗にしない。
 ## 全部のランを終えたら「simulate OK」の行を出して quit(0) する (Makefile はこの行と JSON の存在で判定する)。
 ## 1 ランごとに 1 フレーム進める (途中の実行時エラーで止まった時に、Makefile の --quit-after が効くように)。
@@ -72,6 +73,11 @@ func _run() -> void:
 ## strategy の戦略に SEED_COUNT ラン遊ばせた集計。{"name": 戦略の名前, "runs": ランの数, "clears": 踏破した数,
 ## "clear_rate": 踏破率 (%), "average_floor": 平均到達階層, "average_exhausted": 契約を使い切った回数の平均,
 ## "average_unused_strong": ランの終わりに残り使用回数が残っていた強いカードの枚数の平均,
+## "attackless_battle_rate": 攻撃が尽きて始まった戦闘 (デッキの攻撃カードの残り使用回数の合計が 0) の、戦った
+## 戦闘に占める割合 (%), "struggle_rate": もがいた回数の、使ったカードともがいた回数の合計に占める割合 (%),
+## "attackless_struggle_rate": そのうち攻撃が尽きていた時にもがいた回数の割合 (%。温存のためのもがくを除く),
+## "average_struggles": 1 ランでもがいた回数の平均, "attack_out_runs": 攻撃が尽きたランの数,
+## "average_attack_out_floor": 攻撃が尽きたランで、初めて尽きた戦闘の階層の平均 (尽きたランが無ければ -1),
 ## "cleared_seeds": 踏破したシードの並び, "reached_floors": シードの順 (FIRST_SEED から) に並べた到達階層}。
 ## 後ろの 2 つは、make playtest で遊ばせるシードを選ぶのと、どの階層で倒れているかを読むのに使う
 func _simulate(state: RunStateScript, strategy: int) -> Dictionary:
@@ -80,6 +86,9 @@ func _simulate(state: RunStateScript, strategy: int) -> Dictionary:
 	var floors: int = 0
 	var exhausted: int = 0
 	var unused_strong: int = 0
+	var counts: Dictionary = Bots.new_counts()
+	var attack_out_runs: int = 0
+	var attack_out_floors: int = 0
 	for seed_value: int in range(FIRST_SEED, FIRST_SEED + SEED_COUNT):
 		var result: Dictionary = Bots.play_run(strategy, state, seed_value)
 		if result["cleared"]:
@@ -88,7 +97,14 @@ func _simulate(state: RunStateScript, strategy: int) -> Dictionary:
 		floors += result["floor"]
 		exhausted += result["exhausted"]
 		unused_strong += result["unused_strong"]
+		for key: String in counts:
+			if key != "attack_out_floor":
+				counts[key] += result[key]
+		if result["attack_out_floor"] >= 0:
+			attack_out_runs += 1
+			attack_out_floors += result["attack_out_floor"]
 		await process_frame
+	var moves: int = counts["plays"] + counts["struggles"]
 	var stats: Dictionary = {
 		"name": Bots.STRATEGY_NAMES[strategy],
 		"runs": SEED_COUNT,
@@ -97,6 +113,13 @@ func _simulate(state: RunStateScript, strategy: int) -> Dictionary:
 		"average_floor": snappedf(float(floors) / SEED_COUNT, 0.01),
 		"average_exhausted": snappedf(float(exhausted) / SEED_COUNT, 0.01),
 		"average_unused_strong": snappedf(float(unused_strong) / SEED_COUNT, 0.01),
+		"attackless_battle_rate": _percent(counts["attackless_battles"], counts["battles"]),
+		"struggle_rate": _percent(counts["struggles"], moves),
+		"attackless_struggle_rate": _percent(counts["attackless_struggles"], moves),
+		"average_struggles": snappedf(float(counts["struggles"]) / SEED_COUNT, 0.01),
+		"attack_out_runs": attack_out_runs,
+		"average_attack_out_floor":
+		snappedf(float(attack_out_floors) / attack_out_runs, 0.01) if attack_out_runs > 0 else -1.0,
 		"cleared_seeds": cleared_seeds,
 		"reached_floors": reached_floors,
 	}
@@ -114,4 +137,27 @@ func _simulate(state: RunStateScript, strategy: int) -> Dictionary:
 			]
 		)
 	)
+	print(
+		(
+			(
+				"simulate: %s 攻撃が尽きて始まった戦闘 %.1f%% もがく %.1f%% (尽きていた時 %.1f%%) "
+				+ "攻撃が尽きたラン %d (初めて尽きた階層の平均 %.2f)"
+			)
+			% [
+				stats["name"],
+				stats["attackless_battle_rate"],
+				stats["struggle_rate"],
+				stats["attackless_struggle_rate"],
+				stats["attack_out_runs"],
+				stats["average_attack_out_floor"],
+			]
+		)
+	)
 	return stats
+
+
+## part が whole に占める割合 (%。whole が 0 なら 0)
+func _percent(part: int, whole: int) -> float:
+	if whole == 0:
+		return 0.0
+	return snappedf(part * 100.0 / whole, 0.01)

@@ -1,5 +1,5 @@
 extends Control
-## 出来事の画面。出来事の文と選択肢を並べ、カードを選ぶ選択肢 (契約の入れ替え・血の泉) はデッキから選んで
+## 出来事の画面。出来事の文と選択肢を並べ、カードを選ぶ選択肢 (契約の入れ替え・血の泉・蝋の祭壇) はデッキから選んで
 ## 決める。選んだら結果をランに反映して地図へ戻る。処理は scripts/events.gd、選んでいる途中の選択肢と
 ## カードだけをここに持つ。
 
@@ -10,6 +10,11 @@ const NodeRules := preload("res://scripts/node_rules.gd")
 const RunFlow := preload("res://scripts/run_flow.gd")
 const RunStateScript := preload("res://scripts/run_state.gd")
 const UiKit := preload("res://scripts/ui_kit.gd")
+
+## 回数の回復の効果音を鳴らす選択肢の処理 (デッキのカードの残り使用回数が増えるもの)
+const RESTORE_SOUND_EFFECTS: Array[int] = [
+	Events.Effect.BLOOD_RESTORE, Events.Effect.RAISE_HERO, Events.Effect.RAISE_SPIRIT
+]
 
 ## ラン単位の状態 (autoload RunState)
 var run_state: RunStateScript = null
@@ -88,11 +93,11 @@ func cancel() -> void:
 	_rebuild()
 
 
-## option_index 番目の選択肢を chosen のカードで決め、地図へ戻る (決められなければ何もしない)。残り使用回数を
-## 戻す選択肢 (血の泉) なら回数の回復の効果音を鳴らす
+## option_index 番目の選択肢を chosen のカードで決め、地図へ戻る (決められなければ何もしない)。デッキのカードの
+## 残り使用回数が増える選択肢 (血の泉・蝋の祭壇) なら回数の回復の効果音を鳴らす
 func _decide(option_index: int, chosen: Array[int]) -> void:
 	if Events.choose(run_state, option_index, chosen):
-		if event["options"][option_index]["effect"] == Events.Effect.BLOOD_RESTORE:
+		if RESTORE_SOUND_EFFECTS.has(event["options"][option_index]["effect"]):
 			audio.play_se(AudioScript.Se.RESTORE)
 		RunFlow.leave_node(run_state)
 
@@ -151,16 +156,16 @@ func _can_start(option_index: int) -> bool:
 	if option["picks"] == 0:
 		var no_picks: Array[int] = []
 		return Events.can_choose(run_state, option_index, no_picks)
-	if option["effect"] == Events.Effect.BLOOD_RESTORE:
-		return run_state.hp > Events.BLOOD_PRICE and range(run_state.deck.size()).any(
-			func(index: int) -> bool: return NodeRules.can_restore(run_state, index)
+	if option["effect"] == Events.Effect.SWAP:
+		return (
+			run_state.deck.size() >= option["picks"]
+			and (
+				Events.swapped_deck_size(run_state.deck.size(), option["picks"])
+				>= NodeRules.MIN_DECK_SIZE
+			)
 		)
-	return (
-		run_state.deck.size() >= option["picks"]
-		and (
-			Events.swapped_deck_size(run_state.deck.size(), option["picks"])
-			>= NodeRules.MIN_DECK_SIZE
-		)
+	return Events.can_pay(run_state, option["effect"]) and range(run_state.deck.size()).any(
+		func(index: int) -> bool: return Events.can_pick(run_state, option["effect"], index)
 	)
 
 
@@ -171,6 +176,4 @@ func _can_pick(index: int) -> bool:
 	var option: Dictionary = event["options"][pending_option]
 	if picks.size() >= option["picks"]:
 		return false
-	if option["effect"] == Events.Effect.BLOOD_RESTORE:
-		return NodeRules.can_restore(run_state, index)
-	return true
+	return Events.can_pick(run_state, option["effect"], index)

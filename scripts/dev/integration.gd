@@ -530,13 +530,14 @@ func _check_exhausted_deck_battle_and_reward(main: MainScript) -> void:
 
 ## 地図で契約の祠に入り、「契約を更新する」で減ったカードの残り使用回数が最大まで戻る (保存にも反映される)
 func _check_shrine_restores_uses(main: MainScript) -> void:
+	# 直前の戦闘の勝ちで契約者の個性「灯守り」が回数を戻し、減ったカードが無いことがあるので、祠の画面を作る前に減らす
+	var index: int = _first_used_card()
 	await _enter_kind(main, ActMap.Kind.SHRINE)
 	var shrine: ShrineUiScript = main.screen as ShrineUiScript
 	_check(shrine != null, "地図の祠の節点で契約の祠に入る")
 	if shrine == null:
 		return
 	_check(run_state.phase == RunStateScript.Phase.SHRINE, "祠の局面")
-	var index: int = _first_used_card()
 	await _click(shrine.renew_button)
 	_check(shrine.deck_grid != null, "「契約を更新する」でカードを選ぶ")
 	if shrine.deck_grid == null or index < 0:

@@ -39,7 +39,7 @@ const INTEGRATION_SAVE_PATH: String = "user://integration_run.json"
 const INTEGRATION_SETTINGS_PATH: String = "user://integration_settings.cfg"
 ## 巡礼の地図と戦闘の乱数を固定するシード (値に意味は無く、失敗を再現できるように固定する)
 const RANDOM_SEED: int = 20261006
-## 出来事「血の泉」「蝋の祭壇」が出る地図を探すシードの数 (出来事は 4 種で、シード 1 つごとに 1 / 4 で当たる。
+## 決まった出来事が出る地図を探すシードの数 (出来事は 10 種で、シード 1 つごとに約 1 / 10 で当たる。
 ## selfcheck の _state_at_event() と同じ数)
 const EVENT_SEED_LIMIT: int = 300
 ## 戦闘の動きの終わりを実時間で待つ時の余裕 (秒)。headless の 1 フレームは数 ms (Makefile の SCRIPT_FRAME_LIMIT の

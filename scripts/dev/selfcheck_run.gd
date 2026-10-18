@@ -19,6 +19,8 @@ const SettingsScript := preload("res://scripts/settings.gd")
 const SELFCHECK_SAVE_PATH: String = "user://selfcheck_save.json"
 ## 設定の保存と読み込みの検証に使う保存先 (本番の Settings.SETTINGS_PATH とは別)
 const SELFCHECK_SETTINGS_PATH: String = "user://selfcheck_settings.cfg"
+## 出来事の種類の数 (issue #48 の「10 種程度」)
+const EVENT_COUNT_RANGE: Array[int] = [8, 12]
 ## 地図の生成の制約を確かめるシードの数 (シード 1〜MAP_SEEDS。issue #7 が例に挙げた 100 個)
 const MAP_SEEDS: int = 100
 ## 素材の置き場と、素材の出典とライセンスの記録
@@ -338,7 +340,8 @@ func _check_shop() -> void:
 
 
 ## 出来事: 定義がそろい (デッキの入れ替えと、代償と引き換えの回復を含む)、同じシードなら同じ出来事。
-## 各選択肢の結果がランに反映され、1 つの出来事で選べるのは 1 回だけ
+## 各選択肢の結果がランに反映され、1 つの出来事で選べるのは 1 回だけ。灯売りの行商・灰の炉・封蝋の骰子・
+## 写し手の机・影の質屋・英霊の塚の結果は scripts/dev/selfcheck_events.gd
 func _check_events() -> void:
 	var effects: Dictionary = {}
 	for event_id: String in Events.EVENTS:
@@ -348,7 +351,10 @@ func _check_events() -> void:
 		for option: Dictionary in event["options"]:
 			effects[option["effect"]] = true
 			_check(not option["label"].is_empty(), "選択肢の文: %s" % event_id)
-	_check(Events.EVENTS.size() >= 2 and Events.EVENTS.size() <= 4, "出来事は 2〜4 種")
+	_check(
+		Events.EVENTS.size() >= EVENT_COUNT_RANGE[0] and Events.EVENTS.size() <= EVENT_COUNT_RANGE[1],
+		"出来事は 8〜12 種"
+	)
 	_check(effects.has(Events.Effect.SWAP), "デッキの入れ替えの出来事がある")
 	_check(effects.has(Events.Effect.BLOOD_RESTORE), "代償と引き換えの回復の出来事がある")
 	_check(effects.has(Events.Effect.RAISE_HERO), "最大使用回数を増やす出来事がある")

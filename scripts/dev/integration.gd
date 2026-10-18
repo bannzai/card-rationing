@@ -1,4 +1,4 @@
-extends "res://scripts/dev/integration_contractors.gd"
+extends "res://scripts/dev/integration_events.gd"
 ## メインシーンを tree に置いて動かす入力統合テスト (headless)。画面の遷移やキー・クリックで変わる振る舞いを
 ## 足したら、ここに検証を足す。実行方法は AGENTS.md「検証方法」を参照。
 ## キーは root.push_input() に InputEventKey を、クリックはボタンの中心への InputEventMouseButton を渡して起こす。
@@ -7,7 +7,8 @@ extends "res://scripts/dev/integration_contractors.gd"
 ## 場面ごとに鳴る BGM と効果音は、autoload Audio のプレイヤーが鳴っているかで確かめる (headless でも再生の状態は
 ## 進む)。効果音は直前の操作のものが鳴り終わっていないことがあるため、確かめる操作の前に _stop_se() で止める。
 ## 定数・autoload の参照・操作の部品は scripts/dev/integration_base.gd に、護符の検証は scripts/dev/integration_relics.gd
-## に、契約者の選択と個性の検証は scripts/dev/integration_contractors.gd に置く。
+## に、契約者の選択と個性の検証は scripts/dev/integration_contractors.gd に、出来事の画面の検証は
+## scripts/dev/integration_events.gd に置く。
 
 ## tree の準備が終わってから _run() を始める (シーンの追加は _initialize() の後でないとできない)
 func _initialize() -> void:
@@ -70,6 +71,9 @@ func _run() -> void:
 	await _check_shop_relic(main)
 	await _check_elite_relic(main)
 	await _check_blood_spring_sound(main)
+	await _check_event_layouts(main)
+	await _check_ash_furnace(main)
+	await _check_seal_dice(main)
 	await _check_wax_altar(main)
 	await _check_deck_list(main)
 	await _check_save_and_continue(main)
@@ -658,100 +662,6 @@ func _check_shop(main: MainScript) -> void:
 		_check(false, "商人で残り使用回数を戻すカードを選べる")
 	await _click(shop.leave_button)
 	_check(main.screen is MapUiScript and run_state.phase == RunStateScript.Phase.MAP, "商人の後は地図")
-
-
-## 地図で出来事に入り、カードを選ばない選択肢を選ぶと地図へ戻る
-func _check_event(main: MainScript) -> void:
-	await _enter_kind(main, ActMap.Kind.EVENT)
-	var event_ui: EventUiScript = main.screen as EventUiScript
-	_check(event_ui != null, "地図の出来事の節点で出来事に入る")
-	if event_ui == null:
-		return
-	var last: Button = event_ui.option_buttons.back()
-	_check(not last.disabled, "最後の選択肢 (カードを選ばない) を選べる")
-	await _click(last)
-	_check(main.screen is MapUiScript and run_state.phase == RunStateScript.Phase.MAP, "出来事の後は地図")
-
-
-## 出来事「血の泉」で体力を払って残り使用回数を戻すと、回数の回復の効果音が鳴って地図へ戻る (血の泉が出る
-## 地図のシードを 1 から順に探し、その巡礼の出来事の節点に入る)
-func _check_blood_spring_sound(main: MainScript) -> void:
-	if not _start_run_at_event("blood_spring"):
-		return
-	run_state.use_card(0)
-	main.show_run_phase()
-	await _settle()
-	var event_ui: EventUiScript = main.screen as EventUiScript
-	if event_ui == null:
-		_check(false, "血の泉の検証: 出来事の画面が出る")
-		return
-	await _click(event_ui.option_buttons[0])
-	if event_ui.deck_grid == null:
-		_check(false, "血の泉で残り使用回数を戻すカードを選べる")
-		return
-	await _click(event_ui.deck_grid.get_child(0) as Button)
-	_stop_se()
-	await _click(event_ui.confirm_button)
-	_check(
-		run_state.uses_left(0) == run_state.card(0)["max_uses"],
-		"血の泉で残り使用回数が最大に戻る"
-	)
-	_check(_se_playing(AudioScript.Se.RESTORE), "血の泉で回数の回復の効果音が鳴る")
-	_check(main.screen is MapUiScript, "血の泉の後は地図")
-
-
-## 出来事「蝋の祭壇」で体力を払って契約切れの英霊を選ぶと、最大と残りの使用回数が 1 増え (精霊と、増やしきった
-## 英霊は選べない)、回数の回復の効果音が鳴って地図へ戻る。契約の一覧の封蝋の印が増えた最大の数だけ並び、増えた
-## 最大は「続きから」の後も保たれる。以後の検証はこの巡礼で続ける
-func _check_wax_altar(main: MainScript) -> void:
-	if not _start_run_at_event("wax_altar"):
-		return
-	_set_deck(["slash", "hero_strike", "hero_wall", "guard"])
-	while run_state.use_card(1):
-		pass
-	Events.raise_max_uses(run_state, 2)
-	main.show_run_phase()
-	await _settle()
-	var event_ui: EventUiScript = main.screen as EventUiScript
-	if event_ui == null:
-		_check(false, "蝋の祭壇の検証: 出来事の画面が出る")
-		return
-	await _click(event_ui.option_buttons[0])
-	if event_ui.deck_grid == null:
-		_check(false, "蝋の祭壇で最大使用回数を増やす英霊を選べる")
-		return
-	_check(
-		(event_ui.deck_grid.get_child(3) as Button).disabled,
-		"英霊を増やす選択肢では、まだ増やせる精霊 (守りの風) も選べない"
-	)
-	_check((event_ui.deck_grid.get_child(2) as Button).disabled, "最大使用回数を増やしきった英霊は選べない")
-	var max_before: int = Cards.deck_max_uses(run_state.deck[1])
-	var hp_before: int = run_state.hp
-	await _click(event_ui.deck_grid.get_child(1) as Button)
-	_stop_se()
-	await _click(event_ui.confirm_button)
-	_check(
-		Cards.deck_max_uses(run_state.deck[1]) == max_before + 1 and run_state.uses_left(1) == 1,
-		"蝋の祭壇で英霊の最大と残りの使用回数が 1 増える"
-	)
-	_check(run_state.hp == hp_before - Events.RAISE_HERO_PRICE, "蝋の祭壇で体力を払う")
-	_check(_se_playing(AudioScript.Se.RESTORE), "蝋の祭壇で回数の回復の効果音が鳴る")
-	_check(main.screen is MapUiScript, "蝋の祭壇の後は地図")
-	await _press_key(KEY_D)
-	var raised: CardViewScript = null
-	for view: CardViewScript in main.deck_list.list_grid.get_children():
-		if view.card_id == "hero_strike":
-			raised = view
-	_check(
-		raised != null and _seal_counts(raised) == Vector2i(1, max_before),
-		"契約の一覧で、増えた最大の数だけ封蝋の印が並ぶ"
-	)
-	await _press_key(KEY_ESCAPE)
-	await _quit_and_continue(main)
-	_check(
-		Cards.deck_max_uses(run_state.deck[1]) == max_before + 1 and run_state.uses_left(1) == 1,
-		"増えた最大使用回数が「続きから」の後も保たれる"
-	)
 
 
 ## 地図で D を押すと契約の一覧が開き、全カードを並べ、キーでスクロールでき、並べ方を変えられ、Esc で閉じる

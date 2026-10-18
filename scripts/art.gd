@@ -50,6 +50,19 @@ const ENEMY_ART: Dictionary = {
 	Enemies.Rank.ELITE: preload("res://assets/art/enemy_elite.png"),
 	Enemies.Rank.BOSS: preload("res://assets/art/enemy_boss.png"),
 }
+## 出来事 ID (scripts/events.gd の EVENTS のキー) → 出来事の画面の絵
+const EVENT_ART: Dictionary = {
+	"nameless_grave": preload("res://assets/art/event_nameless_grave.jpg"),
+	"blood_spring": preload("res://assets/art/event_blood_spring.jpg"),
+	"lost_spirit": preload("res://assets/art/event_lost_spirit.jpg"),
+	"wax_altar": preload("res://assets/art/event_wax_altar.jpg"),
+	"hero_barrow": preload("res://assets/art/event_hero_barrow.jpg"),
+	"candle_peddler": preload("res://assets/art/event_candle_peddler.jpg"),
+	"ash_furnace": preload("res://assets/art/event_ash_furnace.jpg"),
+	"seal_dice": preload("res://assets/art/event_seal_dice.jpg"),
+	"scribe_desk": preload("res://assets/art/event_scribe_desk.jpg"),
+	"shadow_pawn": preload("res://assets/art/event_shadow_pawn.jpg"),
+}
 ## 地図の節点の種類 → 印
 const MAP_ICONS: Dictionary = {
 	ActMap.Kind.BATTLE: preload("res://assets/art/map_battle.png"),

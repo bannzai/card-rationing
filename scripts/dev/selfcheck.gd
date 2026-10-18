@@ -1,10 +1,10 @@
-extends "res://scripts/dev/selfcheck_run.gd"
+extends "res://scripts/dev/selfcheck_relics.gd"
 ## 純粋なロジックとプロジェクト設定の検証 (headless)。ゲームのルール (カードの残り使用回数・戦闘・マップ・
 ## イベント) の計算を足したら、ここに検証を足す。実行方法は AGENTS.md「検証方法」を参照。地図・局面の移り変わり・
-## 報酬・祠・商人・出来事・契約の一覧・設定・音・素材の記録の検証は継承元の scripts/dev/selfcheck_run.gd にある。
+## 報酬・祠・商人・出来事・契約の一覧・設定・音・素材の記録の検証は継承元の scripts/dev/selfcheck_run.gd に、護符の
+## 検証と共有の部品は継承元の scripts/dev/selfcheck_relics.gd にある。
 
 const Art := preload("res://scripts/art.gd")
-const BattleScript := preload("res://scripts/battle.gd")
 const Bots := preload("res://scripts/dev/strategy_bots.gd")
 
 ## 起動検証 (main_scene の --quit) ではロードされない遷移先も含めた全シーン
@@ -48,11 +48,8 @@ const EARLY_UPPER_SHARE_LIMIT: float = 0.1
 const ENEMY_HP_RANGE: Array[int] = [1, 300]
 const MOVE_VALUE_RANGE: Array[int] = [1, 40]
 const MOVE_HITS_RANGE: Array[int] = [1, 5]
-## 短い文言 (カード・敵・契約者の名前、カードの効果の文) に使わない句読点
-## (~/.claude/rules/coding-rules-general-user-facing-short-copy-punctuation.md)
-const SHORT_COPY_PUNCTUATION: Array[String] = ["、", "。", "，", "．"]
-## 戦略 bot の検証で遊ばせる地図のシード (値に意味は無く、検証のたびに同じ地図になるよう固定する)
-const BOT_SEED: int = 7
+## 護符を手に入れるランを探すシードの数 (強敵か商人で護符を得るランは多いので、数個で見つかる。見つからなければ失敗)
+const BOT_RELIC_SEED_LIMIT: int = 30
 ## 起動時に表示するシーン
 const MAIN_SCENE_PATH: String = "res://scenes/main.tscn"
 ## ADR 0001 で決めたレンダラ (CI の Xvfb + Mesa llvmpipe で描画できるもの)
@@ -92,6 +89,10 @@ func _initialize() -> void:
 	_check_audio()
 	_check_credits()
 	_check_strategy_bots()
+	_check_relic_definitions()
+	_check_relic_battle_effects()
+	_check_unburnt_seal()
+	_check_relic_sources()
 	# Makefile の WARNING / ERROR 検査が行頭の接頭辞だけを見ることの回帰検査 (この行で落ちてはいけない)
 	print("selfcheck note: a normal line may mention error and warning words")
 	_finish()
@@ -420,6 +421,9 @@ func _check_save_and_load() -> void:
 	state.phase = RunStateScript.Phase.BATTLE
 	state.gold = 12
 	state.battles_won = 2
+	state.add_relic("unburnt_seal")
+	state.add_relic("ember_edge")
+	state.relic_rolls = 5
 	_check(state.save_to(SELFCHECK_SAVE_PATH) == OK, "保存できる")
 	_check(not FileAccess.file_exists(SELFCHECK_SAVE_PATH + ".tmp"), "保存の後に書きかけのファイルが残らない")
 	_check(state.save_to(SELFCHECK_SAVE_PATH) == OK, "既にある保存データを置き換えて保存できる")
@@ -433,6 +437,10 @@ func _check_save_and_load() -> void:
 	_check(other.path == state.path and other.phase == state.phase, "往復で通った道と局面が保たれる")
 	_check(other.exhausted_count == 1 and other.battles_won == 2, "往復でランの結果の数が保たれる")
 	_check(other.character_id == Contractors.FIRST_CONTRACTOR, "往復で契約者が保たれる")
+	_check(
+		other.relics == state.relics and other.relic_rolls == 5,
+		"往復で護符 (手に入れた順) と焼けぬ封蝋の判定の通し番号が保たれる"
+	)
 	_remove_user_file(SELFCHECK_SAVE_PATH)
 	state.free()
 	other.free()
@@ -449,6 +457,8 @@ func _check_corrupt_save() -> void:
 		"hp": 1,
 		"max_hp": 1,
 		"gold": 0,
+		"relics": [],
+		"relic_rolls": 0,
 		"act": 1,
 		"map_seed": 0,
 		"path": [],
@@ -498,6 +508,12 @@ func _check_corrupt_save() -> void:
 		{"deck": [{"id": "slash", "uses_left": 99}]},
 		{"deck": [{"id": "slash", "uses_left": -1}]},
 		{"deck": [{"id": "slash"}]},
+		{"relics": "x"},
+		{"relics": [1]},
+		{"relics": ["nope"]},
+		{"relics": ["ember_edge", "ember_edge"]},
+		{"relic_rolls": -1},
+		{"relic_rolls": 0.5},
 	]
 	var texts: Array[String] = ["{not json", '{"version": 1, "deck": "x"}']
 	for defect: Dictionary in broken:
@@ -832,6 +848,19 @@ func _check_strategy_bots() -> void:
 		_bot_move(Bots.Strategy.ADAPT, battle, state) == Bots.BattleMove.PLAY,
 		"状況で使い分けるは、強敵との戦闘では使う"
 	)
+	# 護符を手に入れるランでも、同じシードなら同じ結果 (焼けぬ封蝋の判定もシードから決まる)
+	var relic_seed: int = -1
+	for seed_value: int in range(1, BOT_RELIC_SEED_LIMIT + 1):
+		if Bots.play_run(Bots.Strategy.SPEND, state, seed_value)["relics"] > 0:
+			relic_seed = seed_value
+			break
+	_check(relic_seed > 0, "護符を手に入れるランがある (シード 1〜%d)" % BOT_RELIC_SEED_LIMIT)
+	if relic_seed > 0:
+		var with_relic: Dictionary = Bots.play_run(Bots.Strategy.SPEND, state, relic_seed)
+		_check(
+			with_relic == Bots.play_run(Bots.Strategy.SPEND, state, relic_seed),
+			"護符を手に入れるランも同じシードなら同じ結果 (シード %d)" % relic_seed
+		)
 	state.free()
 	_remove_user_file(SELFCHECK_SAVE_PATH)
 
@@ -839,27 +868,6 @@ func _check_strategy_bots() -> void:
 ## strategy の戦略が battle で次に取る 1 手の種類 (Bots.BattleMove)
 func _bot_move(strategy: int, battle: BattleScript, state: RunStateScript) -> int:
 	return Bots.battle_move(strategy, battle, state)["move"]
-
-
-## battle の手札の中で card_id のカードがある位置 (無ければ -1)
-func _hand_index_of(battle: BattleScript, state: RunStateScript, card_id: String) -> int:
-	for hand_index: int in range(battle.hand.size()):
-		if state.deck[battle.hand[hand_index]]["id"] == card_id:
-			return hand_index
-	return -1
-
-
-## value が bounds ([最小, 最大]) の範囲内か
-func _in_range(value: Variant, bounds: Array) -> bool:
-	return value >= bounds[0] and value <= bounds[1]
-
-
-## 短い文言に句読点が無いか (SHORT_COPY_PUNCTUATION のどれも含まない)
-func _is_short_copy(text: String) -> bool:
-	for mark: String in SHORT_COPY_PUNCTUATION:
-		if text.contains(mark):
-			return false
-	return true
 
 
 ## 敵の格と幕の前半・後半ごとの組み合わせの候補に出る敵の体力の並び

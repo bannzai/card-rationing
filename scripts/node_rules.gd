@@ -1,11 +1,12 @@
 extends RefCounted
-## 地図の節点 (戦闘の報酬・契約の祠・商人) の品揃え・値段と、受け取る・払う処理。品揃えは節点のシード
+## 地図の節点 (戦闘の報酬・契約の祠・商人) の品揃え・値段と、受け取る・払う処理 (戦闘に勝った時の契約者の個性を含む)。品揃えは節点のシード
 ## (RunState.node_seed()) から決まり、同じ節点に入り直しても同じになる。1 つの節点で済ませたことは
 ## RunState.visit に記録し、同じ節点で 2 回受け取れないようにする。数値の根拠は documents/DIRECTION.md
 ## 「決めたこと」で、自動テストプレイ (#10) の結果で見直す。
 
 const ActMap := preload("res://scripts/act_map.gd")
 const Cards := preload("res://scripts/cards.gd")
+const Contractors := preload("res://scripts/contractors.gd")
 const Relics := preload("res://scripts/relics.gd")
 const RunStateScript := preload("res://scripts/run_state.gd")
 
@@ -154,6 +155,28 @@ static func take_reward_card(state: RunStateScript, card_id: String) -> bool:
 	state.add_card(card_id)
 	state.visit["taken"] = true
 	return true
+
+
+## 戦闘 (通常・強敵) に勝った時の契約者の個性 win_restore (scripts/contractors.gd): 精霊のうち最大使用回数から
+## 減っている回数が最も多いカード 1 枚 (同じならデッキの先) の残り使用回数を win_restore 回戻し、その index を
+## RunState.visit["win_restored"] に記録して返す (報酬の画面が見せる)。英霊は戻さない (強く回数の少ない英霊を
+## いつ切るかの判断を残すため)。個性が無いか、減っている精霊が無ければ何もせず -1
+static func win_restore(state: RunStateScript) -> int:
+	var amount: int = Contractors.trait_value(state.character_id, "win_restore")
+	var best_index: int = -1
+	var best_missing: int = 0
+	for index: int in range(state.deck.size()):
+		if state.card(index)["bond"] != Cards.Bond.SPIRIT:
+			continue
+		var missing: int = state.card(index)["max_uses"] - state.uses_left(index)
+		if missing > best_missing:
+			best_missing = missing
+			best_index = index
+	if amount <= 0 or best_index < 0:
+		return -1
+	state.restore_uses(best_index, amount)
+	state.visit["win_restored"] = best_index
+	return best_index
 
 
 ## 契約の祠で、デッキの index 番目のカードの契約を更新する (残り使用回数を最大まで戻す。代価なし。

@@ -1,4 +1,4 @@
-extends "res://scripts/dev/integration_relics.gd"
+extends "res://scripts/dev/integration_contractors.gd"
 ## メインシーンを tree に置いて動かす入力統合テスト (headless)。画面の遷移やキー・クリックで変わる振る舞いを
 ## 足したら、ここに検証を足す。実行方法は AGENTS.md「検証方法」を参照。
 ## キーは root.push_input() に InputEventKey を、クリックはボタンの中心への InputEventMouseButton を渡して起こす。
@@ -7,7 +7,7 @@ extends "res://scripts/dev/integration_relics.gd"
 ## 場面ごとに鳴る BGM と効果音は、autoload Audio のプレイヤーが鳴っているかで確かめる (headless でも再生の状態は
 ## 進む)。効果音は直前の操作のものが鳴り終わっていないことがあるため、確かめる操作の前に _stop_se() で止める。
 ## 定数・autoload の参照・操作の部品は scripts/dev/integration_base.gd に、護符の検証は scripts/dev/integration_relics.gd
-## に置く。
+## に、契約者の選択と個性の検証は scripts/dev/integration_contractors.gd に置く。
 
 ## 戦闘の動きの終わりを実時間で待つ時の余裕 (秒)。headless の 1 フレームは数 ms (Makefile の SCRIPT_FRAME_LIMIT の
 ## 根拠) なので、動きの最後のフレームの後に queue_free が済むまでには数十 ms で足り、CI の runner の遅れを見込んで
@@ -80,6 +80,7 @@ func _run() -> void:
 	await _check_save_and_continue(main)
 	await _check_clear_returns_to_title(main)
 	await _check_defeat_returns_to_title(main)
+	await _check_contractor_traits(main)
 	await _check_settings_saved(main)
 	main.queue_free()
 	await process_frame
@@ -547,7 +548,7 @@ func _check_battle_resume_keeps_uses(main: MainScript) -> void:
 		enemy["intent"] = {"move": Enemies.Move.ATTACK, "value": 4}
 	await _press_key(KEY_ENTER)
 	var hp_after_attack: int = run_state.hp
-	_check(hp_after_attack < RunStateScript.START_HP, "敵の攻撃で体力が減る")
+	_check(hp_after_attack < run_state.max_hp, "敵の攻撃で体力が減る")
 	await _quit_and_continue(main)
 	_check(run_state.hp == hp_after_attack, "ターンの終わりに保存され、再開しても体力が戻らない")
 
@@ -608,13 +609,14 @@ func _check_exhausted_deck_battle_and_reward(main: MainScript) -> void:
 
 ## 地図で契約の祠に入り、「契約を更新する」で減ったカードの残り使用回数が最大まで戻る (保存にも反映される)
 func _check_shrine_restores_uses(main: MainScript) -> void:
+	# 直前の戦闘の勝ちで契約者の個性「灯守り」が回数を戻し、減ったカードが無いことがあるので、祠の画面を作る前に減らす
+	var index: int = _first_used_card()
 	await _enter_kind(main, ActMap.Kind.SHRINE)
 	var shrine: ShrineUiScript = main.screen as ShrineUiScript
 	_check(shrine != null, "地図の祠の節点で契約の祠に入る")
 	if shrine == null:
 		return
 	_check(run_state.phase == RunStateScript.Phase.SHRINE, "祠の局面")
-	var index: int = _first_used_card()
 	await _click(shrine.renew_button)
 	_check(shrine.deck_grid != null, "「契約を更新する」でカードを選ぶ")
 	if shrine.deck_grid == null or index < 0:

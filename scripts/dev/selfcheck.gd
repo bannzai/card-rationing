@@ -674,7 +674,9 @@ func _check_raised_max_uses() -> void:
 		"英霊の最大と残りが 1 増える"
 	)
 	_check(state.hp == RunStateScript.START_HP - Events.RAISE_HERO_PRICE, "英霊を増やすと体力を払う")
+	state.gold = Events.RAISE_SPIRIT_PRICE
 	_check(not Events.choose(state, 1, spirit), "出来事で増やせるのは 1 回だけ")
+	state.gold = 0
 	state.visit = {}
 	_check(not Events.choose(state, 0, hero), "英霊は区分の回数を超えて増やせない")
 	state.hp = Events.RAISE_HERO_PRICE

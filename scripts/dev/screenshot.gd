@@ -179,7 +179,8 @@ func _show_event() -> bool:
 
 
 ## 出来事「蝋の祭壇」(体力と所持金が足りて、3 つの選択肢をどれも選べる)。蝋の祭壇が出る地図のシードを 1 から順に
-## 探す。デッキには、最大使用回数を増やした盾の英霊 (封蝋の印が 2 つ) と契約切れの雷槍の英霊を入れる
+## 探す。デッキの先頭 (カードを選ぶ格子の 1 行目) に、契約切れの雷槍の英霊と、最大使用回数を増やした盾の英霊
+## (封蝋の印が 2 つ) を置く
 func _show_wax_altar() -> bool:
 	for seed_value: int in range(1, EVENT_SEED_LIMIT + 1):
 		run_state.new_run([], seed_value)
@@ -188,10 +189,10 @@ func _show_wax_altar() -> bool:
 		if Events.event_for(run_state.node_seed()) != "wax_altar":
 			continue
 		_set_deck(
-			["slash", "slash", "guard", "guard", "spirit_arrow", "breath", "hero_strike", "hero_wall"]
+			["hero_strike", "hero_wall", "slash", "slash", "guard", "guard", "spirit_arrow", "breath"]
 		)
-		run_state.use_card(6)
-		run_state.raise_max_uses(7)
+		run_state.use_card(0)
+		run_state.raise_max_uses(1)
 		run_state.gold = 40
 		_show_route(run_state.path, RunStateScript.Phase.EVENT)
 		return true

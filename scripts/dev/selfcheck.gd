@@ -1,9 +1,10 @@
-extends "res://scripts/dev/selfcheck_contractors.gd"
+extends "res://scripts/dev/selfcheck_events.gd"
 ## 純粋なロジックとプロジェクト設定の検証 (headless)。ゲームのルール (カードの残り使用回数・戦闘・マップ・
 ## イベント) の計算を足したら、ここに検証を足す。実行方法は AGENTS.md「検証方法」を参照。地図・局面の移り変わり・
 ## 報酬・祠・商人・出来事・契約の一覧・設定・音・素材の記録の検証は継承元の scripts/dev/selfcheck_run.gd に、護符の
 ## 検証と共有の部品は継承元の scripts/dev/selfcheck_relics.gd に、契約者の個性の検証は継承元の
-## scripts/dev/selfcheck_contractors.gd にある。
+## scripts/dev/selfcheck_contractors.gd に、出来事の絵と取り引きの出来事の検証は継承元の
+## scripts/dev/selfcheck_events.gd にある。
 
 const Bots := preload("res://scripts/dev/strategy_bots.gd")
 
@@ -84,6 +85,13 @@ func _initialize() -> void:
 	_check_shrine()
 	_check_shop()
 	_check_events()
+	_check_event_art_and_leave()
+	_check_hero_barrow()
+	_check_candle_peddler()
+	_check_ash_furnace()
+	_check_seal_dice()
+	_check_scribe_desk()
+	_check_shadow_pawn()
 	_check_raised_max_uses()
 	_check_raised_max_uses_save()
 	_check_deck_sort()

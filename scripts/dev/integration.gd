@@ -1,4 +1,4 @@
-extends "res://scripts/dev/integration_base.gd"
+extends "res://scripts/dev/integration_contractors.gd"
 ## メインシーンを tree に置いて動かす入力統合テスト (headless)。画面の遷移やキー・クリックで変わる振る舞いを
 ## 足したら、ここに検証を足す。実行方法は AGENTS.md「検証方法」を参照。
 ## キーは root.push_input() に InputEventKey を、クリックはボタンの中心への InputEventMouseButton を渡して起こす。
@@ -6,7 +6,8 @@ extends "res://scripts/dev/integration_base.gd"
 ## (起動し直した時と同じく、保存データだけから戻す)。
 ## 場面ごとに鳴る BGM と効果音は、autoload Audio のプレイヤーが鳴っているかで確かめる (headless でも再生の状態は
 ## 進む)。効果音は直前の操作のものが鳴り終わっていないことがあるため、確かめる操作の前に _stop_se() で止める。
-## 定数・autoload の参照・操作の部品は scripts/dev/integration_base.gd に置く。
+## 定数・autoload の参照・操作の部品は scripts/dev/integration_base.gd に、契約者の選択と個性の検証は
+## scripts/dev/integration_contractors.gd に置く。
 
 ## 戦闘の動きの終わりを実時間で待つ時の余裕 (秒)。headless の 1 フレームは数 ms (Makefile の SCRIPT_FRAME_LIMIT の
 ## 根拠) なので、動きの最後のフレームの後に queue_free が済むまでには数十 ms で足り、CI の runner の遅れを見込んで
@@ -34,8 +35,9 @@ func _run() -> void:
 	run_state.save_path = INTEGRATION_SAVE_PATH
 	settings.settings_path = INTEGRATION_SETTINGS_PATH
 	# 入力の直後の画面を確かめる検証が、勝った後の画面の切り替えの待ちや動きの途中の表示に左右されないよう、戦闘の
-	# 動きを止める (動きを付けたまま確かめるのは、倍率を 1 に戻して呼ぶ _check_input_during_motion() と
-	# _check_win_waits_for_motion() だけ。途中で return しても 0 に戻るよう、倍率は呼ぶ側で切り替える)
+	# 動きを止める (動きを付けたまま確かめるのは、倍率を 1 に戻して呼ぶ _check_input_during_motion()・
+	# _check_input_during_attack_motion()・_check_win_waits_for_motion() だけ。途中で return しても 0 に戻るよう、
+	# 倍率は呼ぶ側で切り替える)
 	Art.motion_scale = 0.0
 	_remove_user_file(INTEGRATION_SAVE_PATH)
 	_remove_user_file(INTEGRATION_SETTINGS_PATH)
@@ -59,6 +61,7 @@ func _run() -> void:
 	await _check_hand_fits_after_draw(main)
 	Art.motion_scale = 1.0
 	await _check_input_during_motion(main)
+	await _check_input_during_attack_motion(main)
 	Art.motion_scale = 0.0
 	await _check_battle_resume_keeps_uses(main)
 	await _check_exhausted_deck_battle_and_reward(main)
@@ -404,17 +407,98 @@ func _check_win_waits_for_motion(main: MainScript) -> void:
 	)
 
 
-## 戦闘の動きがすべて終わるまで待つ時間 (秒)。最も長い動き (残り 1 回・契約切れになったカードを使う動きと、浮かぶ
-## 数字の大きい方) に MOTION_MARGIN を足す
-func _motion_settle_time() -> float:
+## 攻撃の演出の途中に続けて入力しても、戦闘の状態と表示が壊れない: 複数回の攻撃 (双つ灯) は当たりごとに数字が
+## 浮き、その演出の途中に全体の攻撃 (熾火の波)・英霊の攻撃 (雷槍の英霊) をキーで、単体の攻撃 (斬火) を画面の
+## 閃光が出ている間にクリックで、対象の選択を挟んで続けて使い、ターンを終える。敵の体力・エネルギー・残り使用回数は入力の時に変わる。全体の攻撃は波の輪、英霊の
+## 攻撃は画面の閃光を出す。演出が終わると層が空になり、敵と画面の位置と色が元に戻る
+func _check_input_during_attack_motion(main: MainScript) -> void:
+	var battle_ui: BattleUiScript = main.screen as BattleUiScript
+	if battle_ui == null:
+		_check(false, "攻撃の演出の検証: 戦闘の画面が出ている")
+		return
+	var ids: Array[String] = ["twin_flame", "ember_wave", "hero_strike", "slash", "guard"]
+	_set_deck(ids)
+	_start_battle_with(battle_ui, ["wild_dog", "skeleton"], 1)
+	# 4 枚の攻撃で倒れない体力にし、4 枚を 1 ターンで使えるエネルギーにする (値は検証の都合で、意味は無い)
+	for enemy: Dictionary in battle_ui.battle.enemies:
+		enemy["hp"] = 100
+		enemy["max_hp"] = 100
+	battle_ui.battle.energy = 10
+	battle_ui.refresh()
+	await _settle()
+	var twin: Dictionary = Cards.CARDS["twin_flame"]
+	await _press_key(KEY_1 + _hand_index_of(battle_ui, "twin_flame"))
+	await _press_key(KEY_1)
+	_check(
+		battle_ui.battle.enemies[0]["hp"] == 100 - twin["damage"] * twin["hits"],
+		"双つ灯の当たりはすべて、入力の時に敵の体力へ反映される"
+	)
+	await create_timer(Art.HIT_INTERVAL + MOTION_MARGIN).timeout
+	_check(
+		_count_labels(battle_ui.effects_layer, "-%d" % twin["damage"]) == twin["hits"],
+		"双つ灯は当たりごとに減った体力の数字が浮く"
+	)
+	await _press_key(KEY_1 + _hand_index_of(battle_ui, "ember_wave"))
+	_check(_has_wave(battle_ui.effects_layer), "全体の攻撃は波の輪を出す")
+	await _press_key(KEY_1 + _hand_index_of(battle_ui, "hero_strike"))
+	await _press_key(KEY_2)
+	_check(_has_screen_flash(battle_ui.effects_layer), "英霊の攻撃は画面を光らせる")
+	_check(_ignores_mouse(battle_ui.effects_layer), "画面の閃光と攻撃の演出はすべてマウスを通す")
+	await _click(_hand_buttons(battle_ui)[_hand_index_of(battle_ui, "slash")])
+	await _press_key(KEY_1)
+	var enemies: Array[Dictionary] = battle_ui.battle.enemies
+	var wave: int = Cards.CARDS["ember_wave"]["damage"]
+	var spent: int = 0
+	var all_used: bool = true
+	for deck_index: int in range(ids.size() - 1):
+		var card: Dictionary = Cards.CARDS[ids[deck_index]]
+		spent += card["cost"]
+		all_used = all_used and run_state.uses_left(deck_index) == card["max_uses"] - 1
+	_check(
+		(
+			enemies[0]["hp"] == 100 - twin["damage"] * twin["hits"] - wave - Cards.CARDS["slash"]["damage"]
+			and enemies[1]["hp"] == 100 - wave - Cards.CARDS["hero_strike"]["damage"]
+			and battle_ui.battle.energy == 10 - spent
+			and battle_ui.battle.hand.size() == 1
+			and all_used
+		),
+		"攻撃の演出の途中に続けて使ったカードも、敵の体力・エネルギー・手札・残り使用回数に反映される"
+	)
+	await _press_key(KEY_ENTER)
+	_check(battle_ui.battle.turn == 2, "攻撃の演出の途中に Enter でターンを終える")
+	await create_timer(_motion_settle_time(enemies.size())).timeout
+	await _settle()
+	_check(battle_ui.effects_layer.get_child_count() == 0, "攻撃の演出が終わると、層の子がすべて消える")
+	var restored: bool = battle_ui.position.is_equal_approx(battle_ui.screen_base)
+	for view: EnemyViewScript in battle_ui.enemy_row.get_children():
+		restored = (
+			restored
+			and view.column.position.is_equal_approx(Vector2.ZERO)
+			and view.art.self_modulate.is_equal_approx(Color.WHITE)
+		)
+	_check(restored, "攻撃の演出が終わると、画面と敵の位置と色が元に戻る")
+
+
+## 戦闘の動きがすべて終わるまで待つ時間 (秒)。最も長い動き (残り 1 回・契約切れになったカードを使う動きと、
+## 敵 enemy_count 体の戦闘で最も遅く当たる攻撃の最後の当たりから、当たりの後で最も長い浮かぶ数字の終わりまでの
+## 大きい方) に MOTION_MARGIN を足す
+func _motion_settle_time(enemy_count: int = 1) -> float:
+	var last_hit: float = 0.0
+	for card: Dictionary in Cards.CARDS.values():
+		if not card.has("damage"):
+			continue
+		var order: int = enemy_count - 1 if card.get("area", false) else 0
+		var delay: float = Art.attack_delay(card.get("hits", 1) - 1, order)
+		if card["bond"] == Cards.Bond.HERO:
+			delay += Art.HERO_HITSTOP
+		last_hit = maxf(last_hit, delay)
 	return (
 		maxf(
 			Art.CARD_LIFT_TIME + Art.SEAL_FLASH_TIME + Art.STRONG_TIME + Art.CARD_FLY_TIME,
-			Art.FLOAT_TIME
+			last_hit + Art.FLOAT_TIME
 		)
 		+ MOTION_MARGIN
 	)
-
 
 ## node と、その下のすべての Control がマウスを通すか
 func _ignores_mouse(node: Node) -> bool:
@@ -793,89 +877,6 @@ func _check_defeat_returns_to_title(main: MainScript) -> void:
 	_check(not main.deck_button.visible, "結果の画面では契約の一覧のボタンが出ない")
 	await _click(result.title_button)
 	_check(main.screen is TitleUiScript, "敗北の後はタイトルへ戻る")
-
-
-## 契約者の選択と個性: 全員のボタンが画面に収まり、フォーカスを移すとその契約者の立ち絵と個性が出る。どの契約者を
-## 選んでも、その初期デッキ・最大体力で巡礼が始まり、戦闘ではその立ち絵が出て、最初のターンのエネルギーと手札の
-## 枚数に個性が効く。戦闘の途中から「続きから」で再開しても同じ契約者で、個性が効く。最後にタイトルへ戻る
-func _check_contractor_traits(main: MainScript) -> void:
-	for contractor_id: String in Contractors.CONTRACTORS:
-		var title: TitleUiScript = main.screen as TitleUiScript
-		if title == null:
-			_check(false, "契約者の検証: タイトルが出ている (%s)" % contractor_id)
-			return
-		await _click(title.start_button)
-		var select: CharacterSelectUiScript = main.screen as CharacterSelectUiScript
-		if select == null:
-			_check(false, "契約者の検証: 契約者の選択が出る (%s)" % contractor_id)
-			return
-		_check(select.character_buttons.size() == Contractors.CONTRACTORS.size(), "全員の契約者のボタンがある")
-		var buttons: Array = select.character_buttons.values()
-		buttons.append(select.back_button)
-		for button: Button in buttons:
-			_check(button.get_global_rect().end.y <= root.size.y, "契約者の選択のボタンが画面の高さに収まる")
-		var contractor: Dictionary = Contractors.CONTRACTORS[contractor_id]
-		(select.character_buttons[contractor_id] as Button).grab_focus()
-		await _settle()
-		_check(
-			(
-				select.shown_id == contractor_id
-				and select.portrait.texture == Art.PORTRAITS[contractor_id]
-				and select.detail_label.text.contains(contractor["trait_name"])
-			),
-			"フォーカスした契約者の立ち絵と個性が出る: %s" % contractor_id
-		)
-		await _click(select.character_buttons[contractor_id])
-		_check(
-			(
-				run_state.character_id == contractor_id
-				and run_state.deck.size() == Contractors.starter_deck(contractor_id).size()
-				and run_state.hp == contractor["max_hp"]
-				and run_state.max_hp == contractor["max_hp"]
-			),
-			"選んだ契約者の初期デッキと最大体力で巡礼が始まる: %s" % contractor_id
-		)
-		await _press_key(KEY_1)
-		_check_trait_battle(main, contractor_id, "巡礼の最初の戦闘")
-		await _quit_and_continue(main)
-		_check(run_state.character_id == contractor_id, "「続きから」で同じ契約者に戻る: %s" % contractor_id)
-		_check_trait_battle(main, contractor_id, "「続きから」で戻った戦闘")
-		main.show_title()
-		await _settle()
-
-
-## 今の画面が contractor_id の契約者の戦闘で、その立ち絵が出て、最初のターンのエネルギー (と蝋燭の表示) と手札の
-## 枚数に個性が効いている。label は失敗の文の頭に付ける
-func _check_trait_battle(main: MainScript, contractor_id: String, label: String) -> void:
-	var battle_ui: BattleUiScript = main.screen as BattleUiScript
-	_check(battle_ui != null, "%s: 戦闘の画面が出る (%s)" % [label, contractor_id])
-	if battle_ui == null:
-		return
-	var energy: int = (
-		BattleScript.ENERGY_PER_TURN + Contractors.trait_value(contractor_id, "energy_bonus")
-	)
-	var hand: int = mini(
-		run_state.deck.size(),
-		BattleScript.HAND_SIZE + Contractors.trait_value(contractor_id, "hand_bonus")
-	)
-	_check(
-		battle_ui.pilgrim.texture == Art.PORTRAITS[contractor_id],
-		"%s: 契約者の立ち絵が出る (%s)" % [label, contractor_id]
-	)
-	_check(
-		(
-			battle_ui.battle.turn == 1
-			and battle_ui.battle.energy == energy
-			and battle_ui.energy_label.text == "エネルギー %d / %d" % [energy, energy]
-			and _visible_children(battle_ui.energy_row) == energy
-		),
-		"%s: エネルギーに個性が効く (%s)" % [label, contractor_id]
-	)
-	_check(
-		battle_ui.battle.hand.size() == hand and _hand_buttons(battle_ui).size() == hand,
-		"%s: 手札の枚数に個性が効く (%s)" % [label, contractor_id]
-	)
-	_check_buttons_fit(_hand_buttons(battle_ui), "%s の手札" % label)
 
 
 ## 設定で音量を変えると BGM・効果音のバスに反映されて保存され、設定を読み直しても同じ値になる

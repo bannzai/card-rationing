@@ -42,6 +42,10 @@ var turn: int = 0
 var outcome: Outcome = Outcome.NONE
 ## 直前の敵の行動で、巡礼者の防御が受けたダメージの合計 (戦闘画面が数字を見せるためだけの値で、進行には使わない)
 var blocked_last_enemy_turn: int = 0
+## 直前に使ったカードの攻撃が、生きている敵に当たった 1 回ずつの結果 (当たった順)。各要素は {"target": enemies の
+## index, "hit": 何回目の当たりか (0 始まり), "order": 全体攻撃で何体目の敵か (0 始まり), "absorbed": 敵の防御が
+## 受けた量, "lost": 減った体力}。戦闘画面が当たりごとの演出を見せるためだけの値で、進行には使わない
+var last_play_hits: Array[Dictionary] = []
 
 
 ## 戦闘を始める。state のデッキ全体 (契約切れのカードを含む) から山札を作り、最初のターンを始める
@@ -58,6 +62,7 @@ func start(state: RunStateScript, enemy_ids: Array[String], seed_value: int) -> 
 	turn = 0
 	outcome = Outcome.NONE
 	blocked_last_enemy_turn = 0
+	last_play_hits = []
 	enemies = []
 	for enemy_id: String in enemy_ids:
 		var definition: Dictionary = Enemies.ENEMIES[enemy_id]
@@ -130,13 +135,27 @@ func play(hand_index: int, target: int = -1) -> bool:
 	energy -= card["cost"]
 	hand.remove_at(hand_index)
 	discard_pile.append(deck_index)
+	last_play_hits = []
 	if card.has("damage"):
 		var targets: Array[int] = [target]
 		if card.get("area", false):
 			targets = alive_enemies()
-		for _i: int in range(card.get("hits", 1)):
-			for index: int in targets:
-				_damage_enemy(index, card["damage"])
+		for hit: int in range(card.get("hits", 1)):
+			for order: int in range(targets.size()):
+				var enemy: Dictionary = enemies[targets[order]]
+				var hp_before: int = enemy["hp"]
+				var block_before: int = enemy["block"]
+				_damage_enemy(targets[order], card["damage"])
+				if hp_before > 0:
+					last_play_hits.append(
+						{
+							"target": targets[order],
+							"hit": hit,
+							"order": order,
+							"absorbed": block_before - enemy["block"],
+							"lost": hp_before - enemy["hp"],
+						}
+					)
 	if card.has("block"):
 		block += card["block"]
 	if card.has("energy"):

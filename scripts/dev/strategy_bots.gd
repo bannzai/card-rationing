@@ -164,6 +164,9 @@ static func next_purchase(state: RunStateScript) -> Dictionary:
 static func choose_event(state: RunStateScript) -> Dictionary:
 	var seed_value: int = state.node_seed()
 	var options: Array = Events.EVENTS[Events.event_for(seed_value)]["options"]
+	var no_picks_wax: Array[int] = []
+	if Events.event_for(seed_value) == "wax_altar":
+		return {"option": -1, "picks": no_picks_wax}
 	for option_index: int in range(options.size()):
 		var effect: int = options[option_index]["effect"]
 		var picks: Array[int] = _event_picks(state, effect)

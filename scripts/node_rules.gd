@@ -157,17 +157,18 @@ static func take_reward_card(state: RunStateScript, card_id: String) -> bool:
 	return true
 
 
-## 戦闘 (通常・強敵) に勝った時の契約者の個性 win_restore (scripts/contractors.gd): 精霊のうち最大使用回数 (出来事で
-## 増やした分を含む) から
+## 戦闘 (通常・強敵) に勝った時の契約者の個性 win_restore (scripts/contractors.gd): 契約切れでない精霊のうち最大
+## 使用回数 (出来事で増やした分を含む) から
 ## 減っている回数が最も多いカード 1 枚 (同じならデッキの先) の残り使用回数を win_restore 回戻し、その index を
 ## RunState.visit["win_restored"] に記録して返す (報酬の画面が見せる)。英霊は戻さない (強く回数の少ない英霊を
-## いつ切るかの判断を残すため)。個性が無いか、減っている精霊が無ければ何もせず -1
+## いつ切るかの判断を残すため)。契約切れの精霊も戻さない (使い切ってから戻るなら、使い切らずに残す判断が要らなく
+## なるため)。個性が無いか、減っている精霊が無ければ何もせず -1
 static func win_restore(state: RunStateScript) -> int:
 	var amount: int = Contractors.trait_value(state.character_id, "win_restore")
 	var best_index: int = -1
 	var best_missing: int = 0
 	for index: int in range(state.deck.size()):
-		if state.card(index)["bond"] != Cards.Bond.SPIRIT:
+		if state.card(index)["bond"] != Cards.Bond.SPIRIT or state.uses_left(index) == 0:
 			continue
 		var missing: int = Cards.deck_max_uses(state.deck[index]) - state.uses_left(index)
 		if missing > best_missing:

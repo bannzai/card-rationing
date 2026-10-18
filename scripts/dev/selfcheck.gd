@@ -412,7 +412,9 @@ func _check_save_and_load() -> void:
 	state.new_run([], 7)
 	state.use_card(0)
 	state.use_card(0)
-	state.use_card(Contractors.starter_deck(Contractors.FIRST_CONTRACTOR).find("hero_strike"))
+	var hero: int = Contractors.starter_deck(Contractors.FIRST_CONTRACTOR).find("hero_strike")
+	for _use: int in Cards.CARDS["hero_strike"]["max_uses"]:
+		state.use_card(hero)
 	state.take_damage(7)
 	state.path.append(ActMap.next_columns(state.rows, state.path)[0])
 	state.phase = RunStateScript.Phase.BATTLE

@@ -1,6 +1,7 @@
 extends RefCounted
 ## 自動テストプレイ (make simulate / make playtest) の戦略 bot。戦闘でどのカードを使うかだけが戦略ごとに違い、
-## 戦闘の外の選択 (地図の道・報酬・契約の祠・商人・出来事) は 3 つの戦略で同じ。方針としきい値の根拠は
+## 戦闘の外の選択 (地図の道・報酬・契約の祠・商人・出来事) は 3 つの戦略で同じ。判断は契約者を問わず同じ
+## (契約者の個性は、戦闘のエネルギー・手札・体力としてそのまま判断に入る)。方針としきい値の根拠は
 ## documents/DIRECTION.md「決めたこと」。判断の関数は状態 (RunState と戦闘) を読んで選んだものを返すだけで、
 ## 適用は呼ぶ側が行う (play_run() はゲームのロジックを直接呼び、scripts/dev/playtest.gd は画面を通す)。
 ## 乱数は使わず、同じ状態なら同じものを返す (同点は手札・デッキ・候補の並びの先のものを選ぶ)。
@@ -249,11 +250,16 @@ static func attack_uses_left(state: RunStateScript) -> int:
 	return uses
 
 
-## strategy の戦略で、seed_value の 1 幕を最初の契約者でランの終わり (敗北か踏破) まで遊ぶ (ゲームのロジックを
-## 直接呼ぶ。地図・敵・報酬・出来事・戦闘の山札の混ぜ直しはすべて seed_value から決まる)。run_result() に
+## strategy の戦略で、seed_value の 1 幕を contractor_id の契約者でランの終わり (敗北か踏破) まで遊ぶ (ゲームの
+## ロジックを直接呼ぶ。地図・敵・報酬・出来事・戦闘の山札の混ぜ直しはすべて seed_value から決まる)。run_result() に
 ## 戦闘の数え上げ (new_counts() のキー) を足したものを返す
-static func play_run(strategy: int, state: RunStateScript, seed_value: int) -> Dictionary:
-	RunFlow.start_run(state, Contractors.FIRST_CONTRACTOR, seed_value)
+static func play_run(
+	strategy: int,
+	state: RunStateScript,
+	seed_value: int,
+	contractor_id: String = Contractors.FIRST_CONTRACTOR
+) -> Dictionary:
+	RunFlow.start_run(state, contractor_id, seed_value)
 	var counts: Dictionary = new_counts()
 	# 1 つの節点で通る局面は多くて 3 つ (地図 → 戦闘 → 報酬)。その数だけ進めても終わらなければ不具合
 	for _step: int in range(ActMap.ROWS * 3):

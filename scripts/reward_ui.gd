@@ -72,10 +72,11 @@ func _show_win_restore(layout: VBoxContainer) -> void:
 	)
 	var audio: AudioScript = get_tree().root.get_node_or_null("Audio")
 	if audio != null:
-		# 同時に鳴る勝利の効果音 (scripts/battle_ui.gd) と重ならないよう、鳴り終わってから鳴らす
-		get_tree().create_timer(RESTORE_SE_DELAY).timeout.connect(
-			audio.play_se.bind(AudioScript.Se.RESTORE)
-		)
+		# 同時に鳴る勝利の効果音 (scripts/battle_ui.gd) と重ならないよう、鳴り終わってから鳴らす。待ちはこの画面の
+		# Tween に持たせ、待つ間に画面を出たら (scripts/main.gd が解放する) 鳴らさない
+		var tween: Tween = create_tween()
+		tween.tween_interval(RESTORE_SE_DELAY)
+		tween.tween_callback(audio.play_se.bind(AudioScript.Se.RESTORE))
 
 
 ## card_id のカードと契約して地図へ戻る

@@ -546,11 +546,31 @@ func _check_battle_effects() -> void:
 	battle.start(state, ["wild_dog", "skeleton"], 1)
 	_check(battle.play(_hand_index_of(battle, state, "twin_flame"), 1), "双つ灯を使える")
 	_check(battle.enemies[1]["hp"] == 14, "双つ灯は骸の巡礼者に 4 を 2 回与えて体力 14")
+	_check(
+		(
+			battle.last_play_hits
+			== [
+				{"target": 1, "hit": 0, "order": 0, "absorbed": 0, "lost": 4},
+				{"target": 1, "hit": 1, "order": 0, "absorbed": 0, "lost": 4},
+			]
+		),
+		"双つ灯の当たりは 1 回ずつ記録される (戦闘画面の当たりごとの演出が使う)"
+	)
 	_check(Cards.needs_target("twin_flame") and not Cards.needs_target("ember_wave"), "全体攻撃は対象を取らない")
 	_check(battle.play(_hand_index_of(battle, state, "ember_wave")), "熾火の波は対象を選ばずに使える")
 	_check(
 		battle.enemies[0]["hp"] == 10 and battle.enemies[1]["hp"] == 10,
 		"熾火の波は生きている敵すべてに 4 を与える"
+	)
+	_check(
+		(
+			battle.last_play_hits
+			== [
+				{"target": 0, "hit": 0, "order": 0, "absorbed": 0, "lost": 4},
+				{"target": 1, "hit": 0, "order": 1, "absorbed": 0, "lost": 4},
+			]
+		),
+		"熾火の波の当たりは敵の並びの順に記録される"
 	)
 	_check(battle.energy == 1, "コスト 1 を 2 枚使ってエネルギー 1")
 	_check(battle.play(_hand_index_of(battle, state, "candle_flame")), "蝋燭の火を使える")
@@ -573,9 +593,23 @@ func _check_battle_effects() -> void:
 		finisher.enemies[1]["hp"] == 17 and finisher.enemies[1]["block"] == 0,
 		"双つ灯の 1 回目を防御 3 が受け、2 回目は体力に届く (22 → 17)"
 	)
+	_check(
+		(
+			finisher.last_play_hits
+			== [
+				{"target": 1, "hit": 0, "order": 0, "absorbed": 3, "lost": 1},
+				{"target": 1, "hit": 1, "order": 0, "absorbed": 0, "lost": 4},
+			]
+		),
+		"当たりの記録は、防御が受けた量と減った体力を分けて持つ"
+	)
 	finisher.enemies[1]["hp"] = 4
 	_check(finisher.play(_hand_index_of(finisher, state, "ember_wave")), "熾火の波を使える")
 	_check(finisher.enemies[0]["hp"] == 0 and finisher.enemies[1]["hp"] == 0, "倒した敵は 0 のまま")
+	_check(
+		finisher.last_play_hits == [{"target": 1, "hit": 0, "order": 0, "absorbed": 0, "lost": 4}],
+		"倒した敵への当たりは記録しない"
+	)
 	_check(finisher.outcome == BattleScript.Outcome.WIN, "全体攻撃で全員を倒したら勝利")
 	state.free()
 

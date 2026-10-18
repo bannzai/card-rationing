@@ -295,20 +295,24 @@ static func strength(card_id: String) -> float:
 	return points / (card["cost"] + 1)
 
 
-## カードの効果を画面に出す短い文 (例: 「攻撃 6」「攻撃 4×2」「全体攻撃 4」「防御 5」「2 枚引く」)
-static func effect_text(card_id: String) -> String:
+## カードの効果を画面に出す短い文 (例: 「攻撃 6」「攻撃 4×2」「全体攻撃 4」「防御 5」「2 枚引く」)。damage・block を
+## 0 以上で渡すと、定義の値の代わりにその値を書く (戦闘で護符を足した 1 回のダメージと防御を見せる)
+static func effect_text(card_id: String, damage: int = -1, block: int = -1) -> String:
 	var card: Dictionary = CARDS[card_id]
 	var parts: Array[String] = []
 	if card.has("damage"):
 		var hits: int = card.get("hits", 1)
 		parts.append(
 			(
-				("全体攻撃 %d" if card.get("area", false) else "攻撃 %d") % card["damage"]
+				(
+					("全体攻撃 %d" if card.get("area", false) else "攻撃 %d")
+					% (damage if damage >= 0 else card["damage"])
+				)
 				+ ("×%d" % hits if hits > 1 else "")
 			)
 		)
 	if card.has("block"):
-		parts.append("防御 %d" % card["block"])
+		parts.append("防御 %d" % (block if block >= 0 else card["block"]))
 	if card.has("draw"):
 		parts.append("%d 枚引く" % card["draw"])
 	if card.has("energy"):

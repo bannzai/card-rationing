@@ -52,6 +52,11 @@ func _check_elite_relic(main: MainScript) -> void:
 		_check(false, "護符の検証: 斬火が手札に来る")
 		run_state.relics.clear()
 		return
+	var slash_view: CardViewScript = _hand_buttons(battle_ui)[slash_hand] as CardViewScript
+	_check(
+		slash_view.effect_label.text == "攻撃 %d" % (Cards.CARDS["slash"]["damage"] + 1),
+		"手札の効果の文に熾火の刃を足したダメージが出る"
+	)
 	var enemy: Dictionary = battle_ui.battle.enemies[0]
 	var hp_before: int = enemy["hp"]
 	await _click(_hand_buttons(battle_ui)[slash_hand])
@@ -63,6 +68,7 @@ func _check_elite_relic(main: MainScript) -> void:
 		battle_ui.relic_label.text.contains(Relics.RELICS["ember_edge"]["name"]),
 		"攻撃のカードを使うと、働いた熾火の刃の名前が出る"
 	)
+	_check(battle_ui.battle.relic_triggers.is_empty(), "見せた護符の発動は消え、次の操作でもう一度見せない")
 	enemy["hp"] = 1
 	enemy["block"] = 0
 	await _press_key(KEY_S)

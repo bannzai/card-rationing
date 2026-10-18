@@ -428,7 +428,11 @@ func _refresh_hand() -> void:
 			continue
 		var deck_index: int = battle.hand[index]
 		view.custom_minimum_size = CardView.BASE_SIZE * (width / CardView.BASE_SIZE.x)
-		view.show_deck_card(run_state.deck[deck_index]["id"], run_state.uses_left(deck_index))
+		var card_id: String = run_state.deck[deck_index]["id"]
+		view.show_deck_card(card_id, run_state.uses_left(deck_index))
+		view.show_effect(
+			Cards.effect_text(card_id, battle.card_damage(deck_index), battle.card_block(deck_index))
+		)
 		view.set_key_number(index + 1)
 		view.disabled = not battle.can_play(index)
 
@@ -465,17 +469,23 @@ func _show_relic_label() -> void:
 
 
 ## 直前の操作 (戦闘の開始・カードを使う) で働いた護符を見せる: 説明の文に名前を出し、動きを付けるなら印を光らせて
-## 名前を印の下から浮かべる
+## 名前を印の下から浮かべる。見せた発動は battle.relic_triggers から消す (対象の選択に入るだけの操作など、護符が
+## 働かない操作の後に、前の発動をもう一度見せないため)。働いた護符が無い操作の後は説明の文の名前も消すが、対象の
+## 選択に入っただけの時は残す
 func _show_relic_triggers() -> void:
+	var triggers: Array[String] = battle.relic_triggers
+	battle.relic_triggers = []
+	if triggers.is_empty() and pending_hand_index != -1:
+		return
 	var names: Array[String] = []
-	for relic_id: String in battle.relic_triggers:
+	for relic_id: String in triggers:
 		names.append(Relics.RELICS[relic_id]["name"])
 	relic_trigger_text = "" if names.is_empty() else "護符が働いた: %s" % "・".join(names)
 	_show_relic_label()
 	if not Art.motion_on():
 		return
-	for order: int in range(battle.relic_triggers.size()):
-		var index: int = run_state.relics.find(battle.relic_triggers[order])
+	for order: int in range(triggers.size()):
+		var index: int = run_state.relics.find(triggers[order])
 		if index < 0 or index >= relic_row.get_child_count():
 			continue
 		(relic_row.get_child(index) as RelicView).flash()

@@ -161,6 +161,11 @@ func current_node() -> Dictionary:
 	return ActMap.node_at(rows, path.size() - 1, path.back())
 
 
+## 今いる節点の地図の段 (出発前は -1)
+func current_row() -> int:
+	return path.size() - 1
+
+
 ## 今いる節点のシード。戦闘の乱数・報酬と品揃え・出来事の選択に使い、同じ節点なら同じ値になる
 ## (地図の段と列の組は 100 未満で重ならない)
 func node_seed() -> int:

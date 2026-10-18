@@ -424,13 +424,19 @@ static func _is_better_play(play: Dictionary, best: Dictionary) -> bool:
 
 
 ## この戦闘で、今のターンの後に残るターンの数の見込み (生きている敵の体力と防御の合計を、1 ターンに与える
-## ダメージの見込み Cards.TURN_DAMAGE で倒すのにかかるターンの数 − 1。今のターンで倒しきれる見込みなら 0)。
+## ダメージの見込みで倒すのにかかるターンの数 − 1。今のターンで倒しきれる見込みなら 0)。1 ターンのダメージの見込みは
+## Cards.TURN_DAMAGE (攻撃カード 2 枚) に、2 枚それぞれに足される熾火の刃と発動中の加護の攻撃の上乗せを加えた値
+## (上乗せを数えないと、それを持つ重い戦闘で残りのターンを多く見積もり、加護の点数が高くなりすぎる)。
 ## 加護の毎ターンの効果は次のターンから効くので、今のターンは数えない
 static func _turns_left(battle: Battle) -> int:
 	var remaining: int = 0
 	for enemy_index: int in battle.alive_enemies():
 		remaining += battle.enemies[enemy_index]["hp"] + battle.enemies[enemy_index]["block"]
-	return maxi(0, ceili(float(remaining) / Cards.TURN_DAMAGE) - 1)
+	var attack_bonus: int = (
+		Battle.Relics.value(battle.run_state.relics, "ember_edge", "damage")
+		+ battle.power_total("attack_bonus")
+	)
+	return maxi(0, ceili(float(remaining) / (Cards.TURN_DAMAGE + 2 * attack_bonus)) - 1)
 
 
 ## このターンの終わりに受けるダメージ (生きている敵が予告している攻撃の合計から、今の防御を引いた量)

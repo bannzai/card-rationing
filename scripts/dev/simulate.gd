@@ -39,10 +39,18 @@ func _run() -> void:
 	var started_msec: int = Time.get_ticks_msec()
 	var contractors: Dictionary = {}
 	var min_gap: float = INF
-	for contractor_id: String in Contractors.CONTRACTORS:
+	# 一時的な調整用 (最大体力の掃引)。値を決めたら消す
+	var sweep: Dictionary = {
+		"yura": [38, 44, 50, 56, 62], "shion": [30, 38, 46, 54], "kagari": [34, 42, 50]
+	}
+	for variant: String in _variants(sweep):
+		var contractor_id: String = variant.get_slice("@", 0)
+		var hp_override: int = int(variant.get_slice("@", 1))
 		var bots: Dictionary = {}
 		for strategy: int in Bots.Strategy.values():
-			bots[Bots.STRATEGY_KEYS[strategy]] = await _simulate(state, strategy, contractor_id)
+			bots[Bots.STRATEGY_KEYS[strategy]] = await _simulate(
+				state, strategy, contractor_id, hp_override
+			)
 		var others_best: float = maxf(
 			bots[Bots.STRATEGY_KEYS[Bots.Strategy.HOARD]]["clear_rate"],
 			bots[Bots.STRATEGY_KEYS[Bots.Strategy.SPEND]]["clear_rate"]
@@ -51,13 +59,20 @@ func _run() -> void:
 			bots[Bots.STRATEGY_KEYS[Bots.Strategy.ADAPT]]["clear_rate"] - others_best, 0.01
 		)
 		min_gap = minf(min_gap, gap)
-		contractors[contractor_id] = {
+		contractors[variant] = {
 			"name": Contractors.CONTRACTORS[contractor_id]["name"], "bots": bots, "clear_rate_gap": gap
 		}
 		print(
 			(
-				"simulate: %s 踏破率の差 (状況で使い分ける − ほかの 2 つの高い方) %.1f ポイント"
-				% [Contractors.CONTRACTORS[contractor_id]["name"], gap]
+				"simulate: %s 最大体力 %d 踏破率 %.1f / %.1f / %.1f 差 %.1f ポイント"
+				% [
+					Contractors.CONTRACTORS[contractor_id]["name"],
+					hp_override,
+					bots["hoard"]["clear_rate"],
+					bots["spend"]["clear_rate"],
+					bots["adapt"]["clear_rate"],
+					gap,
+				]
 			)
 		)
 	state.delete_save()
@@ -85,6 +100,15 @@ func _run() -> void:
 	quit(0)
 
 
+## 一時的な調整用: sweep (契約者 ID → 最大体力の並び) を「契約者 ID@最大体力」の並びにする
+func _variants(sweep: Dictionary) -> Array[String]:
+	var variants: Array[String] = []
+	for contractor_id: String in sweep:
+		for hp: int in sweep[contractor_id]:
+			variants.append("%s@%d" % [contractor_id, hp])
+	return variants
+
+
 ## strategy の戦略に contractor_id の契約者で SEED_COUNT ラン遊ばせた集計。{"name": 戦略の名前, "runs": ランの数,
 ## "clears": 踏破した数,
 ## "clear_rate": 踏破率 (%), "average_floor": 平均到達階層, "average_exhausted": 契約を使い切った回数の平均,
@@ -99,7 +123,9 @@ func _run() -> void:
 ## "average_attack_out_floor": 攻撃が尽きたランで、初めて尽きた戦闘の階層の平均 (尽きたランが無ければ -1),
 ## "cleared_seeds": 踏破したシードの並び, "reached_floors": シードの順 (FIRST_SEED から) に並べた到達階層}。
 ## 後ろの 2 つは、make playtest で遊ばせるシードを選ぶのと、どの階層で倒れているかを読むのに使う
-func _simulate(state: RunStateScript, strategy: int, contractor_id: String) -> Dictionary:
+func _simulate(
+	state: RunStateScript, strategy: int, contractor_id: String, hp_override: int = 0
+) -> Dictionary:
 	var cleared_seeds: Array[int] = []
 	var reached_floors: Array[int] = []
 	var floors: int = 0
@@ -111,7 +137,9 @@ func _simulate(state: RunStateScript, strategy: int, contractor_id: String) -> D
 	var attack_out_runs: int = 0
 	var attack_out_floors: int = 0
 	for seed_value: int in range(FIRST_SEED, FIRST_SEED + SEED_COUNT):
-		var result: Dictionary = Bots.play_run(strategy, state, seed_value, contractor_id)
+		var result: Dictionary = Bots.play_run(
+			strategy, state, seed_value, contractor_id, hp_override
+		)
 		if result["cleared"]:
 			cleared_seeds.append(seed_value)
 		reached_floors.append(result["floor"])

@@ -58,7 +58,7 @@ const CONTRACTORS: Dictionary = {
 			"guard",
 			"guard",
 			"shade",
-			"old_blade",
+			"hero_strike",
 			"hero_wall",
 		],
 	},
@@ -85,7 +85,7 @@ const CONTRACTORS: Dictionary = {
 			"soot_wall",
 			"spirit_arrow",
 			"hero_strike",
-			"castle_keeper",
+			"hero_wall",
 		],
 	},
 }

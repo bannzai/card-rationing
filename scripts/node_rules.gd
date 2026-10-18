@@ -18,7 +18,7 @@ const REWARD_GOLD: Dictionary = {ActMap.Kind.BATTLE: [10, 20], ActMap.Kind.ELITE
 const OFFER_COUNT: int = 3
 ## 商人の値段: カード (精霊 / 英霊)、1 枚の残り使用回数を最大まで戻す (護符を持たない時)、1 枚を外す、護符
 const CARD_PRICES: Dictionary = {Cards.Bond.SPIRIT: 40, Cards.Bond.HERO: 75}
-const RESTORE_PRICE: int = 55
+const RESTORE_PRICE: int = 35
 const REMOVE_PRICE: int = 50
 const RELIC_PRICE: int = 80
 ## 契約を破棄する・外す時に残すデッキの最少の枚数 (空のデッキで戦闘に入らないため)

@@ -1,7 +1,7 @@
 extends "res://scripts/dev/selfcheck_events.gd"
 ## scripts/dev/selfcheck.gd の検証のうち、加護 (scripts/cards.gd の Kind.POWER) の戦闘での効果と戦略 bot の加護の
-## 扱いの検証 (gdlint のファイルの行数の上限に収めるため、検証の本体と分けた)。呼び出しは scripts/dev/selfcheck.gd が
-## 行う。
+## 扱いと指標の数え方の検証 (gdlint のファイルの行数の上限に収めるため、検証の本体と分けた)。呼び出しは
+## scripts/dev/selfcheck.gd が行う。
 
 const Bots := preload("res://scripts/dev/strategy_bots.gd")
 
@@ -110,6 +110,23 @@ func _check_bot_powers(state: RunStateScript, battle: BattleScript) -> void:
 	state.new_run(["slash", "guard"], BOT_SEED)
 	var offers: Array[String] = ["lamp_ward", "war_banner", "slash"]
 	_check(Bots._choose_offer(state, offers) == "slash", "攻撃が足りなければ加護より攻撃を取る")
+
+
+## 戦略 bot の指標: 手札の半分以上が契約切れかは実際の手札の枚数で数え、報酬に攻撃カードがあったかは並んだカードで
+## 決まる。state と battle は呼ぶ側の bot の検証のものを使い回す (state は新しいランで上書きする)
+func _check_bot_metrics(state: RunStateScript, battle: BattleScript) -> void:
+	state.new_run(["slash", "guard", "breath"], BOT_SEED)
+	state.path = ActMap.route_to(state.rows, 0, state.rows[0][0]["column"])
+	while state.use_card(0):
+		pass
+	battle.start(state, ["skeleton"], 1)
+	_check(battle.hand.size() == 3, "3 枚のデッキなら手札は 3 枚")
+	_check(not Bots.hand_mostly_expired(battle, state), "手札 3 枚のうち契約切れ 1 枚は半分未満")
+	while state.use_card(1):
+		pass
+	_check(Bots.hand_mostly_expired(battle, state), "手札 3 枚のうち契約切れ 2 枚は半分以上")
+	_check(Bots.offers_attack(["guard", "slash"]), "攻撃カードが並べば報酬に攻撃がある")
+	_check(not Bots.offers_attack(["guard", "breath"]), "攻撃カードが並ばなければ報酬に攻撃が無い")
 
 
 ## 加護のカードの定義: 種類の数が POWER_COUNT_RANGE に入り、精霊と英霊の両方がある。加護は割合でなく種類の数で絞る

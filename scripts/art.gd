@@ -108,6 +108,12 @@ const DEFEAT_TIME: float = 0.4
 const WIN_DELAY: float = 0.9
 ## 敵の予告の切り替えと、ターンの始まりの手札のフェード
 const FADE_TIME: float = 0.2
+## 護符が働いた時: 護符の印 (scripts/relic_view.gd) が RELIC_FLASH_TIME で RELIC_SCALE に膨らんで RELIC_FLASH の色に
+## 光って戻り、印の下から護符の名前が浮く (数字と同じ float_text())。長さは封蝋の印が残り 1 回で膨らむ動き
+## (STRONG_TIME) と同じにし、カードを使う動きと並んでも見分けられるよう、印の大きさに対して大きく膨らませる
+const RELIC_FLASH_TIME: float = 0.3
+const RELIC_SCALE: float = 1.4
+const RELIC_FLASH: Color = Color(2.2, 1.8, 1.2)
 
 ## 戦闘の動きの長さに掛ける倍率。0 なら動きを作らない (tween・使ったカードの複製・数字を作らず、勝った時の
 ## 画面の切り替えも待たない)。fps が固定でない検証 (integration・screenshot) が 0 にして、同じ瞬間を確かめ・撮る

@@ -14,6 +14,7 @@ const Contractors := preload("res://scripts/contractors.gd")
 const Enemies := preload("res://scripts/enemies.gd")
 const HeadlessCheck := preload("res://scripts/dev/headless_check.gd")
 const MainScript := preload("res://scripts/main.gd")
+const Relics := preload("res://scripts/relics.gd")
 const RunFlow := preload("res://scripts/run_flow.gd")
 const RunStateScript := preload("res://scripts/run_state.gd")
 const ShrineUiScript := preload("res://scripts/shrine_ui.gd")
@@ -83,6 +84,9 @@ func _capture_scenes() -> bool:
 		[_show_settings, "settings"],
 		[_show_defeat, "defeat"],
 		[_show_clear, "clear"],
+		[_show_battle_relics, "battle-relics"],
+		[_show_battle_relic_info, "battle-relic-info"],
+		[_show_elite_reward, "reward-elite"],
 	]
 	for step: Array in steps:
 		if not step[0].call():
@@ -207,6 +211,33 @@ func _show_defeat() -> bool:
 func _show_clear() -> bool:
 	_show_at_kind(ActMap.Kind.BOSS, RunStateScript.Phase.CLEAR)
 	return true
+
+
+## 護符をすべて持った戦闘 (印の並びと、戦闘の始めに働いた蝋の盾・夜明けの灯芯の文と防御・エネルギー)
+func _show_battle_relics() -> bool:
+	main.start_run(Contractors.FIRST_CONTRACTOR, MAP_SEED)
+	for relic_id: String in Relics.RELICS:
+		run_state.add_relic(relic_id)
+	_show_at_row(0, RunStateScript.Phase.BATTLE)
+	var battle_ui: BattleUiScript = main.screen as BattleUiScript
+	if battle_ui == null or battle_ui.relic_row.get_child_count() != Relics.RELICS.size():
+		push_error("戦闘画面に護符の印が並ばない")
+		return false
+	return true
+
+
+## 護符の印にマウスを載せた時の説明 (焼けぬ封蝋の、効く条件まで書いた説明)
+func _show_battle_relic_info() -> bool:
+	(main.screen as BattleUiScript).show_relic_info("unburnt_seal")
+	return true
+
+
+## 強敵に勝った後の報酬 (手に入れた護符の名前と効果)
+func _show_elite_reward() -> bool:
+	run_state.relics.clear()
+	run_state.add_relic("ember_edge")
+	_show_at_kind(ActMap.Kind.ELITE, RunStateScript.Phase.BATTLE)
+	return RunFlow.finish_battle(run_state, true) and run_state.relics.size() == 2
 
 
 ## 道を段 row の最初の節点まで進め、局面を phase にして画面を出す

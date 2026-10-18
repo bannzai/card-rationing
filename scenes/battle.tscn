@@ -41,6 +41,24 @@ offset_bottom = 66.0
 theme_override_font_sizes/font_size = 14
 text = "数字キー: カード / 敵を選ぶ  S: もがく  Enter: ターン終了  Esc: 選び直す  D: 契約の一覧"
 
+[node name="RelicRow" type="HBoxContainer" parent="."]
+layout_mode = 0
+offset_left = 330.0
+offset_top = 72.0
+offset_right = 616.0
+offset_bottom = 106.0
+theme_override_constants/separation = 2
+
+[node name="RelicLabel" type="Label" parent="."]
+layout_mode = 0
+offset_left = 330.0
+offset_top = 108.0
+offset_right = 616.0
+offset_bottom = 172.0
+theme_override_font_sizes/font_size = 14
+text = ""
+autowrap_mode = 3
+
 [node name="Pilgrim" type="TextureRect" parent="."]
 layout_mode = 0
 offset_left = 36.0

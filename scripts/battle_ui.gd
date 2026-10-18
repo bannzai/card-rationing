@@ -9,6 +9,8 @@ extends Control
 ## 操作の前後の差で戦闘の動き (使ったカードが持ち上がって封蝋の印が焼け、敵の方へ消える・被弾の揺れと数字・倒した
 ## 敵が薄くなる・ターンの始まりのフェード。長さと強さは scripts/art.gd) を付ける。動きは表示だけで、戦闘の状態は
 ## 即時に変わり、次の入力も待たせない。最後の敵を倒した時だけ、動きが見えるよう画面の切り替えを待つ。
+## 持っている護符は上の中ほどに印 (scripts/relic_view.gd) で並べ、マウスを載せた印の説明と、直前の操作で働いた
+## 護符の名前を印の下の文で見せる (働いた護符の印は光り、名前が浮く)。
 
 const ActMap := preload("res://scripts/act_map.gd")
 const Art := preload("res://scripts/art.gd")
@@ -17,8 +19,11 @@ const Battle := preload("res://scripts/battle.gd")
 const CardView := preload("res://scripts/card_view.gd")
 const Cards := preload("res://scripts/cards.gd")
 const EnemyView := preload("res://scripts/enemy_view.gd")
+const RelicView := preload("res://scripts/relic_view.gd")
+const Relics := preload("res://scripts/relics.gd")
 const RunFlow := preload("res://scripts/run_flow.gd")
 const RunStateScript := preload("res://scripts/run_state.gd")
+const UiKit := preload("res://scripts/ui_kit.gd")
 
 ## pending_hand_index の特別な値: もがくの対象を選んでいる
 const STRUGGLE_PENDING: int = -2
@@ -27,6 +32,8 @@ const STRUGGLE_PENDING: int = -2
 const CANDLE_SIZE: Vector2 = Vector2(38, 64)
 const HEALTH_BEADS: int = 10
 const BEAD_SIZE: Vector2 = Vector2(16, 16)
+## 護符の説明の文で、マウスを載せた印も働いた護符も無い時に出す案内
+const RELIC_HINT: String = "護符の印にマウスを載せると説明が出る"
 
 ## 進行中の戦闘
 var battle: Battle = null
@@ -44,10 +51,14 @@ var pilgrim_tween: Tween = null
 var hand_tween: Tween = null
 ## 勝敗が決まった後の戦闘の終わりを予約したか (勝った後の待ちの間の入力で、戦闘を 2 度終えないように)
 var finish_scheduled: bool = false
+## 直前の操作で働いた護符の文 (護符の説明の文に、マウスを載せた印が無い時に出す。無ければ空文字)
+var relic_trigger_text: String = ""
 
-## scenes/battle.tscn のノード (enemy_row の敵・hand_row のカード・energy_row の蝋燭・health_row の珠は
-## refresh() が足す)
+## scenes/battle.tscn のノード (enemy_row の敵・hand_row のカード・energy_row の蝋燭・health_row の珠・
+## relic_row の護符の印は refresh() が足す)
 @onready var floor_label: Label = $FloorLabel
+@onready var relic_row: HBoxContainer = $RelicRow
+@onready var relic_label: Label = $RelicLabel
 @onready var pilgrim: TextureRect = $Pilgrim
 @onready var enemy_row: HBoxContainer = $EnemyRow
 @onready var message_label: Label = $MessageLabel
@@ -101,6 +112,7 @@ func start_battle(seed_value: int) -> void:
 	pending_hand_index = -1
 	finish_scheduled = false
 	refresh()
+	_show_relic_triggers()
 
 
 ## 数字キー (0 始まりの number) の入力。対象を選んでいる時は敵、そうでなければ手札のカード
@@ -210,6 +222,7 @@ func refresh() -> void:
 	message_label.text = _message_text()
 	_refresh_enemies()
 	_refresh_hand()
+	_refresh_relics()
 	var over: bool = battle.outcome != Battle.Outcome.NONE
 	struggle_button.disabled = over or battle.energy < Battle.STRUGGLE_COST
 	end_turn_button.disabled = over
@@ -249,6 +262,7 @@ func _after_action(before: Dictionary, enemy_acted: bool = false) -> void:
 	# 戦闘を終えて画面が切り替わった (scripts/main.gd が隠した) 後は動きを付けない
 	if visible:
 		_animate_changes(before, enemy_acted)
+		_show_relic_triggers()
 
 
 ## ランを保存する。失敗したら ERROR を出す
@@ -417,6 +431,62 @@ func _refresh_hand() -> void:
 		view.show_deck_card(run_state.deck[deck_index]["id"], run_state.uses_left(deck_index))
 		view.set_key_number(index + 1)
 		view.disabled = not battle.can_play(index)
+
+
+## 持っている護符の印 (scripts/relic_view.gd) を手に入れた順に並べる (印は使い回す)。護符が無ければ説明の文も
+## 出さない
+func _refresh_relics() -> void:
+	while relic_row.get_child_count() < run_state.relics.size():
+		var view: RelicView = RelicView.new()
+		view.hovered.connect(show_relic_info)
+		view.unhovered.connect(_show_relic_label)
+		relic_row.add_child(view)
+	for index: int in range(relic_row.get_child_count()):
+		var view: RelicView = relic_row.get_child(index)
+		view.visible = index < run_state.relics.size()
+		if view.visible:
+			view.show_relic(run_state.relics[index])
+	_show_relic_label()
+
+
+## 護符の説明の文に relic_id の護符の名前と効果を出す (印にマウスを載せた時。検証と撮影からも呼ぶ)
+func show_relic_info(relic_id: String) -> void:
+	relic_label.text = UiKit.relic_text(relic_id)
+
+
+## 護符の説明の文を、直前の操作で働いた護符の文 (無ければ案内) に戻す。護符が無ければ空にする
+func _show_relic_label() -> void:
+	if run_state.relics.is_empty():
+		relic_label.text = ""
+	elif not relic_trigger_text.is_empty():
+		relic_label.text = relic_trigger_text
+	else:
+		relic_label.text = RELIC_HINT
+
+
+## 直前の操作 (戦闘の開始・カードを使う) で働いた護符を見せる: 説明の文に名前を出し、動きを付けるなら印を光らせて
+## 名前を印の下から浮かべる
+func _show_relic_triggers() -> void:
+	var names: Array[String] = []
+	for relic_id: String in battle.relic_triggers:
+		names.append(Relics.RELICS[relic_id]["name"])
+	relic_trigger_text = "" if names.is_empty() else "護符が働いた: %s" % "・".join(names)
+	_show_relic_label()
+	if not Art.motion_on():
+		return
+	for order: int in range(battle.relic_triggers.size()):
+		var index: int = run_state.relics.find(battle.relic_triggers[order])
+		if index < 0 or index >= relic_row.get_child_count():
+			continue
+		(relic_row.get_child(index) as RelicView).flash()
+		# 印の行のレイアウトは次のフレームまで遅れることがある (戦闘の開始の直後) ため、印の位置は並びから求める。
+		# 同時に働いた名前は 1 つずつ下にずらして重ならないようにする
+		var step: float = RelicView.SIZE.x + relic_row.get_theme_constant("separation")
+		var at: Vector2 = (
+			relic_row.global_position
+			+ Vector2(index * step + RelicView.SIZE.x / 2.0, RelicView.SIZE.y + Art.FLOAT_FONT_SIZE * order)
+		)
+		Art.float_text(effects_layer, at - effects_layer.global_position, names[order], Art.CANDLE)
 
 
 ## row の子 (view_script のボタン) が count 個以上あるようにする。足したボタンの pressed はその位置の index を

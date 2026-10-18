@@ -18,7 +18,7 @@ const CONTRACTORS: Dictionary = {
 			"消えかけた祠の灯を継ぐために巡礼に出た灯守りの娘。"
 			+ "幼いころ誰かに結ばされた印で、小さな精霊と二柱の英霊を呼ぶ。"
 		),
-		"max_hp": 50,
+		"max_hp": 44,
 		"trait_name": "灯守り",
 		"win_restore": 1,
 		"starter_deck":
@@ -44,7 +44,7 @@ const CONTRACTORS: Dictionary = {
 			"結ばれた契約を一つ残らず書き留める写本の綴り手。"
 			+ "頁をめくるように多くの印を一度に読むが、筆より重いものを持ったことがない。"
 		),
-		"max_hp": 38,
+		"max_hp": 30,
 		"trait_name": "多読",
 		"hand_bonus": 2,
 		"starter_deck":
@@ -70,7 +70,7 @@ const CONTRACTORS: Dictionary = {
 			"祠の火を絶やさぬよう熾火を担いで歩く火守り。"
 			+ "火の気で精霊を急き立てて多く命じるが、そのぶん契約も早く尽きる。"
 		),
-		"max_hp": 42,
+		"max_hp": 34,
 		"trait_name": "熾火",
 		"energy_bonus": 1,
 		"starter_deck":

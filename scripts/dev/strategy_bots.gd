@@ -268,14 +268,9 @@ static func play_run(
 	strategy: int,
 	state: RunStateScript,
 	seed_value: int,
-	contractor_id: String = Contractors.FIRST_CONTRACTOR,
-	max_hp_override: int = 0
+	contractor_id: String = Contractors.FIRST_CONTRACTOR
 ) -> Dictionary:
 	RunFlow.start_run(state, contractor_id, seed_value)
-	# 一時的な調整用 (最大体力の掃引)。値を決めたら消す
-	if max_hp_override > 0:
-		state.max_hp = max_hp_override
-		state.hp = max_hp_override
 	var counts: Dictionary = new_counts()
 	# 1 つの節点で通る局面は多くて 3 つ (地図 → 戦闘 → 報酬)。その数だけ進めても終わらなければ不具合
 	for _step: int in range(ActMap.ROWS * 3):

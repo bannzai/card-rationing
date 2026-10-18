@@ -393,7 +393,7 @@ func _check_run_state_uses() -> void:
 	_check(state.restore_uses(slash, 99) == slash_max, "回復は最大使用回数を超えない")
 	_check(state.restore_uses(slash) == slash_max, "回数を省いた回復は最大まで戻す")
 	state.take_damage(10)
-	_check(state.hp == 40, "10 のダメージで体力 40")
+	_check(state.hp == state.max_hp - 10, "10 のダメージで体力が 10 減る")
 	state.take_damage(100)
 	_check(state.hp == 0, "体力は 0 未満にならない")
 	state.free()
@@ -432,7 +432,9 @@ func _check_save_and_load() -> void:
 		other.load_from(SELFCHECK_SAVE_PATH) == RunStateScript.LoadResult.LOADED, "保存データを読み込める"
 	)
 	_check(other.deck == state.deck, "往復で残り使用回数が保たれる")
-	_check(other.hp == 43 and other.max_hp == 50, "往復で体力が保たれる")
+	_check(
+		other.hp == state.max_hp - 7 and other.max_hp == state.max_hp, "往復で体力が保たれる"
+	)
 	_check(other.gold == 12 and other.act == 1, "往復で所持金・幕が保たれる")
 	_check(other.map_seed == 7 and other.rows == state.rows, "往復で地図 (シード) が保たれる")
 	_check(other.path == state.path and other.phase == state.phase, "往復で通った道と局面が保たれる")
@@ -623,11 +625,14 @@ func _check_battle_turn() -> void:
 	# 予告を固定して、防御 5 を超えた攻撃 7 の分だけ体力が減ることを確かめる
 	battle.enemies[0]["intent"] = {"move": Enemies.Move.ATTACK, "value": 7}
 	battle.end_turn()
-	_check(state.hp == 48, "攻撃 7 を防御 5 が受けて体力が 2 減る")
+	_check(state.hp == state.max_hp - 2, "攻撃 7 を防御 5 が受けて体力が 2 減る")
 	_check(battle.turn == 2 and battle.energy == 3 and battle.block == 0, "次のターン: エネルギー 3・防御 0")
 	battle.enemies[0]["intent"] = {"move": Enemies.Move.GUARD, "value": 4}
 	battle.end_turn()
-	_check(state.hp == 48 and battle.enemies[0]["block"] == 4, "予告どおりに防御する (体力は減らない)")
+	_check(
+		state.hp == state.max_hp - 2 and battle.enemies[0]["block"] == 4,
+		"予告どおりに防御する (体力は減らない)"
+	)
 	_check(battle.hand.size() == 5 and battle.discard_pile.is_empty(), "手札を捨てて 5 枚引く")
 	state.free()
 

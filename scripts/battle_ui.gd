@@ -94,7 +94,6 @@ func _ready() -> void:
 	if run_state == null or audio == null:
 		push_error("autoload RunState か Audio が無い")
 	($Background as TextureRect).texture = Art.BATTLE_BG
-	pilgrim.texture = Art.PILGRIM
 	pilgrim_base = pilgrim.position
 	screen_base = position
 	message_label.add_theme_color_override("font_color", Art.CANDLE)
@@ -132,8 +131,9 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		cancel_target()
 
 
-## 今いる節点の敵と seed_value で戦闘を始める
+## 今いる節点の敵と seed_value で戦闘を始める (巡礼者の絵は巡礼に出ている契約者の立ち絵)
 func start_battle(seed_value: int) -> void:
+	pilgrim.texture = Art.PORTRAITS[run_state.character_id]
 	battle = Battle.new()
 	battle.start(run_state, RunFlow.encounter(run_state), seed_value)
 	_stop_attacks()
@@ -222,9 +222,9 @@ func refresh() -> void:
 		"第 %d 幕 %d 階 %s"
 		% [run_state.act, maxi(1, run_state.path.size()), ActMap.KIND_NAMES[kind]]
 	)
-	# カードの効果でエネルギーが 1 ターンの分を超えたら、蝋燭を増やして見せる (増えた分は蝋燭を縮め、手札の
-	# 行にはみ出さないようにする)
-	var candles: int = maxi(battle.energy, Battle.ENERGY_PER_TURN)
+	# カードの効果でエネルギーが 1 ターンの分 (契約者の個性で増えた分を含む) を超えたら、蝋燭を増やして見せる
+	# (基準の本数を超えた分は蝋燭を縮め、手札の行にはみ出さないようにする)
+	var candles: int = maxi(battle.energy, battle.energy_per_turn())
 	Art.set_icons(
 		energy_row,
 		Art.CANDLE_LIT,
@@ -233,7 +233,7 @@ func refresh() -> void:
 		candles,
 		CANDLE_SIZE * minf(1.0, float(Battle.ENERGY_PER_TURN) / candles)
 	)
-	energy_label.text = "エネルギー %d / %d" % [battle.energy, Battle.ENERGY_PER_TURN]
+	energy_label.text = "エネルギー %d / %d" % [battle.energy, battle.energy_per_turn()]
 	Art.set_icons(
 		health_row,
 		Art.BEAD,
@@ -269,10 +269,13 @@ func _play_card(hand_index: int, target: int = -1) -> void:
 	var card_id: String = run_state.deck[deck_index]["id"]
 	var from: Rect2 = (hand_row.get_child(hand_index) as Control).get_global_rect()
 	var uses_before: int = run_state.uses_left(deck_index)
+	var max_uses: int = Cards.deck_max_uses(run_state.deck[deck_index])
 	if battle.play(hand_index, target):
 		var uses: int = run_state.uses_left(deck_index)
 		audio.play_se(AudioScript.card_use_se(uses))
-		_animate_card(card_id, uses_before, uses, from, _card_destination(card_id, target))
+		_animate_card(
+			card_id, uses_before, uses, max_uses, from, _card_destination(card_id, target)
+		)
 		if not battle.last_play_hits.is_empty():
 			played_attack = {"card_id": card_id, "hits": battle.last_play_hits.duplicate(true)}
 
@@ -481,10 +484,12 @@ func _card_destination(card_id: String, target: int) -> Vector2:
 	return enemy_row.get_global_rect().get_center()
 
 
-## 使ったカード card_id (残り uses_before 回 → uses 回) の複製を、手札で元のカードがあった全体の矩形 from に置き、
-## 持ち上げ → 使った封蝋の印を光らせて焼けた印に (残り 1 回・契約切れはカードを膨らませて光らせる) → 全体の座標
-## to へ縮みながら消える、と動かす。複製は入力を受けない (下の手札と敵をそのまま押せる)
-func _animate_card(card_id: String, uses_before: int, uses: int, from: Rect2, to: Vector2) -> void:
+## 使ったカード card_id (残り uses_before 回 → uses 回、最大 max_uses 回) の複製を、手札で元のカードがあった全体の
+## 矩形 from に置き、持ち上げ → 使った封蝋の印を光らせて焼けた印に (残り 1 回・契約切れはカードを膨らませて光らせる)
+## → 全体の座標 to へ縮みながら消える、と動かす。複製は入力を受けない (下の手札と敵をそのまま押せる)
+func _animate_card(
+	card_id: String, uses_before: int, uses: int, max_uses: int, from: Rect2, to: Vector2
+) -> void:
 	if not Art.motion_on():
 		return
 	var ghost: CardView = CardView.new()
@@ -492,7 +497,7 @@ func _animate_card(card_id: String, uses_before: int, uses: int, from: Rect2, to
 	ghost.focus_mode = Control.FOCUS_NONE
 	ghost.custom_minimum_size = from.size
 	effects_layer.add_child(ghost)
-	ghost.show_deck_card(card_id, uses_before)
+	ghost.show_deck_card(card_id, uses_before, max_uses)
 	ghost.position = from.position - effects_layer.global_position
 	ghost.size = from.size
 	ghost.pivot_offset = from.size / 2.0
@@ -505,7 +510,7 @@ func _animate_card(card_id: String, uses_before: int, uses: int, from: Rect2, to
 	if uses < uses_before:
 		var seal: CanvasItem = ghost.seal_row.get_child(uses)
 		tween.tween_property(seal, "modulate", Art.SEAL_FLASH, Art.SEAL_FLASH_TIME * scale_of)
-		tween.tween_callback(_burn_seal.bind(ghost, seal, card_id, uses))
+		tween.tween_callback(_burn_seal.bind(ghost, seal, card_id, uses, max_uses))
 	if uses < uses_before and uses <= 1:
 		var half: float = Art.STRONG_TIME * scale_of / 2.0
 		tween.tween_property(ghost, "scale", Vector2.ONE * Art.STRONG_SCALE, half)
@@ -520,11 +525,13 @@ func _animate_card(card_id: String, uses_before: int, uses: int, from: Rect2, to
 	tween.tween_callback(ghost.queue_free)
 
 
-## 使ったカードの複製 ghost の光らせた封蝋の印 seal を戻し、使った後の残り uses 回で見せ直す (光った印が焼けた印に
-## なり、残り 1 回・契約切れの文と契約切れの色抜きが出る)
-func _burn_seal(ghost: CardView, seal: CanvasItem, card_id: String, uses: int) -> void:
+## 使ったカードの複製 ghost の光らせた封蝋の印 seal を戻し、使った後の残り uses 回 (最大 max_uses 回) で見せ直す
+## (光った印が焼けた印になり、残り 1 回・契約切れの文と契約切れの色抜きが出る)
+func _burn_seal(
+	ghost: CardView, seal: CanvasItem, card_id: String, uses: int, max_uses: int
+) -> void:
 	seal.modulate = Color.WHITE
-	ghost.show_deck_card(card_id, uses)
+	ghost.show_deck_card(card_id, uses, max_uses)
 
 
 ## 状況に応じた案内の文
@@ -567,8 +574,9 @@ func _refresh_hand() -> void:
 			continue
 		var deck_index: int = battle.hand[index]
 		view.custom_minimum_size = CardView.BASE_SIZE * (width / CardView.BASE_SIZE.x)
-		var card_id: String = run_state.deck[deck_index]["id"]
-		view.show_deck_card(card_id, run_state.uses_left(deck_index))
+		var entry: Dictionary = run_state.deck[deck_index]
+		var card_id: String = entry["id"]
+		view.show_deck_card(card_id, entry["uses_left"], Cards.deck_max_uses(entry))
 		view.show_effect(
 			Cards.effect_text(card_id, battle.card_damage(deck_index), battle.card_block(deck_index))
 		)

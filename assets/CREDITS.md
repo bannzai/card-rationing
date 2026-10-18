@@ -37,9 +37,40 @@
 
 ### `art/pilgrim.png`
 
-- 用途: 巡礼者 (プレイヤー) の立ち絵 (戦闘・契約者の選択)
+- 用途: 契約者「灯持ちのユラ」の立ち絵 (戦闘・契約者の選択)
 - 改変: 透過の余白を除き、高さ 560 に縮小した
 - プロンプト: Game character sprite for a 2D deck-building roguelike, hand-painted dark fantasy illustration with visible brush strokes and paper grain: a hooded pilgrim, full body from head to feet, standing in three-quarter view facing right, holding a tall wooden staff hung with wax-sealed contract scrolls and a small candle lantern, worn brown and grey travel robes with a dark red sash, face in shadow under the hood. Lit by warm candle orange from the right with deep indigo shadows. Fully transparent background (PNG with alpha channel), nothing else in the image, no ground, no cast shadow. No legible text or numbers, no metal or chrome or neon gloss, no 3D render, no anime style.
+
+### `art/pilgrim_shion.png`・`art/pilgrim_kagari.png`
+
+- 用途: 契約者の立ち絵 (戦闘・契約者の選択)。`pilgrim_shion.png` は「綴り手のシオン」、`pilgrim_kagari.png` は「熾火のカガリ」
+- 生成: 2026-10-19 に OpenAI Codex CLI v0.162.1 の組み込み画像生成 (モデルは gpt-6-astra) で、game-art-reference skill の `generate-reference.sh` (`--generator imagegen --aspect-ratio 2:3 --quality medium`。参考画像は渡していない) から生成した。利用規約上の帰属は上の「生成した絵」と同じ
+- 改変: ImageMagick 7 で透過の余白を除き、高さ 560 に縮小した (`art/pilgrim.png` と同じ)
+- プロンプト: `art/pilgrim.png` のプロンプトの人物の描写 (「a hooded pilgrim」から「face in shadow under the hood.」まで) だけを次に置き換えた
+  - `pilgrim_shion.png`: a slender hooded scribe, full body from head to feet, standing in three-quarter view facing right, holding open a thick leather-bound book of contracts with loose pages and red wax-sealed ribbons spilling out, a quill and a small ink pot hung at the belt, layered dark indigo and grey travel robes with a dark red sash, face in shadow under the hood.
+  - `pilgrim_kagari.png`: a sturdy hooded fire-tender, full body from head to feet, standing in three-quarter view facing right, carrying a clay brazier of glowing embers hung from a wooden yoke over one shoulder, a short travel cloak with singed edges, cloth-wrapped forearms, worn brown robes with a dark red sash, face in shadow under the hood.
+
+### `art/event_nameless_grave.jpg`・`art/event_blood_spring.jpg`・`art/event_lost_spirit.jpg`・`art/event_wax_altar.jpg`・`art/event_hero_barrow.jpg`・`art/event_candle_peddler.jpg`・`art/event_ash_furnace.jpg`・`art/event_seal_dice.jpg`・`art/event_scribe_desk.jpg`・`art/event_shadow_pawn.jpg`
+
+- 用途: 出来事の画面の絵 (出来事ごとに 1 枚。`scripts/art.gd` の `EVENT_ART`)。ファイル名の `event_` の後が出来事 ID (`scripts/events.gd` の `EVENTS` のキー)
+- 生成: 2026-10-19 に OpenAI Codex CLI v0.162.1 の組み込み画像生成 (モデルは gpt-6-astra) で、game-art-reference skill の `generate-reference.sh` (`--generator imagegen --aspect-ratio 4:3 --quality medium`。参考画像は渡していない) から 1 枚ずつ生成した。利用規約上の帰属は上の「生成した絵」と同じ
+- 改変: ImageMagick 7 で 1448x1086 から 480x360 に縮小し、JPEG (品質 88) にした
+- プロンプト: 次の共通の頭と尾の間に、出来事ごとの場面を入れた。頭と尾の言い回しは `art/card_attack.jpg` のカードの絵のプロンプトと `art/battle_bg.jpg` の色の指定に揃えた
+  - 頭: Event illustration for a 2D deck-building roguelike on PC, hand-painted dark fantasy illustration with visible brush strokes and paper grain, the picture fills the whole image edge to edge with no border and no frame:
+  - 尾: Warm candle orange against deep indigo and moss green. No legible text or numbers, no metal or chrome or neon gloss, no 3D render, no anime style.
+
+| ファイル | 出来事 | 場面 |
+|---|---|---|
+| `art/event_nameless_grave.jpg` | 名もなき墓標 | a weathered nameless stone grave marker leaning in tall grass on a misty hillside at dusk, a faint translucent pale hero spirit in old armor standing behind it with one hand held out, a few small lit candles at the foot of the grave. |
+| `art/event_blood_spring.jpg` | 血の泉 | a small round stone spring basin in a ruined candle-lit grotto, filled with still dark crimson water that glows faintly from within, a worn seal emblem carved on the basin rim, thin red drops falling into the water and spreading rings. |
+| `art/event_lost_spirit.jpg` | 迷える精霊 | a small lost wisp spirit made of pale candle flame drifting between dark forest trees at night, glancing around as if searching, a broken lantern lying on the mossy ground below it. |
+| `art/event_wax_altar.jpg` | 蝋の祭壇 | a stone altar covered in thick layers of melted candle wax, dozens of candles dripping onto it, a pool of warm molten wax in a carved basin at its center with a deep red wax seal half sunk in it. |
+| `art/event_hero_barrow.jpg` | 英霊の塚 | the dark stone entrance of an ancient burial mound at dusk, a towering armored hero spirit made of pale mist kneeling inside with a sword held point-down, a shallow stone offering bowl at the threshold, lit candles flanking the entrance. |
+| `art/event_candle_peddler.jpg` | 灯売りの行商 | a hunched hooded traveling peddler with a huge pack of bundled candles and small lanterns on their back, standing by a roadside milestone at dusk and holding one lit candle forward, face hidden in the shadow of the hood. |
+| `art/event_ash_furnace.jpg` | 灰の炉 | a great old stone furnace in a ruined shrine, its open mouth full of roaring orange fire, contract scrolls with red wax seals curling into ash inside, sparks rising from it and rekindling a ring of small candles around the furnace. |
+| `art/event_seal_dice.jpg` | 封蝋の骰子 | a rickety wooden table under a tattered awning in the dark, two carved bone dice and a scattering of red wax seals on a worn cloth, a thin hand of a shadowy hooded gambler reaching from the darkness, a single candle lighting the table. |
+| `art/event_scribe_desk.jpg` | 写し手の机 | a scribe writing desk in a candle-lit stone alcove, a thick open book of contracts showing two matching pages side by side, a quill in an ink pot, a red wax seal stamp beside the book, a small pale spirit wisp floating above the pages. |
+| `art/event_shadow_pawn.jpg` | 影の質屋 | a shadowy pawnbroker stall in a narrow night alley, shelves full of old wax-sealed contract scrolls and dim lanterns, a balance scale on the counter with a coin pouch on one pan and a sealed scroll on the other, a hooded figure behind the counter with only faint glowing eyes visible. |
 
 ### `art/enemy_normal.png`
 
@@ -142,8 +173,8 @@
 | `audio/bgm_boss.ogg` | ボス戦の前の会話とボス戦の BGM |
 | `audio/se_card_use.wav` | カードを使った (使った後の残り使用回数が 2 回以上) |
 | `audio/se_last_one.wav` | カードを使って、残りが最後の 1 回になった |
-| `audio/se_expired.wav` | カードの最後の 1 回を使って、契約が切れた |
-| `audio/se_restore.wav` | 残り使用回数が戻った (契約の祠の更新・商人・出来事「血の泉」) |
+| `audio/se_expired.wav` | カードの最後の 1 回を使って、契約が切れた。出来事「封蝋の骰子」で外れて契約を失った |
+| `audio/se_restore.wav` | 残り使用回数が戻った (契約の祠の更新・商人・残り使用回数が増える出来事) |
 | `audio/se_hit.wav` | 敵の攻撃で体力が減った |
 | `audio/se_win.wav` | 戦闘に勝った |
 | `audio/se_lose.wav` | 戦闘に負けた |

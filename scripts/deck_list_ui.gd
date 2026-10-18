@@ -94,7 +94,8 @@ func set_order(next_order: Order) -> void:
 	UiKit.clear_children(list_grid)
 	for index: int in sorted_indices(run_state.deck, order):
 		var view: CardView = CardView.new()
-		view.show_deck_card(run_state.deck[index]["id"], run_state.uses_left(index))
+		var entry: Dictionary = run_state.deck[index]
+		view.show_deck_card(entry["id"], entry["uses_left"], Cards.deck_max_uses(entry))
 		# 見せるだけで、押せずフォーカスも受けない
 		view.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		view.focus_mode = Control.FOCUS_NONE

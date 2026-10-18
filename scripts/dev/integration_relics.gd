@@ -8,7 +8,7 @@ const Relics := preload("res://scripts/relics.gd")
 ## 焼けぬ封蝋が減らないと出る判定の通し番号を探す数 (確率 1/2 なので、数回で見つかる)
 const SPARE_SEARCH_LIMIT: int = 64
 ## 護符の印が光り、名前が浮かぶ動きが終わるまで待つ時間 (秒)。浮かぶ名前 (Art.FLOAT_TIME) が最も長い動きで、
-## integration.gd の MOTION_MARGIN と同じ余裕を足す
+## integration_base.gd の MOTION_MARGIN と同じ余裕を足す
 const RELIC_MOTION_WAIT: float = Art.FLOAT_TIME + 0.2
 
 
@@ -156,11 +156,3 @@ func _check_unburnt_seal_motion(main: MainScript) -> void:
 	_check(battle_ui.effects_layer.get_child_count() == 0, "焼けぬ封蝋の動きが終わると複製と名前が消える")
 	run_state.relics.clear()
 	run_state.relic_rolls = 0
-
-
-## parent の子に、文が text のラベルがあるか
-func _has_label(parent: Node, text: String) -> bool:
-	for child: Node in parent.get_children():
-		if child is Label and (child as Label).text == text:
-			return true
-	return false

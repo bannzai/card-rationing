@@ -1,4 +1,4 @@
-extends "res://scripts/dev/integration_relics.gd"
+extends "res://scripts/dev/integration_events.gd"
 ## scripts/dev/integration.gd の検証のうち、加護 (scripts/cards.gd の Kind.POWER) を使って戦闘の終わりまで効く流れの
 ## 検証 (gdlint のファイルの行数の上限に収めるため、検証の本体と分けた)。呼び出しは scripts/dev/integration.gd の
 ## _run() が行う。

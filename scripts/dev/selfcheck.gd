@@ -2,11 +2,11 @@ extends "res://scripts/dev/selfcheck_powers.gd"
 ## 純粋なロジックとプロジェクト設定の検証 (headless)。ゲームのルール (カードの残り使用回数・戦闘・マップ・
 ## イベント) の計算を足したら、ここに検証を足す。実行方法は AGENTS.md「検証方法」を参照。地図・局面の移り変わり・
 ## 報酬・祠・商人・出来事・契約の一覧・設定・音・素材の記録の検証は継承元の scripts/dev/selfcheck_run.gd に、護符の
-## 検証と共有の部品は継承元の scripts/dev/selfcheck_relics.gd に、加護の戦闘での効果の検証は継承元の
+## 検証と共有の部品は継承元の scripts/dev/selfcheck_relics.gd に、契約者の個性の検証は継承元の
+## scripts/dev/selfcheck_contractors.gd に、出来事の絵と取り引きの出来事の検証は継承元の
+## scripts/dev/selfcheck_events.gd に、加護の戦闘での効果の検証は継承元の
 ## scripts/dev/selfcheck_powers.gd にある。
 
-const Art := preload("res://scripts/art.gd")
-const Bots := preload("res://scripts/dev/strategy_bots.gd")
 
 ## 起動検証 (main_scene の --quit) ではロードされない遷移先も含めた全シーン
 const SCENES: Array[String] = [
@@ -17,8 +17,6 @@ const SCENES: Array[String] = [
 ## 1 幕の中身の量 (issue #9 の指定): カードの種類の数・敵の格ごとの種類の数・ボスの台詞の行数・初期デッキの枚数。
 ## カードの種類の上限は、issue #9 の 25〜30 種の上限に、issue #45 で足す加護の 4〜6 種の上限を足した数
 const CARD_COUNT_RANGE: Array[int] = [25, 36]
-## 加護のカードの種類の数 (issue #45 の指定)
-const POWER_COUNT_RANGE: Array[int] = [4, 6]
 const RANK_COUNT_RANGES: Dictionary = {
 	Enemies.Rank.NORMAL: [6, 8], Enemies.Rank.ELITE: [2, 2], Enemies.Rank.BOSS: [1, 1]
 }
@@ -74,6 +72,7 @@ func _initialize() -> void:
 	_check_strength_and_uses()
 	_check_offer_tiers()
 	_check_contractors()
+	_check_contractor_traits()
 	_check_enemies()
 	_check_encounters()
 	_check_run_state_uses()
@@ -93,6 +92,15 @@ func _initialize() -> void:
 	_check_shrine()
 	_check_shop()
 	_check_events()
+	_check_event_art_and_leave()
+	_check_hero_barrow()
+	_check_candle_peddler()
+	_check_ash_furnace()
+	_check_seal_dice()
+	_check_scribe_desk()
+	_check_shadow_pawn()
+	_check_raised_max_uses()
+	_check_raised_max_uses_save()
 	_check_deck_sort()
 	_check_settings()
 	_check_bead_count()
@@ -195,14 +203,7 @@ func _check_cards() -> void:
 			share >= KIND_SHARE_RANGE[0] and share <= KIND_SHARE_RANGE[1],
 			"種別 %d のカードの割合が 2〜5 割 (%.2f)" % [kind, share]
 		)
-	# 加護は割合でなく種類の数で絞る (攻撃・防御・技を 2 割以上に保ったまま足すため)
-	var power_count: int = kind_counts.get(Cards.Kind.POWER, 0)
-	_check(_in_range(power_count, POWER_COUNT_RANGE), "加護が 4〜6 種 (%d)" % power_count)
-	var power_bonds: Dictionary = {}
-	for card_id: String in Cards.CARDS:
-		if Cards.CARDS[card_id]["kind"] == Cards.Kind.POWER:
-			power_bonds[Cards.CARDS[card_id]["bond"]] = true
-	_check(power_bonds.size() == Cards.BOND_NAMES.size(), "加護に精霊と英霊の両方がある")
+	_check_power_cards()
 	# 強さの定義 (documents/DIRECTION.md「決めたこと」) の基準のカードと、全体攻撃・引く・エネルギーの点数
 	_check(is_equal_approx(Cards.strength("slash"), 3.0), "斬火の強さが 3")
 	_check(is_equal_approx(Cards.strength("hero_strike"), 4.5), "雷槍の英霊 (コスト 1 で攻撃 9) の強さが 4.5")
@@ -422,7 +423,7 @@ func _check_run_state_uses() -> void:
 	_check(state.restore_uses(slash, 99) == slash_max, "回復は最大使用回数を超えない")
 	_check(state.restore_uses(slash) == slash_max, "回数を省いた回復は最大まで戻す")
 	state.take_damage(10)
-	_check(state.hp == 40, "10 のダメージで体力 40")
+	_check(state.hp == state.max_hp - 10, "10 のダメージで体力が 10 減る")
 	state.take_damage(100)
 	_check(state.hp == 0, "体力は 0 未満にならない")
 	state.free()
@@ -461,7 +462,9 @@ func _check_save_and_load() -> void:
 		other.load_from(SELFCHECK_SAVE_PATH) == RunStateScript.LoadResult.LOADED, "保存データを読み込める"
 	)
 	_check(other.deck == state.deck, "往復で残り使用回数が保たれる")
-	_check(other.hp == 43 and other.max_hp == 50, "往復で体力が保たれる")
+	_check(
+		other.hp == state.max_hp - 7 and other.max_hp == state.max_hp, "往復で体力が保たれる"
+	)
 	_check(other.gold == 12 and other.act == 1, "往復で所持金・幕が保たれる")
 	_check(other.map_seed == 7 and other.rows == state.rows, "往復で地図 (シード) が保たれる")
 	_check(other.path == state.path and other.phase == state.phase, "往復で通った道と局面が保たれる")
@@ -652,11 +655,14 @@ func _check_battle_turn() -> void:
 	# 予告を固定して、防御 5 を超えた攻撃 7 の分だけ体力が減ることを確かめる
 	battle.enemies[0]["intent"] = {"move": Enemies.Move.ATTACK, "value": 7}
 	battle.end_turn()
-	_check(state.hp == 48, "攻撃 7 を防御 5 が受けて体力が 2 減る")
+	_check(state.hp == state.max_hp - 2, "攻撃 7 を防御 5 が受けて体力が 2 減る")
 	_check(battle.turn == 2 and battle.energy == 3 and battle.block == 0, "次のターン: エネルギー 3・防御 0")
 	battle.enemies[0]["intent"] = {"move": Enemies.Move.GUARD, "value": 4}
 	battle.end_turn()
-	_check(state.hp == 48 and battle.enemies[0]["block"] == 4, "予告どおりに防御する (体力は減らない)")
+	_check(
+		state.hp == state.max_hp - 2 and battle.enemies[0]["block"] == 4,
+		"予告どおりに防御する (体力は減らない)"
+	)
 	_check(battle.hand.size() == 5 and battle.discard_pile.is_empty(), "手札を捨てて 5 枚引く")
 	state.free()
 
@@ -800,6 +806,83 @@ func _check_battle_keeps_uses() -> void:
 	state.free()
 
 
+## 最大使用回数を増やす経路 (出来事「蝋の祭壇」) と、増えた最大の扱い: 英霊は体力・精霊は所持金を払って
+## 1 枚の最大と残りが 1 増える。区分ごとの回数と Cards.MAX_USES_LIMIT を超えて増やせない。契約の祠・商人・血の泉は
+## 増えた後の最大まで戻し、戦闘の開始・終了で最大も残りも戻らない (.claude/rules/card-uses-persist-across-run.md)
+func _check_raised_max_uses() -> void:
+	for card_id: String in Cards.CARDS:
+		var card: Dictionary = Cards.CARDS[card_id]
+		var limit: int = Cards.uses_limit(card_id)
+		_check(
+			(
+				limit >= card["max_uses"]
+				and limit <= maxi(card["max_uses"], Cards.MAX_USES_LIMIT)
+				and limit - card["max_uses"] <= Cards.BONUS_USES_LIMITS[card["bond"]]
+			),
+			"増やせる最大使用回数の上限: %s" % card_id
+		)
+	var hero: Array[int] = [2]
+	var other_hero: Array[int] = [3]
+	var spirit: Array[int] = [1]
+	var full: Array[int] = [0]
+	var none: Array[int] = []
+	var state: RunStateScript = _raised_uses_state()
+	var hero_max: int = Cards.deck_max_uses(state.deck[2])
+	_check(not Events.choose(state, 0, spirit), "英霊を増やす選択肢で精霊は選べない")
+	_check(Events.choose(state, 0, hero), "体力を払って英霊の最大使用回数を増やせる")
+	_check(
+		Cards.deck_max_uses(state.deck[2]) == hero_max + 1 and state.uses_left(2) == hero_max + 1,
+		"英霊の最大と残りが 1 増える"
+	)
+	_check(state.hp == state.max_hp - Events.RAISE_HERO_PRICE, "英霊を増やすと体力を払う")
+	state.gold = Events.RAISE_SPIRIT_PRICE
+	_check(not Events.choose(state, 1, spirit), "出来事で増やせるのは 1 回だけ")
+	state.gold = 0
+	state.visit = {}
+	_check(not Events.choose(state, 0, hero), "英霊は区分の回数を超えて増やせない")
+	state.hp = Events.RAISE_HERO_PRICE
+	_check(not Events.choose(state, 0, other_hero), "体力が払う量以下なら英霊を増やせない")
+	_check(not Events.choose(state, 1, spirit), "所持金が足りなければ精霊を増やせない")
+	state.gold = Events.RAISE_SPIRIT_PRICE
+	_check(not Events.choose(state, 1, full), "最大使用回数が上限のカードは増やせない")
+	var guard_max: int = Cards.deck_max_uses(state.deck[1])
+	_check(Events.choose(state, 1, spirit), "所持金を払って精霊の最大使用回数を増やせる")
+	_check(
+		Cards.deck_max_uses(state.deck[1]) == guard_max + 1 and state.gold == 0, "精霊の最大が 1 増えて所持金を払う"
+	)
+	state.free()
+	state = _raised_uses_state()
+	_check(
+		Events.choose(state, 2, none) and Cards.deck_max_uses(state.deck[2]) == hero_max,
+		"立ち去ると何も増えない"
+	)
+	state.free()
+	# 増えた後の最大まで、祠・商人・血の泉・戦闘で戻す / 戻さない
+	state = _raised_uses_state()
+	Events.raise_max_uses(state, 1)
+	var raised: int = Cards.deck_max_uses(state.deck[1])
+	state.use_card(1)
+	state.use_card(1)
+	state.visit = {}
+	_check(NodeRules.shrine_renew(state, 1) and state.uses_left(1) == raised, "祠は増えた最大まで戻す")
+	state.use_card(1)
+	state.gold = NodeRules.RESTORE_PRICE
+	_check(NodeRules.buy_restore(state, 1) and state.uses_left(1) == raised, "商人は増えた最大まで戻す")
+	state.use_card(1)
+	state.restore_uses(1)
+	_check(state.uses_left(1) == raised, "最大まで戻す回復 (血の泉と同じ restore_uses) も増えた最大まで戻す")
+	state.use_card(1)
+	var battle: BattleScript = BattleScript.new()
+	battle.start(state, ["wild_dog"], 4)
+	battle.end_turn()
+	battle.start(state, ["wild_dog"], 5)
+	_check(
+		Cards.deck_max_uses(state.deck[1]) == raised and state.uses_left(1) == raised - 1,
+		"戦闘の開始・終了で増えた最大も残りも戻らない"
+	)
+	state.free()
+
+
 ## 山札と捨て札が両方空の時のドローは、引ける分だけ引いて止まる (デッキが 5 枚未満でも落ちない)
 func _check_draw_with_small_deck() -> void:
 	var state: RunStateScript = RunStateScript.new()
@@ -891,27 +974,7 @@ func _check_strategy_bots() -> void:
 			with_relic == Bots.play_run(Bots.Strategy.SPEND, state, relic_seed),
 			"護符を手に入れるランも同じシードなら同じ結果 (シード %d)" % relic_seed
 		)
-	# 加護は戦闘の残りのターンの見込みで点数を付ける: 敵の体力 22 なら次のターンが残る見込みで使い、1 ターンの
-	# ダメージの見込み以下なら今のターンで倒しきれる見込みで使わない (点数 0)。攻撃カードの無いデッキの見込みは、
-	# エネルギー 3 をすべてもがくに使った 6
-	state.new_run(["lamp_ward"], BOT_SEED)
-	state.path = ActMap.route_to(state.rows, 0, state.rows[0][0]["column"])
-	battle.start(state, ["skeleton"], 1)
-	for strategy: int in Bots.Strategy.values():
-		_check(
-			_bot_move(strategy, battle, state) == Bots.BattleMove.PLAY,
-			"敵の体力が 22 なら加護を使う: %s" % Bots.STRATEGY_NAMES[strategy]
-		)
-	_check(is_equal_approx(Bots._turn_damage(battle), 6.0), "攻撃カードが無ければ 1 ターンのダメージの見込みは 6")
-	battle.enemies[0]["hp"] = 6
-	_check(
-		_bot_move(Bots.Strategy.SPEND, battle, state) == Bots.BattleMove.STRUGGLE,
-		"今のターンで倒しきれる見込みなら加護を使わない"
-	)
-	# 新しい契約で、加護は技と同じく攻撃・防御の後に取る (並びに無い種別を先に取らない)
-	state.new_run(["slash", "guard"], BOT_SEED)
-	var offers: Array[String] = ["lamp_ward", "war_banner", "slash"]
-	_check(Bots._choose_offer(state, offers) == "slash", "攻撃が足りなければ加護より攻撃を取る")
+	_check_bot_powers(state, battle)
 	state.free()
 	_remove_user_file(SELFCHECK_SAVE_PATH)
 

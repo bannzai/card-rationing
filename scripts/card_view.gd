@@ -3,7 +3,8 @@ extends Button
 ## 列で見せる (使った分は焼けた印)。契約切れ (残り 0) のカードは色を抜く。ボタンとして押せ、手札・報酬や商人の
 ## 品・デッキの格子・契約の一覧で同じものを使う。置く側が custom_minimum_size で大きさを決め、中身は基準の
 ## 大きさ (BASE_SIZE) で組んだものを実際の大きさに合わせて拡大・縮小する。
-## 印は最大使用回数の分だけ並べ、数字は併記しない (理由は documents/DIRECTION.md「決めたこと」)。
+## 印は最大使用回数 (出来事で増やした分を含む) の分だけ並べ、数字は併記しない (理由は documents/DIRECTION.md
+## 「決めたこと」)。
 
 const Art := preload("res://scripts/art.gd")
 const Cards := preload("res://scripts/cards.gd")
@@ -117,14 +118,16 @@ func _draw() -> void:
 	face.modulate = Color(tone, tone, tone)
 
 
-## デッキのカード id を、残り使用回数 uses で見せる。note は効果の下の 1 行で、空なら残り 1 回と契約切れを書く
-func show_deck_card(id: String, uses: int, note: String = "") -> void:
-	_show(id, uses, note if note != "" else state_note(uses))
+## デッキのカード id を、残り使用回数 uses・最大使用回数 max_uses (出来事で増やした分を含む) で見せる。note は
+## 効果の下の 1 行で、空なら残り 1 回と契約切れを書く
+func show_deck_card(id: String, uses: int, max_uses: int, note: String = "") -> void:
+	_show(id, uses, max_uses, note if note != "" else state_note(uses))
 
 
 ## これから契約するカード id (回数は最大) を見せる。note は効果の下の 1 行 (値段など)
 func show_offer(id: String, note: String = "") -> void:
-	_show(id, Cards.CARDS[id]["max_uses"], note)
+	var max_uses: int = Cards.CARDS[id]["max_uses"]
+	_show(id, max_uses, max_uses, note)
 
 
 ## 効果の文を text に差し替える (戦闘の手札で、護符を足したダメージと防御を見せる)
@@ -149,8 +152,8 @@ static func state_note(uses: int) -> String:
 	return LAST_USE_NOTE if uses == 1 else ""
 
 
-## カード id を残り uses 回・補足 note で見せる
-func _show(id: String, uses: int, note: String) -> void:
+## カード id を残り uses 回・最大 max_uses 回・補足 note で見せる
+func _show(id: String, uses: int, max_uses: int, note: String) -> void:
 	var card: Dictionary = Cards.CARDS[id]
 	card_id = id
 	uses_left = uses
@@ -163,7 +166,7 @@ func _show(id: String, uses: int, note: String) -> void:
 	bond_label.text = Cards.BOND_NAMES[card["bond"]]
 	if card["kind"] == Cards.Kind.POWER:
 		bond_label.text += "の" + Cards.POWER_NAME
-	Art.set_icons(seal_row, Art.SEAL, Art.SEAL_BURNT, uses, card["max_uses"], SEAL_SIZE)
+	Art.set_icons(seal_row, Art.SEAL, Art.SEAL_BURNT, uses, max_uses, SEAL_SIZE)
 	# 契約切れのカードは色を抜く (中身の各ノードは use_parent_material で face の material を使う)
 	if uses == 0 and face.material == null:
 		var ashen: ShaderMaterial = ShaderMaterial.new()

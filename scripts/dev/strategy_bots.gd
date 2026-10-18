@@ -1,6 +1,7 @@
 extends RefCounted
 ## 自動テストプレイ (make simulate / make playtest) の戦略 bot。戦闘でどのカードを使うかだけが戦略ごとに違い、
-## 戦闘の外の選択 (地図の道・報酬・契約の祠・商人・出来事) は 3 つの戦略で同じ。方針としきい値の根拠は
+## 戦闘の外の選択 (地図の道・報酬・契約の祠・商人・出来事) は 3 つの戦略で同じ。判断は契約者を問わず同じ
+## (契約者の個性は、戦闘のエネルギー・手札・体力としてそのまま判断に入る)。方針としきい値の根拠は
 ## documents/DIRECTION.md「決めたこと」。判断の関数は状態 (RunState と戦闘) を読んで選んだものを返すだけで、
 ## 適用は呼ぶ側が行う (play_run() はゲームのロジックを直接呼び、scripts/dev/playtest.gd は画面を通す)。
 ## 乱数は使わず、同じ状態なら同じものを返す (同点は手札・デッキ・候補の並びの先のものを選ぶ)。
@@ -261,11 +262,16 @@ static func attack_uses_left(state: RunStateScript) -> int:
 	return uses
 
 
-## strategy の戦略で、seed_value の 1 幕を最初の契約者でランの終わり (敗北か踏破) まで遊ぶ (ゲームのロジックを
-## 直接呼ぶ。地図・敵・報酬・出来事・戦闘の山札の混ぜ直しはすべて seed_value から決まる)。run_result() に
+## strategy の戦略で、seed_value の 1 幕を contractor_id の契約者でランの終わり (敗北か踏破) まで遊ぶ (ゲームの
+## ロジックを直接呼ぶ。地図・敵・報酬・出来事・戦闘の山札の混ぜ直しはすべて seed_value から決まる)。run_result() に
 ## 戦闘の数え上げ (new_counts() のキー) を足したものを返す
-static func play_run(strategy: int, state: RunStateScript, seed_value: int) -> Dictionary:
-	RunFlow.start_run(state, Contractors.FIRST_CONTRACTOR, seed_value)
+static func play_run(
+	strategy: int,
+	state: RunStateScript,
+	seed_value: int,
+	contractor_id: String = Contractors.FIRST_CONTRACTOR
+) -> Dictionary:
+	RunFlow.start_run(state, contractor_id, seed_value)
 	var counts: Dictionary = new_counts()
 	# 1 つの節点で通る局面は多くて 3 つ (地図 → 戦闘 → 報酬)。その数だけ進めても終わらなければ不具合
 	for _step: int in range(ActMap.ROWS * 3):
@@ -515,9 +521,11 @@ static func _contract_gain(card_id: String) -> float:
 	return Cards.strength(card_id) * Cards.CARDS[card_id]["max_uses"]
 
 
-## デッキの index 番目のカードの残り使用回数を最大まで戻して取り戻す強さの合計 (強さ × 減っている回数)
-static func _restore_gain(state: RunStateScript, index: int) -> float:
-	var missing: int = state.card(index)["max_uses"] - state.uses_left(index)
+## デッキの index 番目のカードの残り使用回数を amount 回 (負なら最大まで) 戻して取り戻す強さの合計 (強さ × 戻る回数)
+static func _restore_gain(state: RunStateScript, index: int, amount: int = -1) -> float:
+	var missing: int = Cards.deck_max_uses(state.deck[index]) - state.uses_left(index)
+	if amount >= 0:
+		missing = mini(missing, amount)
 	return Cards.strength(state.deck[index]["id"]) * missing
 
 
@@ -534,11 +542,22 @@ static func _best_restore(state: RunStateScript) -> int:
 
 
 ## 出来事の effect の選択肢で選ぶデッキの index の並び。契約の入れ替えは残りの強さの合計 (強さ × 残り使用回数)
-## が小さい順に手放す枚数、体力と引き換えの回復は取り戻す強さの合計が最も大きい 1 枚、ほかは空
+## が小さい順に手放す枚数、体力と引き換えの回復は取り戻す強さの合計が最も大きい 1 枚、最大使用回数を増やす
+## 選択肢は増やせるカードのうち強さが最も大きい 1 枚 (同じ強さはデッキの前のもの)。所持金での回復・灰の炉・
+## 封蝋の骰子・写し手の机・影の質屋は _trade_event_picks()。ほかは空
 static func _event_picks(state: RunStateScript, effect: int) -> Array[int]:
-	var picks: Array[int] = []
+	var picks: Array[int] = _trade_event_picks(state, effect)
 	if effect == Events.Effect.BLOOD_RESTORE and _best_restore(state) >= 0:
 		picks.append(_best_restore(state))
+	if Events.RAISE_BONDS.has(effect):
+		var strongest: int = -1
+		for index: int in range(state.deck.size()):
+			if not Events.can_pick(state, effect, index):
+				continue
+			if strongest < 0 or _card_strength(state, index) > _card_strength(state, strongest):
+				strongest = index
+		if strongest >= 0:
+			picks.append(strongest)
 	if effect == Events.Effect.SWAP:
 		for _pick: int in range(mini(Events.SWAP_PICKS, state.deck.size())):
 			var lowest: int = -1
@@ -552,9 +571,109 @@ static func _event_picks(state: RunStateScript, effect: int) -> Array[int]:
 	return picks
 
 
+## 所持金での回復・灰の炉・封蝋の骰子・写し手の机・影の質屋で選ぶデッキの index の並び (ほかの出来事は空)。
+## 所持金での回復は戻して取り戻す強さの合計が最も大きい 1 枚。灰の炉は、取り戻す強さの合計が大きい順の 2 枚を戻し、
+## 残りのカードのうち残りの強さの合計が最も小さい 1 枚を手放す (選ぶ順は手放す 1 枚が先)。封蝋の骰子は、取り戻す
+## 強さの合計から残りの強さの合計を引いた値が最も大きい 1 枚。写し手の机は、得る強さの合計が最も大きい精霊。影の
+## 質屋は残りの強さの合計が最も小さい 1 枚。選べるカードが足りなければ足りないまま返す (Events.can_choose() が
+## 選ばせない)
+static func _trade_event_picks(state: RunStateScript, effect: int) -> Array[int]:
+	var picks: Array[int] = []
+	match effect:
+		Events.Effect.GOLD_RESTORE:
+			var best: int = _best_index(
+				state,
+				func(index: int) -> float:
+					return _restore_gain(state, index, Events.CANDLE_USES)
+			)
+			if best >= 0 and _restore_gain(state, best, Events.CANDLE_USES) > 0.0:
+				picks.append(best)
+		Events.Effect.BURN_RESTORE:
+			var restores: Array[int] = []
+			for _restore: int in range(Events.BURN_RESTORES):
+				var best: int = _best_index(
+					state,
+					func(index: int) -> float:
+						return -1.0 if restores.has(index) else _restore_gain(state, index)
+				)
+				if best >= 0 and _restore_gain(state, best) > 0.0 and not restores.has(best):
+					restores.append(best)
+			var released: int = _best_index(
+				state,
+				func(index: int) -> float:
+					return -INF if restores.has(index) else -_remaining_strength(state, index)
+			)
+			if released >= 0 and not restores.has(released):
+				picks.append(released)
+			picks.append_array(restores)
+		Events.Effect.GAMBLE:
+			var best: int = _best_index(
+				state,
+				func(index: int) -> float:
+					if not Events.can_pick(state, effect, index):
+						return -INF
+					return _restore_gain(state, index) - _remaining_strength(state, index)
+			)
+			if best >= 0 and Events.can_pick(state, effect, best):
+				picks.append(best)
+		Events.Effect.COPY_SPIRIT:
+			var best: int = _best_index(
+				state,
+				func(index: int) -> float:
+					if state.card(index)["bond"] != Cards.Bond.SPIRIT:
+						return -INF
+					return _contract_gain(state.deck[index]["id"])
+			)
+			if best >= 0 and state.card(best)["bond"] == Cards.Bond.SPIRIT:
+				picks.append(best)
+		Events.Effect.SELL:
+			var lowest: int = _best_index(
+				state, func(index: int) -> float: return -_remaining_strength(state, index)
+			)
+			if lowest >= 0:
+				picks.append(lowest)
+	return picks
+
+
+## デッキの index のうち、score.call(index) が最も大きいもの (同じならデッキの前のもの。デッキが空なら -1)
+static func _best_index(state: RunStateScript, score: Callable) -> int:
+	var best: int = -1
+	var best_score: float = -INF
+	for index: int in range(state.deck.size()):
+		var value: float = score.call(index)
+		if best < 0 or value > best_score:
+			best = index
+			best_score = value
+	return best
+
+
 ## 出来事の effect の選択肢を picks で選びたいか。契約の入れ替えは、得る英霊の強さの合計が、手放すカードの
-## 残りの強さの合計より大きい時だけ。体力と引き換えの回復は、払った後の体力が最大の HEAVY_HP_RATE を超える時だけ
+## 残りの強さの合計より大きい時だけ。体力と引き換えの回復・英霊の最大使用回数を増やす・英霊の塚は、払った後の体力が
+## 最大の HEAVY_HP_RATE を超える時だけ。灰の炉は、戻して取り戻す強さの合計が、手放すカードの残りの強さの合計より
+## 大きい時だけ。封蝋の骰子は、当たって取り戻す強さの合計が、外れて失う残りの強さの合計より大きい時だけ (当たる
+## 確率 1/2 で、得と損の見込みが釣り合う境目)。影の質屋は、手放すカードが契約切れ (残りの強さが 0) の時だけ
+## (戦闘に使えるカードの回数の合計を減らさないため。契約の祠の破棄・商人の外すを選ばないのと同じ)。精霊の最大使用
+## 回数を増やす・所持金での回復・写し手の机は、所持金が足りればいつでも (Events.can_choose() が見る)
 static func _wants_event_option(state: RunStateScript, effect: int, picks: Array[int]) -> bool:
+	match effect:
+		Events.Effect.BLOOD_HERO:
+			return state.hp - Events.HERO_BLOOD_PRICE > state.max_hp * HEAVY_HP_RATE
+		Events.Effect.BURN_RESTORE:
+			if picks.is_empty():
+				return false
+			var regained: float = 0.0
+			for slot: int in range(1, picks.size()):
+				regained += _restore_gain(state, picks[slot])
+			return regained > _remaining_strength(state, picks[0])
+		Events.Effect.GAMBLE:
+			return (
+				not picks.is_empty()
+				and _restore_gain(state, picks[0]) > _remaining_strength(state, picks[0])
+			)
+		Events.Effect.SELL:
+			return not picks.is_empty() and _remaining_strength(state, picks[0]) == 0.0
+	if effect == Events.Effect.RAISE_HERO:
+		return state.hp - Events.RAISE_HERO_PRICE > state.max_hp * HEAVY_HP_RATE
 	if effect == Events.Effect.SWAP:
 		var released: float = 0.0
 		for index: int in picks:
@@ -568,4 +687,9 @@ static func _wants_event_option(state: RunStateScript, effect: int, picks: Array
 
 ## デッキの index 番目のカードの残りの強さの合計 (強さ × 残り使用回数)
 static func _remaining_strength(state: RunStateScript, index: int) -> float:
-	return Cards.strength(state.deck[index]["id"]) * state.uses_left(index)
+	return _card_strength(state, index) * state.uses_left(index)
+
+
+## デッキの index 番目のカードの強さ
+static func _card_strength(state: RunStateScript, index: int) -> float:
+	return Cards.strength(state.deck[index]["id"])

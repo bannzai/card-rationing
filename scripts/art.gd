@@ -16,8 +16,12 @@ const FONT: Font = preload("res://assets/fonts/ShipporiMincho-SemiBold.ttf")
 const BATTLE_BG: Texture2D = preload("res://assets/art/battle_bg.jpg")
 const BACKDROP: Texture2D = preload("res://assets/art/backdrop.jpg")
 const TITLE: Texture2D = preload("res://assets/art/title.jpg")
-## 巡礼者 (プレイヤー) の立ち絵
-const PILGRIM: Texture2D = preload("res://assets/art/pilgrim.png")
+## 契約者 ID (scripts/contractors.gd の CONTRACTORS のキー) → 巡礼者 (プレイヤー) の立ち絵 (戦闘・契約者の選択)
+const PORTRAITS: Dictionary = {
+	"yura": preload("res://assets/art/pilgrim.png"),
+	"shion": preload("res://assets/art/pilgrim_shion.png"),
+	"kagari": preload("res://assets/art/pilgrim_kagari.png"),
+}
 ## カードの枠 (内側は白紙の羊皮紙) と、契約切れのカードから色を抜くシェーダー
 const CARD_FRAME: Texture2D = preload("res://assets/art/card_frame.png")
 const ASHEN_SHADER: Shader = preload("res://assets/shaders/ashen.gdshader")
@@ -51,6 +55,19 @@ const ENEMY_ART: Dictionary = {
 	Enemies.Rank.NORMAL: preload("res://assets/art/enemy_normal.png"),
 	Enemies.Rank.ELITE: preload("res://assets/art/enemy_elite.png"),
 	Enemies.Rank.BOSS: preload("res://assets/art/enemy_boss.png"),
+}
+## 出来事 ID (scripts/events.gd の EVENTS のキー) → 出来事の画面の絵
+const EVENT_ART: Dictionary = {
+	"nameless_grave": preload("res://assets/art/event_nameless_grave.jpg"),
+	"blood_spring": preload("res://assets/art/event_blood_spring.jpg"),
+	"lost_spirit": preload("res://assets/art/event_lost_spirit.jpg"),
+	"wax_altar": preload("res://assets/art/event_wax_altar.jpg"),
+	"hero_barrow": preload("res://assets/art/event_hero_barrow.jpg"),
+	"candle_peddler": preload("res://assets/art/event_candle_peddler.jpg"),
+	"ash_furnace": preload("res://assets/art/event_ash_furnace.jpg"),
+	"seal_dice": preload("res://assets/art/event_seal_dice.jpg"),
+	"scribe_desk": preload("res://assets/art/event_scribe_desk.jpg"),
+	"shadow_pawn": preload("res://assets/art/event_shadow_pawn.jpg"),
 }
 ## 地図の節点の種類 → 印
 const MAP_ICONS: Dictionary = {

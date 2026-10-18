@@ -278,7 +278,8 @@ func _visit_shop() -> bool:
 	return true
 
 
-## 出来事で、戦略が選んだ選択肢を選ぶ (カードを選ぶ選択肢は、カードを 1 枚ずつ選んでから決める)
+## 出来事で、戦略が選んだ選択肢を選ぶ (カードを選ぶ選択肢は、カードを 1 枚ずつ選んでから決める。結果を見せる
+## 選択肢は、結果を見せてから地図へ戻る)
 func _visit_event() -> bool:
 	var event_ui: EventUiScript = main.screen as EventUiScript
 	var choice: Dictionary = Bots.choose_event(run_state)
@@ -294,6 +295,9 @@ func _visit_event() -> bool:
 		await event_ui.toggle_pick(index)
 	await _wait(SCREEN_FRAMES)
 	event_ui.confirm()
+	if event_ui.proceed_button != null:
+		await _wait(SCREEN_FRAMES)
+		event_ui.proceed()
 	return true
 
 

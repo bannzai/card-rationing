@@ -10,8 +10,11 @@ const AudioScript := preload("res://scripts/audio.gd")
 const BattleUiScript := preload("res://scripts/battle_ui.gd")
 const BossTalkScript := preload("res://scripts/boss_talk.gd")
 const Cards := preload("res://scripts/cards.gd")
+const CharacterSelectUiScript := preload("res://scripts/character_select_ui.gd")
 const Contractors := preload("res://scripts/contractors.gd")
 const Enemies := preload("res://scripts/enemies.gd")
+const EventUiScript := preload("res://scripts/event_ui.gd")
+const Events := preload("res://scripts/events.gd")
 const HeadlessCheck := preload("res://scripts/dev/headless_check.gd")
 const MainScript := preload("res://scripts/main.gd")
 const Relics := preload("res://scripts/relics.gd")
@@ -25,6 +28,8 @@ const MAIN_SCENE: PackedScene = preload("res://scenes/main.tscn")
 const MAP_SEED: int = 5
 ## 地図の画面で、道をこの段まで進めて撮る (通った道の色と、先の契約の祠が見えるように)
 const MAP_PROGRESS_ROW: int = 3
+## 撮る出来事が出る地図を探すシードの数 (scripts/dev/integration_base.gd の EVENT_SEED_LIMIT と同じ数)
+const EVENT_SEED_LIMIT: int = 300
 ## 撮影の間に使う保存先 (本番の保存データを触らない)
 const SCREENSHOT_SAVE_PATH: String = "user://screenshot_run.json"
 
@@ -70,6 +75,17 @@ func _capture_scenes() -> bool:
 	var steps: Array[Array] = [
 		[func() -> bool: return true, "title"],
 		[_show_character_select, "character-select"],
+	]
+	# 契約者ごとの選択画面 (フォーカスした契約者の立ち絵と説明) と、その契約者の初期デッキの最初の戦闘
+	for contractor_id: String in Contractors.CONTRACTORS:
+		if contractor_id != Contractors.FIRST_CONTRACTOR:
+			steps.append(
+				[_focus_contractor.bind(contractor_id), "character-select-%s" % contractor_id]
+			)
+	for contractor_id: String in Contractors.CONTRACTORS:
+		steps.append([_show_contractor_battle.bind(contractor_id), "battle-%s" % contractor_id])
+	steps.append([_show_wide_hand_drawn, "battle-wide-hand-drawn"])
+	steps.append_array([
 		[_show_map, "map"],
 		[_show_deck_list, "deck-list"],
 		[_show_battle, "battle"],
@@ -79,7 +95,15 @@ func _capture_scenes() -> bool:
 		[_show_shrine, "shrine"],
 		[_show_shrine_renew, "shrine-renew"],
 		[_show_shop, "shop"],
-		[_show_event, "event"],
+	])
+	# 出来事は全種を撮る (絵・文・選択肢の配置を見る)
+	for event_id: String in Events.EVENTS:
+		steps.append([_show_event.bind(event_id), "event-%s" % event_id.replace("_", "-")])
+	steps.append_array([
+		[_show_wax_altar, "event-wax-altar-prepared"],
+		[_show_wax_altar_pick, "event-wax-altar-pick"],
+		[_show_ash_furnace_pick, "event-ash-furnace-pick"],
+		[_show_seal_dice_result, "event-seal-dice-result"],
 		[_show_boss_talk, "boss-talk"],
 		[_show_boss_battle, "battle-boss"],
 		[_show_settings, "settings"],
@@ -88,7 +112,7 @@ func _capture_scenes() -> bool:
 		[_show_battle_relics, "battle-relics"],
 		[_show_battle_relic_info, "battle-relic-info"],
 		[_show_elite_reward, "reward-elite"],
-	]
+	])
 	for step: Array in steps:
 		if not step[0].call():
 			quit(1)
@@ -103,6 +127,50 @@ func _capture_scenes() -> bool:
 ## 契約者の選択
 func _show_character_select() -> bool:
 	main.show_character_select()
+	return true
+
+
+## 契約者の選択で contractor_id の契約者のボタンにフォーカスを移したところ (立ち絵と説明がその契約者になる)
+func _focus_contractor(contractor_id: String) -> bool:
+	main.show_character_select()
+	var select: CharacterSelectUiScript = main.screen as CharacterSelectUiScript
+	(select.character_buttons[contractor_id] as Button).grab_focus()
+	return select.shown_id == contractor_id
+
+
+## contractor_id の契約者で巡礼を始め、初期デッキのまま段 0 の最初の戦闘に入ったところ
+func _show_contractor_battle(contractor_id: String) -> bool:
+	main.start_run(contractor_id, MAP_SEED)
+	_show_at_row(0, RunStateScript.Phase.BATTLE)
+	return main.screen is BattleUiScript
+
+
+## 手札の多い契約者 (引く枚数の個性が最も大きい) が、夜風の囁き (3 枚引く) で手札を増やした戦闘 (手札が多くても
+## 画面の幅に収まることを見る)。夜風の囁きが手札に来るシードを順に探す
+func _show_wide_hand_drawn() -> bool:
+	var widest: String = Contractors.FIRST_CONTRACTOR
+	for contractor_id: String in Contractors.CONTRACTORS:
+		if (
+			Contractors.trait_value(contractor_id, "hand_bonus")
+			> Contractors.trait_value(widest, "hand_bonus")
+		):
+			widest = contractor_id
+	if not _show_contractor_battle(widest):
+		return false
+	var battle_ui: BattleUiScript = main.screen as BattleUiScript
+	var deck: Array[String] = Contractors.starter_deck(widest)
+	deck[0] = "night_whisper"
+	_set_deck(deck)
+	for seed_value: int in range(1, 51):
+		battle_ui.start_battle(seed_value)
+		var whisper_hand: int = _hand_index_of(battle_ui, "night_whisper")
+		if whisper_hand >= 0:
+			battle_ui.request_card(whisper_hand)
+			break
+	var expected: int = battle_ui.battle.hand_size() - 1 + Cards.CARDS["night_whisper"]["draw"]
+	if battle_ui.battle.hand.size() != expected:
+		push_error("夜風の囁きで手札を %d 枚にできない (手札 %d 枚)" % [expected, battle_ui.battle.hand.size()])
+		return false
 	return true
 
 
@@ -203,10 +271,84 @@ func _show_shop() -> bool:
 	return true
 
 
-## 出来事
-func _show_event() -> bool:
-	_show_at_kind(ActMap.Kind.EVENT, RunStateScript.Phase.EVENT)
+## 出来事 event_id の画面 (所持金 40 と、使いかけのカード・精霊の入ったデッキで、どの選択肢も選べる)
+func _show_event(event_id: String) -> bool:
+	if not _start_at_event(_is_event.bind(event_id)):
+		return false
+	_set_deck(["slash", "guard", "hero_strike", "breath", "spirit_arrow"])
+	run_state.use_card(0)
+	run_state.use_card(1)
+	run_state.gold = 40
+	_show_route(run_state.path, RunStateScript.Phase.EVENT)
 	return true
+
+
+## 出来事「蝋の祭壇」(体力と所持金が足りて、3 つの選択肢をどれも選べる)。デッキの先頭 (カードを選ぶ格子の 1 行目)
+## に、契約切れの雷槍の英霊と、最大使用回数を増やした盾の英霊 (封蝋の印が定義の回数より 1 つ多い) を置く
+func _show_wax_altar() -> bool:
+	if not _start_at_event(_is_event.bind("wax_altar")):
+		return false
+	_set_deck(
+		["hero_strike", "hero_wall", "slash", "slash", "guard", "guard", "spirit_arrow", "breath"]
+	)
+	while run_state.use_card(0):
+		pass
+	Events.raise_max_uses(run_state, 1)
+	run_state.gold = 40
+	_show_route(run_state.path, RunStateScript.Phase.EVENT)
+	return true
+
+
+## 蝋の祭壇で最大使用回数を増やす英霊を選ぶところ (増やせる英霊だけ押せる)
+func _show_wax_altar_pick() -> bool:
+	(main.screen as EventUiScript).select_option(0)
+	return true
+
+
+## 灰の炉で、炉にくべる 1 枚 (斬火) を選んだ後、残り使用回数を戻すカードを選ぶところ (残りの減ったカードだけ押せる)
+func _show_ash_furnace_pick() -> bool:
+	if not _show_event("ash_furnace"):
+		return false
+	var event_ui: EventUiScript = main.screen as EventUiScript
+	event_ui.select_option(0)
+	event_ui.toggle_pick(0)
+	return event_ui.picks.size() == 1
+
+
+## 封蝋の骰子で使いかけの斬火を賭けて当たった結果 (結果の文と「進む」)
+func _show_seal_dice_result() -> bool:
+	var found: bool = _start_at_event(
+		func(node_seed: int) -> bool:
+			return Events.event_for(node_seed) == "seal_dice" and Events.gamble_wins(node_seed)
+	)
+	if not found:
+		return false
+	_set_deck(["slash", "guard", "hero_strike", "breath", "spirit_arrow"])
+	run_state.use_card(0)
+	_show_route(run_state.path, RunStateScript.Phase.EVENT)
+	var event_ui: EventUiScript = main.screen as EventUiScript
+	event_ui.select_option(0)
+	event_ui.toggle_pick(0)
+	event_ui.confirm()
+	return event_ui.proceed_button != null
+
+
+## 最初の出来事の節点のシードで matches.call(節点のシード) が true になる地図を、地図のシード 1 から順に探して
+## 新しい巡礼にし、道をその節点まで進める (画面は呼ぶ側が出す)。見つからなければ false
+func _start_at_event(matches: Callable) -> bool:
+	for seed_value: int in range(1, EVENT_SEED_LIMIT + 1):
+		run_state.new_run([], seed_value)
+		var at: Vector2i = ActMap.find_kind(run_state.rows, ActMap.Kind.EVENT)
+		run_state.path = ActMap.route_to(run_state.rows, at.x, at.y)
+		if matches.call(run_state.node_seed()):
+			return true
+	push_error("撮る出来事が出る地図が見つからない")
+	return false
+
+
+## シードが node_seed の節点に出る出来事が event_id か
+func _is_event(node_seed: int, event_id: String) -> bool:
+	return Events.event_for(node_seed) == event_id
 
 
 ## ボスの節点に入り、ボス戦の前の会話を最後の台詞 (「戦う」が出る) まで進める。会話が出なければ false

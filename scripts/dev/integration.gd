@@ -7,13 +7,9 @@ extends "res://scripts/dev/integration_powers.gd"
 ## 場面ごとに鳴る BGM と効果音は、autoload Audio のプレイヤーが鳴っているかで確かめる (headless でも再生の状態は
 ## 進む)。効果音は直前の操作のものが鳴り終わっていないことがあるため、確かめる操作の前に _stop_se() で止める。
 ## 定数・autoload の参照・操作の部品は scripts/dev/integration_base.gd に、護符の検証は scripts/dev/integration_relics.gd
-## に、加護の検証は scripts/dev/integration_powers.gd に置く。
-
-## 戦闘の動きの終わりを実時間で待つ時の余裕 (秒)。headless の 1 フレームは数 ms (Makefile の SCRIPT_FRAME_LIMIT の
-## 根拠) なので、動きの最後のフレームの後に queue_free が済むまでには数十 ms で足り、CI の runner の遅れを見込んで
-## 0.2 秒にした
-const MOTION_MARGIN: float = 0.2
-
+## に、契約者の選択と個性の検証は scripts/dev/integration_contractors.gd に、出来事の画面の検証は
+## scripts/dev/integration_events.gd に、加護の検証は
+## scripts/dev/integration_powers.gd に置く。
 
 ## tree の準備が終わってから _run() を始める (シーンの追加は _initialize() の後でないとできない)
 func _initialize() -> void:
@@ -77,10 +73,15 @@ func _run() -> void:
 	await _check_shop_relic(main)
 	await _check_elite_relic(main)
 	await _check_blood_spring_sound(main)
+	await _check_event_layouts(main)
+	await _check_ash_furnace(main)
+	await _check_seal_dice(main)
+	await _check_wax_altar(main)
 	await _check_deck_list(main)
 	await _check_save_and_continue(main)
 	await _check_clear_returns_to_title(main)
 	await _check_defeat_returns_to_title(main)
+	await _check_contractor_traits(main)
 	await _check_settings_saved(main)
 	main.queue_free()
 	await process_frame
@@ -482,37 +483,6 @@ func _check_input_during_attack_motion(main: MainScript) -> void:
 	_check(restored, "攻撃の演出が終わると、画面と敵の位置と色が元に戻る")
 
 
-## 戦闘の動きがすべて終わるまで待つ時間 (秒)。最も長い動き (残り 1 回・契約切れになったカードを使う動きと、
-## 敵 enemy_count 体の戦闘で最も遅く当たる攻撃の最後の当たりから、当たりの後で最も長い浮かぶ数字の終わりまでの
-## 大きい方) に MOTION_MARGIN を足す
-func _motion_settle_time(enemy_count: int = 1) -> float:
-	var last_hit: float = 0.0
-	for card: Dictionary in Cards.CARDS.values():
-		if not card.has("damage"):
-			continue
-		var order: int = enemy_count - 1 if card.get("area", false) else 0
-		var delay: float = Art.attack_delay(card.get("hits", 1) - 1, order)
-		if card["bond"] == Cards.Bond.HERO:
-			delay += Art.HERO_HITSTOP
-		last_hit = maxf(last_hit, delay)
-	return (
-		maxf(
-			Art.CARD_LIFT_TIME + Art.SEAL_FLASH_TIME + Art.STRONG_TIME + Art.CARD_FLY_TIME,
-			last_hit + Art.FLOAT_TIME
-		)
-		+ MOTION_MARGIN
-	)
-
-## node と、その下のすべての Control がマウスを通すか
-func _ignores_mouse(node: Node) -> bool:
-	if node is Control and (node as Control).mouse_filter != Control.MOUSE_FILTER_IGNORE:
-		return false
-	for child: Node in node.get_children():
-		if not _ignores_mouse(child):
-			return false
-	return true
-
-
 ## 戦闘の途中で終了して「続きから」で再開しても、使ったカードの残り使用回数と受けた傷は戻らない
 ## (戦闘はその節点の最初からやり直す)
 func _check_battle_resume_keeps_uses(main: MainScript) -> void:
@@ -548,7 +518,7 @@ func _check_battle_resume_keeps_uses(main: MainScript) -> void:
 		enemy["intent"] = {"move": Enemies.Move.ATTACK, "value": 4}
 	await _press_key(KEY_ENTER)
 	var hp_after_attack: int = run_state.hp
-	_check(hp_after_attack < RunStateScript.START_HP, "敵の攻撃で体力が減る")
+	_check(hp_after_attack < run_state.max_hp, "敵の攻撃で体力が減る")
 	await _quit_and_continue(main)
 	_check(run_state.hp == hp_after_attack, "ターンの終わりに保存され、再開しても体力が戻らない")
 
@@ -609,13 +579,14 @@ func _check_exhausted_deck_battle_and_reward(main: MainScript) -> void:
 
 ## 地図で契約の祠に入り、「契約を更新する」で減ったカードの残り使用回数が最大まで戻る (保存にも反映される)
 func _check_shrine_restores_uses(main: MainScript) -> void:
+	# 直前の戦闘の勝ちで契約者の個性「灯守り」が回数を戻し、減ったカードが無いことがあるので、祠の画面を作る前に減らす
+	var index: int = _first_used_card()
 	await _enter_kind(main, ActMap.Kind.SHRINE)
 	var shrine: ShrineUiScript = main.screen as ShrineUiScript
 	_check(shrine != null, "地図の祠の節点で契約の祠に入る")
 	if shrine == null:
 		return
 	_check(run_state.phase == RunStateScript.Phase.SHRINE, "祠の局面")
-	var index: int = _first_used_card()
 	await _click(shrine.renew_button)
 	_check(shrine.deck_grid != null, "「契約を更新する」でカードを選ぶ")
 	if shrine.deck_grid == null or index < 0:
@@ -693,55 +664,6 @@ func _check_shop(main: MainScript) -> void:
 		_check(false, "商人で残り使用回数を戻すカードを選べる")
 	await _click(shop.leave_button)
 	_check(main.screen is MapUiScript and run_state.phase == RunStateScript.Phase.MAP, "商人の後は地図")
-
-
-## 地図で出来事に入り、カードを選ばない選択肢を選ぶと地図へ戻る
-func _check_event(main: MainScript) -> void:
-	await _enter_kind(main, ActMap.Kind.EVENT)
-	var event_ui: EventUiScript = main.screen as EventUiScript
-	_check(event_ui != null, "地図の出来事の節点で出来事に入る")
-	if event_ui == null:
-		return
-	var last: Button = event_ui.option_buttons.back()
-	_check(not last.disabled, "最後の選択肢 (カードを選ばない) を選べる")
-	await _click(last)
-	_check(main.screen is MapUiScript and run_state.phase == RunStateScript.Phase.MAP, "出来事の後は地図")
-
-
-## 出来事「血の泉」で体力を払って残り使用回数を戻すと、回数の回復の効果音が鳴って地図へ戻る (血の泉が出る
-## 地図のシードを 1 から順に探し、その巡礼の出来事の節点に入る。以後の検証はこの巡礼で続ける)
-func _check_blood_spring_sound(main: MainScript) -> void:
-	for seed_value: int in range(1, EVENT_SEED_LIMIT + 1):
-		run_state.new_run([], seed_value)
-		var at: Vector2i = ActMap.find_kind(run_state.rows, ActMap.Kind.EVENT)
-		run_state.path = ActMap.route_to(run_state.rows, at.x, at.y)
-		if Events.event_for(run_state.node_seed()) == "blood_spring":
-			break
-	run_state.use_card(0)
-	run_state.phase = RunStateScript.Phase.EVENT
-	main.show_run_phase()
-	await _settle()
-	var event_ui: EventUiScript = main.screen as EventUiScript
-	if event_ui == null:
-		_check(false, "血の泉の検証: 出来事の画面が出る")
-		return
-	if event_ui.event_id != "blood_spring":
-		_check(false, "血の泉が出る地図が見つかる")
-		await _click(event_ui.option_buttons.back())
-		return
-	await _click(event_ui.option_buttons[0])
-	if event_ui.deck_grid == null:
-		_check(false, "血の泉で残り使用回数を戻すカードを選べる")
-		return
-	await _click(event_ui.deck_grid.get_child(0) as Button)
-	_stop_se()
-	await _click(event_ui.confirm_button)
-	_check(
-		run_state.uses_left(0) == run_state.card(0)["max_uses"],
-		"血の泉で残り使用回数が最大に戻る"
-	)
-	_check(_se_playing(AudioScript.Se.RESTORE), "血の泉で回数の回復の効果音が鳴る")
-	_check(main.screen is MapUiScript, "血の泉の後は地図")
 
 
 ## 地図で D を押すと契約の一覧が開き、全カードを並べ、キーでスクロールでき、並べ方を変えられ、Esc で閉じる
@@ -959,6 +881,11 @@ func _check_cards_fit(main: MainScript) -> void:
 		views.append(UiKit.add_offer_card(row, card_id, note, func() -> void: pass))
 	for card_id: String in card_ids:
 		views.append(UiKit.add_offer_card(grid, card_id, "", func() -> void: pass))
+	# 出来事で最大使用回数を上限まで増やしたカードも、封蝋の印の列がカードの幅に収まるか確かめる
+	var raised: CardViewScript = CardViewScript.new()
+	raised.show_deck_card("guard", 1, Cards.MAX_USES_LIMIT)
+	grid.add_child(raised)
+	views.append(raised)
 	await _settle()
 	_check_buttons_fit(views, "並べたカード")
 	for button: Button in views:

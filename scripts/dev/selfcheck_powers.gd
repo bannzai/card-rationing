@@ -127,6 +127,15 @@ func _check_bot_metrics(state: RunStateScript, battle: BattleScript) -> void:
 	_check(Bots.hand_mostly_expired(battle, state), "手札 3 枚のうち契約切れ 2 枚は半分以上")
 	_check(Bots.offers_attack(["guard", "slash"]), "攻撃カードが並べば報酬に攻撃がある")
 	_check(not Bots.offers_attack(["guard", "breath"]), "攻撃カードが並ばなければ報酬に攻撃が無い")
+	state.new_run(["slash", "guard", "breath", "guard"], BOT_SEED)
+	state.path = ActMap.route_to(state.rows, 0, state.rows[0][0]["column"])
+	while state.use_card(0):
+		pass
+	while state.use_card(1):
+		pass
+	battle.start(state, ["skeleton"], 1)
+	var even_hand: bool = battle.hand.size() == 4
+	_check(even_hand and Bots.hand_mostly_expired(battle, state), "手札 4 枚のうち契約切れ 2 枚 (ちょうど半分) は半分以上")
 
 
 ## 加護のカードの定義: 種類の数が POWER_COUNT_RANGE に入り、精霊と英霊の両方がある。加護は割合でなく種類の数で絞る

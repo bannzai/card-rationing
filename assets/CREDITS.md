@@ -15,7 +15,7 @@
 
 ## 生成した絵 (`assets/art/`)
 
-見た目の方向「蝋と灯火」の絵。カードの絵は種別ごと、敵の絵は格ごと、地図の印は節点の種類ごとに共有する (1 枚ごと・1 体ごとの絵は https://github.com/bannzai/card-rationing/issues/13 )。
+見た目の方向「蝋と灯火」の絵。カードの絵は種別ごと、地図の印は節点の種類ごとに共有し (1 枚ごとの絵は https://github.com/bannzai/card-rationing/issues/13 )、敵の絵は 1 体ごとに持つ。
 
 - 生成に使ったツール: OpenAI Codex CLI v0.156.0 の組み込み画像生成 (モデルは gpt-6-astra)。game-art-reference skill の `generate-reference.sh` (`--generator imagegen`) から実行した。参考画像は渡していない (`--reference` を使わず、`documents/design/art-reference-2026-10-06/references.json` の approved のプロンプトと同じ言い回しで揃えた)
 - 生成日: 2026-10-07
@@ -74,15 +74,35 @@
 
 ### `art/enemy_normal.png`
 
-- 用途: 敵の絵 (通常の敵で共有)
+- 用途: 敵「影の野犬」の絵。`scripts/art.gd` の `ENEMY_ID_ART` に絵の無い通常の敵が出た時の格の絵も兼ねる
 - 改変: 透過の余白を除き、高さ 340 に縮小した
 - プロンプト: Game enemy sprite for a 2D deck-building roguelike, hand-painted dark fantasy illustration with visible brush strokes and paper grain: a feral shadow hound, full body, snarling and crouched, facing left, ash-matted dark fur, thin ribs, ember-orange eyes, a torn red rag around its neck. Lit by warm candle orange from the left with deep indigo shadows. Fully transparent background (PNG with alpha channel), nothing else in the image, no ground, no cast shadow. No legible text or numbers, no metal or chrome or neon gloss, no 3D render, no anime style.
 
 ### `art/enemy_elite.png`
 
-- 用途: 敵の絵 (強敵で共有)
+- 用途: 強敵「燭台の守り手」の絵。`scripts/art.gd` の `ENEMY_ID_ART` に絵の無い強敵が出た時の格の絵も兼ねる
 - 改変: 透過の余白を除き、高さ 480 に縮小した
 - プロンプト: Game enemy sprite for a 2D deck-building roguelike, hand-painted dark fantasy illustration with visible brush strokes and paper grain: a hulking stone guardian, full body from head to feet, facing left, a crown of lit dripping candles on its faceless helm, cracked mossy stone armor, a great stone slab shield carved with a seal and a heavy stone mace. Lit by warm candle orange with deep indigo shadows. Fully transparent background (PNG with alpha channel), nothing else in the image, no ground, no cast shadow. No legible text or numbers, no metal or chrome or neon gloss, no 3D render, no anime style.
+
+### `art/enemy_skeleton.png`・`art/enemy_wisp.png`・`art/enemy_moth.png`・`art/enemy_wax_doll.png`・`art/enemy_ash_hound.png`・`art/enemy_fallen_guard.png`・`art/enemy_seal_knight.png`
+
+- 用途: 戦闘の敵の絵 (敵ごとに 1 枚。`scripts/art.gd` の `ENEMY_ID_ART`)。ファイル名の `enemy_` の後が敵 ID (`scripts/enemies.gd` の `ENEMIES` のキー)
+- 生成: 2026-10-19 に OpenAI Codex CLI v0.162.1 の組み込み画像生成 (モデルは gpt-6-astra) で、game-art-reference skill の `generate-reference.sh` (`--generator imagegen --quality medium`。`--aspect-ratio` は強敵の `enemy_seal_knight.png` が 2:3、それ以外が 1:1。参考画像は渡していない) から 1 枚ずつ生成した。利用規約上の帰属は上の「生成した絵」と同じ
+- 改変: ImageMagick 7 で透過の余白を除き、格の絵と同じ大きさの透過の画布に載せた。通常の敵は `art/enemy_normal.png` と同じ 396x340 に収めて下揃え、強敵は `art/enemy_elite.png` と同じ 317x480 に収めて下揃えにした (戦闘で並べた時に縮尺と足元の高さを揃えるため)。宙に浮く迷い火と煤蛾は、高さ 289 (画布の 85%) に収めて上下の中央に置いた
+- プロンプト: 次の共通の頭と尾の間に、敵ごとの描写を入れた。頭と尾は `art/enemy_normal.png` (強敵は `art/enemy_elite.png`) のプロンプトと同じ言い回しにした
+  - 頭: Game enemy sprite for a 2D deck-building roguelike, hand-painted dark fantasy illustration with visible brush strokes and paper grain:
+  - 尾 (通常の敵): Lit by warm candle orange from the left with deep indigo shadows. Fully transparent background (PNG with alpha channel), nothing else in the image, no ground, no cast shadow. No legible text or numbers, no metal or chrome or neon gloss, no 3D render, no anime style.
+  - 尾 (強敵): 通常の敵の尾から「from the left」を除いたもの
+
+| ファイル | 敵 | 描写 |
+|---|---|---|
+| `art/enemy_skeleton.png` | 骸の巡礼者 | a skeletal undead pilgrim, full body from head to feet, standing hunched and facing left, bare bones showing through a tattered grey hooded travel robe, leaning on a cracked wooden staff hung with a dead snuffed lantern, broken red wax seals dangling from its rope belt, faint ember-orange light in its empty eye sockets. |
+| `art/enemy_wisp.png` | 迷い火 | a stray will-o-the-wisp spirit, a single floating ghostly flame with a faint sorrowful face in it, drifting toward the left, a long tail of pale orange and cold blue fire trailing into thin wisps of smoke, a few small embers floating around it. |
+| `art/enemy_moth.png` | 煤蛾 | a giant soot moth, full body seen from the front-left with its wings spread wide, facing left, ragged charcoal-black wings dusted with ash and marked with faint ember-orange eye spots, a furry ash-grey body, feathered antennae, flakes of soot falling from its wings. |
+| `art/enemy_wax_doll.png` | 蝋の人形 | a crude doll made of melted candle wax, full body from head to feet, standing stiffly and facing left, a smooth featureless pale face, thick drips of wax running down its head, arms and legs, a burnt wick sticking out of the top of its head with a small flame, scraps of stitched dark red cloth on its torso. |
+| `art/enemy_ash_hound.png` | 灰の猟犬 | a lean hunting hound made of smoldering ash and cinders, full body, standing tall in a stalking stance and facing left, long thin legs and a narrow pointed head, grey body cracked like burnt wood with glowing orange embers inside the cracks, grey smoke rising from its back, a worn leather hunting collar. |
+| `art/enemy_fallen_guard.png` | 堕ちた番兵 | a fallen shrine sentinel, an undead guard, full body from head to feet, standing with slumped shoulders and facing left, dented dark rusted armor overgrown with moss, a torn dark red tabard, a broken spear held low, a hollow helmet with dim ember-orange light inside. |
+| `art/enemy_seal_knight.png` | 封蝋の騎士 | an imposing knight in armor of hardened dark red sealing wax, full body from head to feet, facing left, a great round wax seal emblem embossed on its chest plate, a long blade dripping molten red wax, a tattered parchment cape hung with wax-sealed ribbons, thin candle smoke rising from its helm. |
 
 ### `art/enemy_boss.png`
 

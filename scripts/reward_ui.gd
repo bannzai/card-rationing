@@ -33,7 +33,7 @@ func _ready() -> void:
 	)
 	UiKit.add_label(layout, "新しく契約するカードを 1 枚選ぶ (取らなくてもよい)")
 	var row: HBoxContainer = UiKit.add_card_row(layout)
-	for card_id: String in NodeRules.card_offers(run_state.node_seed()):
+	for card_id: String in NodeRules.offers_here(run_state):
 		offer_buttons[card_id] = UiKit.add_offer_card(row, card_id, "", take.bind(card_id))
 	skip_button = UiKit.add_button(layout, "取らずに地図へ戻る", skip)
 	# 戦闘の Enter (ターン終了) の続けて押しで、見ずにカードと契約しないよう、取らない方に置く

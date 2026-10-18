@@ -106,14 +106,14 @@ static func choose_column(state: RunStateScript) -> int:
 
 ## 戦闘の報酬で契約するカード (並んだ 3 枚から必ず 1 枚取る)
 static func choose_reward(state: RunStateScript) -> String:
-	return _choose_offer(state, NodeRules.card_offers(state.node_seed()))
+	return _choose_offer(state, NodeRules.offers_here(state))
 
 
 ## 契約の祠で選ぶもの。{"renew_index": 契約を更新するデッキの index (-1 なら新しい契約を結ぶ),
 ## "card_id": 新しく契約するカード}。更新で取り戻す強さの合計と、新しい契約で得る強さの合計を比べて、
 ## 大きい方 (同じなら更新) を選ぶ。破棄は選ばない (回数の合計が減るため)
 static func choose_shrine(state: RunStateScript) -> Dictionary:
-	var card_id: String = _choose_offer(state, NodeRules.card_offers(state.node_seed()))
+	var card_id: String = _choose_offer(state, NodeRules.offers_here(state))
 	var renew_index: int = _best_restore(state)
 	if renew_index >= 0 and _restore_gain(state, renew_index) >= _contract_gain(card_id):
 		return {"renew_index": renew_index, "card_id": ""}
@@ -127,7 +127,7 @@ static func next_purchase(state: RunStateScript) -> Dictionary:
 	var best: Dictionary = {"card_id": "", "restore_index": -1}
 	var best_rate: float = 0.0
 	var sold: Array = state.visit.get("sold", [])
-	for card_id: String in NodeRules.card_offers(state.node_seed()):
+	for card_id: String in NodeRules.offers_here(state):
 		var price: int = NodeRules.card_price(card_id)
 		if sold.has(card_id) or state.gold < price:
 			continue
@@ -509,7 +509,7 @@ static func _wants_event_option(state: RunStateScript, effect: int, picks: Array
 		var released: float = 0.0
 		for index: int in picks:
 			released += _remaining_strength(state, index)
-		var hero_id: String = Events.gained_card(Events.Effect.SWAP, state.node_seed())
+		var hero_id: String = Events.gained_card(Events.Effect.SWAP, state)
 		return _contract_gain(hero_id) > released
 	if effect == Events.Effect.BLOOD_RESTORE:
 		return state.hp - Events.BLOOD_PRICE > state.max_hp * HEAVY_HP_RATE

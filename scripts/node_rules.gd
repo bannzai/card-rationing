@@ -22,6 +22,16 @@ const REMOVE_PRICE: int = 50
 const MIN_DECK_SIZE: int = 1
 ## 品揃えの乱数を、同じ節点の所持金の乱数とずらす値 (同じシードの乱数列にしないためで、0 以外なら値に意味は無い)
 const OFFER_SEED_OFFSET: int = 1
+## 品揃えを変える階の帯 (1 幕の地図の段を前半・中盤・後半に等分する) の数
+const OFFER_BANDS: int = 3
+## 品揃えに並ぶ確率の重み。精霊はどの帯でも SPIRIT_OFFER_WEIGHT、英霊は帯 (前半・中盤・後半の順) ごとの段の
+## 重み。どの帯も英霊の重みの合計を 10 (精霊 1 枚の 10 倍) にして、英霊が並ぶ割合を帯で変えない
+const SPIRIT_OFFER_WEIGHT: int = 1
+const HERO_OFFER_WEIGHTS: Array[Dictionary] = [
+	{Cards.Tier.LOWER: 2, Cards.Tier.MIDDLE: 1, Cards.Tier.UPPER: 0},
+	{Cards.Tier.LOWER: 1, Cards.Tier.MIDDLE: 1, Cards.Tier.UPPER: 1},
+	{Cards.Tier.LOWER: 0, Cards.Tier.MIDDLE: 1, Cards.Tier.UPPER: 2},
+]
 
 
 ## 戦闘 (kind が通常か強敵) に勝った時の所持金 (seed_value が同じなら同じ額)
@@ -32,20 +42,47 @@ static func reward_gold(seed_value: int, kind: int) -> int:
 	return rng.randi_range(span[0], span[1])
 
 
-## 報酬・祠・商人に並べる OFFER_COUNT 枚の、互いに違うカード ID (seed_value が同じなら同じ並び)。
-## bond を指定するとその区分のカードだけから選ぶ
-static func card_offers(seed_value: int, bond: int = -1) -> Array[String]:
+## 報酬・祠・商人に並べる OFFER_COUNT 枚の、互いに違うカード ID (seed_value と row が同じなら同じ並び)。
+## row (地図の段) の帯の重み (offer_weight()) で選ぶ。bond を指定するとその区分のカードだけから選ぶ
+static func card_offers(seed_value: int, row: int, bond: int = -1) -> Array[String]:
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	rng.seed = seed_value + OFFER_SEED_OFFSET
 	var pool: Array[String] = []
 	for card_id: String in Cards.CARDS:
-		if bond < 0 or Cards.CARDS[card_id]["bond"] == bond:
+		if (bond < 0 or Cards.CARDS[card_id]["bond"] == bond) and offer_weight(card_id, row) > 0:
 			pool.append(card_id)
 	pool.sort()
 	var offers: Array[String] = []
 	while offers.size() < OFFER_COUNT and not pool.is_empty():
-		offers.append(pool.pop_at(rng.randi_range(0, pool.size() - 1)))
+		var total: int = 0
+		for card_id: String in pool:
+			total += offer_weight(card_id, row)
+		var roll: int = rng.randi_range(0, total - 1)
+		var index: int = 0
+		while roll >= offer_weight(pool[index], row):
+			roll -= offer_weight(pool[index], row)
+			index += 1
+		offers.append(pool.pop_at(index))
 	return offers
+
+
+## 地図の段 row の品揃えの帯 (0 = 前半、1 = 中盤、2 = 後半。15 段の 1 幕では段 0〜4・5〜9・10〜14。
+## 出発前の -1 は前半)
+static func offer_band(row: int) -> int:
+	return clampi(floori(float(row) * OFFER_BANDS / ActMap.ROWS), 0, OFFER_BANDS - 1)
+
+
+## card_id のカードが、地図の段 row の品揃えに並ぶ確率の重み (0 なら並ばない)
+static func offer_weight(card_id: String, row: int) -> int:
+	var card: Dictionary = Cards.CARDS[card_id]
+	if card["bond"] == Cards.Bond.SPIRIT:
+		return SPIRIT_OFFER_WEIGHT
+	return HERO_OFFER_WEIGHTS[offer_band(row)][card["tier"]]
+
+
+## state の今いる節点に並べるカード (card_offers() に今いる節点のシードと段を渡す)
+static func offers_here(state: RunStateScript, bond: int = -1) -> Array[String]:
+	return card_offers(state.node_seed(), state.current_row(), bond)
 
 
 ## 商人でのカードの値段
@@ -55,7 +92,7 @@ static func card_price(card_id: String) -> int:
 
 ## 戦闘の報酬で card_id のカードと契約する (並んだ 3 枚のどれかで、まだ受け取っていない時だけ)
 static func take_reward_card(state: RunStateScript, card_id: String) -> bool:
-	if state.visit.has("taken") or not card_offers(state.node_seed()).has(card_id):
+	if state.visit.has("taken") or not offers_here(state).has(card_id):
 		return false
 	state.add_card(card_id)
 	state.visit["taken"] = true
@@ -83,7 +120,7 @@ static func shrine_break(state: RunStateScript, index: int) -> bool:
 
 ## 契約の祠で、並んだ 3 体のうち card_id と新しく契約する (代価なし)
 static func shrine_contract(state: RunStateScript, card_id: String) -> bool:
-	if state.visit.has("shrine_done") or not card_offers(state.node_seed()).has(card_id):
+	if state.visit.has("shrine_done") or not offers_here(state).has(card_id):
 		return false
 	state.add_card(card_id)
 	state.visit["shrine_done"] = true
@@ -93,7 +130,7 @@ static func shrine_contract(state: RunStateScript, card_id: String) -> bool:
 ## 商人で card_id のカードを買う (並んだカードで、まだ買っておらず、所持金が足りる時だけ)
 static func buy_card(state: RunStateScript, card_id: String) -> bool:
 	var sold: Array = state.visit.get("sold", [])
-	if sold.has(card_id) or not card_offers(state.node_seed()).has(card_id):
+	if sold.has(card_id) or not offers_here(state).has(card_id):
 		return false
 	if state.gold < card_price(card_id):
 		return false

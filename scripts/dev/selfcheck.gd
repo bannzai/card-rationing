@@ -891,8 +891,9 @@ func _check_strategy_bots() -> void:
 			with_relic == Bots.play_run(Bots.Strategy.SPEND, state, relic_seed),
 			"護符を手に入れるランも同じシードなら同じ結果 (シード %d)" % relic_seed
 		)
-	# 加護は戦闘の残りのターンの見込みで点数を付ける: 敵の体力 22 なら次のターンが残る見込みで使い、12 以下なら
-	# 今のターンで倒しきれる見込みで使わない (点数 0)
+	# 加護は戦闘の残りのターンの見込みで点数を付ける: 敵の体力 22 なら次のターンが残る見込みで使い、1 ターンの
+	# ダメージの見込み以下なら今のターンで倒しきれる見込みで使わない (点数 0)。攻撃カードの無いデッキの見込みは、
+	# エネルギー 3 をすべてもがくに使った 6
 	state.new_run(["lamp_ward"], BOT_SEED)
 	state.path = ActMap.route_to(state.rows, 0, state.rows[0][0]["column"])
 	battle.start(state, ["skeleton"], 1)
@@ -901,7 +902,8 @@ func _check_strategy_bots() -> void:
 			_bot_move(strategy, battle, state) == Bots.BattleMove.PLAY,
 			"敵の体力が 22 なら加護を使う: %s" % Bots.STRATEGY_NAMES[strategy]
 		)
-	battle.enemies[0]["hp"] = Cards.TURN_DAMAGE
+	_check(is_equal_approx(Bots._turn_damage(battle), 6.0), "攻撃カードが無ければ 1 ターンのダメージの見込みは 6")
+	battle.enemies[0]["hp"] = 6
 	_check(
 		_bot_move(Bots.Strategy.SPEND, battle, state) == Bots.BattleMove.STRUGGLE,
 		"今のターンで倒しきれる見込みなら加護を使わない"

@@ -424,19 +424,30 @@ static func _is_better_play(play: Dictionary, best: Dictionary) -> bool:
 
 
 ## この戦闘で、今のターンの後に残るターンの数の見込み (生きている敵の体力と防御の合計を、1 ターンに与える
-## ダメージの見込みで倒すのにかかるターンの数 − 1。今のターンで倒しきれる見込みなら 0)。1 ターンのダメージの見込みは
-## Cards.TURN_DAMAGE (攻撃カード 2 枚) に、2 枚それぞれに足される熾火の刃と発動中の加護の攻撃の上乗せを加えた値
-## (上乗せを数えないと、それを持つ重い戦闘で残りのターンを多く見積もり、加護の点数が高くなりすぎる)。
+## ダメージの見込み (_turn_damage()) で倒すのにかかるターンの数 − 1。今のターンで倒しきれる見込みなら 0)。
 ## 加護の毎ターンの効果は次のターンから効くので、今のターンは数えない
 static func _turns_left(battle: Battle) -> int:
 	var remaining: int = 0
 	for enemy_index: int in battle.alive_enemies():
 		remaining += battle.enemies[enemy_index]["hp"] + battle.enemies[enemy_index]["block"]
-	var attack_bonus: int = (
-		Battle.Relics.value(battle.run_state.relics, "ember_edge", "damage")
-		+ battle.power_total("attack_bonus")
-	)
-	return maxi(0, ceili(float(remaining) / (Cards.TURN_DAMAGE + 2 * attack_bonus)) - 1)
+	return maxi(0, ceili(float(remaining) / _turn_damage(battle)) - 1)
+
+
+## 1 ターンに敵に与えるダメージの見込み。デッキの残り使用回数のある攻撃カードの 1 枚あたりのダメージ (護符・発動中の
+## 加護の上乗せを含む battle.card_damage() × 回数) の平均 × 2 (Cards.TURN_DAMAGE と同じく 1 ターンに攻撃 2 枚)。
+## 使える攻撃カードが無ければ、1 ターンのエネルギーをすべてもがくに使ったダメージ。固定の Cards.TURN_DAMAGE (斬火 2 枚)
+## で数えると、英霊の段と護符で攻撃が強くなった後半の重い戦闘で残りのターンを多く見積もり、加護の点数が高くなりすぎる
+static func _turn_damage(battle: Battle) -> float:
+	var state: RunStateScript = battle.run_state
+	var total: int = 0
+	var count: int = 0
+	for deck_index: int in range(state.deck.size()):
+		if state.card(deck_index).has("damage") and state.uses_left(deck_index) > 0:
+			total += battle.card_damage(deck_index) * state.card(deck_index).get("hits", 1)
+			count += 1
+	if count == 0:
+		return float(battle.struggle_damage() * Battle.ENERGY_PER_TURN / Battle.STRUGGLE_COST)
+	return 2.0 * total / count
 
 
 ## このターンの終わりに受けるダメージ (生きている敵が予告している攻撃の合計から、今の防御を引いた量)

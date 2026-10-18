@@ -208,6 +208,7 @@ static func play_battle(
 			counted_turn = battle.turn
 			counts["turns"] += 1
 			counts["attackless_turns"] += 0 if hand_has_attack(battle, state) else 1
+			counts["expired_hand_turns"] += 1 if hand_mostly_expired(battle, state) else 0
 		var move: Dictionary = battle_move(strategy, battle, state)
 		var applied: bool = false
 		match move["move"]:
@@ -230,17 +231,22 @@ static func play_battle(
 ## (attack_uses_left()) が 0 で始まった戦闘の数, "turns": 戦ったターンの数, "attackless_turns": 手札に残り使用回数の
 ## ある攻撃カードが無い (hand_has_attack() が false) まま始まったターンの数, "plays": 使ったカードの数,
 ## "struggles": もがいた回数, "attackless_struggles": もがいた回数のうち、手札に残り使用回数のある攻撃カードが
-## 無かった時の回数 (温存のためではなく、攻撃の手段がもがくしかなかった回数), "attack_out_floor": デッキの攻撃の
-## 残り使用回数が初めて 0 になった戦闘の階層 (0 にならなければ -1)}
+## 無かった時の回数 (温存のためではなく、攻撃の手段がもがくしかなかった回数), "expired_hand_turns": 手札の半分以上が
+## 契約切れ (hand_mostly_expired() が true) のまま始まったターンの数, "rewards": 戦闘の報酬の画面に入った回数,
+## "attack_rewards": 戦闘の報酬に並んだ 3 枚に攻撃カードがあった回数 (bot が取ったかではなく、取れたか),
+## "attack_out_floor": デッキの攻撃の残り使用回数が初めて 0 になった戦闘の階層 (0 にならなければ -1)}
 static func new_counts() -> Dictionary:
 	return {
 		"battles": 0,
 		"attackless_battles": 0,
 		"turns": 0,
 		"attackless_turns": 0,
+		"expired_hand_turns": 0,
 		"plays": 0,
 		"struggles": 0,
 		"attackless_struggles": 0,
+		"rewards": 0,
+		"attack_rewards": 0,
 		"attack_out_floor": -1,
 	}
 
@@ -249,6 +255,25 @@ static func new_counts() -> Dictionary:
 static func hand_has_attack(battle: Battle, state: RunStateScript) -> bool:
 	for deck_index: int in battle.hand:
 		if state.card(deck_index)["kind"] == Cards.Kind.ATTACK and state.uses_left(deck_index) > 0:
+			return true
+	return false
+
+
+## battle の手札の半分以上 (枚数 × 2 が手札の枚数以上) が契約切れ (残り使用回数 0) か (手札が空なら false。
+## 手札の枚数は契約者の個性で変わるので、実際の手札の枚数で数える)
+static func hand_mostly_expired(battle: Battle, state: RunStateScript) -> bool:
+	if battle.hand.is_empty():
+		return false
+	var expired: int = 0
+	for deck_index: int in battle.hand:
+		expired += 1 if state.uses_left(deck_index) == 0 else 0
+	return expired * 2 >= battle.hand.size()
+
+
+## 並んだカード (カード ID の並び) に攻撃カードがあるか
+static func offers_attack(offers: Array[String]) -> bool:
+	for card_id: String in offers:
+		if Cards.CARDS[card_id]["kind"] == Cards.Kind.ATTACK:
 			return true
 	return false
 
@@ -324,6 +349,8 @@ static func _advance(strategy: int, state: RunStateScript, counts: Dictionary) -
 				counts["attack_out_floor"] = state.path.size()
 			RunFlow.finish_battle(state, won)
 		RunStateScript.Phase.REWARD:
+			counts["rewards"] += 1
+			counts["attack_rewards"] += 1 if offers_attack(NodeRules.offers_here(state)) else 0
 			NodeRules.take_reward_card(state, choose_reward(state))
 			RunFlow.leave_node(state)
 		RunStateScript.Phase.SHRINE:

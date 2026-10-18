@@ -936,9 +936,20 @@ func _check_strategy_bots() -> void:
 	while state.use_card(0):
 		pass
 	_check(Bots.attack_uses_left(state) == 0, "攻撃カードが契約切れなら攻撃の残りは 0")
-	state.new_run(["old_blade"], BOT_SEED)
+	# 手札の半分以上が契約切れかは、実際の手札の枚数で数える (3 枚の手札なら 2 枚から)
 	state.path = ActMap.route_to(state.rows, 0, state.rows[0][0]["column"])
 	var battle: BattleScript = BattleScript.new()
+	battle.start(state, ["skeleton"], 1)
+	_check(battle.hand.size() == 3, "3 枚のデッキなら手札は 3 枚")
+	_check(not Bots.hand_mostly_expired(battle, state), "3 枚のうち契約切れ 1 枚は半分未満")
+	while state.use_card(1):
+		pass
+	_check(Bots.hand_mostly_expired(battle, state), "3 枚のうち契約切れ 2 枚は半分以上")
+	_check(Bots.offers_attack(["guard", "slash"]), "攻撃カードが並べば報酬に攻撃がある")
+	_check(not Bots.offers_attack(["guard", "breath"]), "攻撃カードが並ばなければ報酬に攻撃が無い")
+	state.new_run(["old_blade"], BOT_SEED)
+	state.path = ActMap.route_to(state.rows, 0, state.rows[0][0]["column"])
+	battle = BattleScript.new()
 	battle.start(state, ["skeleton"], 1)
 	_check(_bot_move(Bots.Strategy.SPEND, battle, state) == Bots.BattleMove.PLAY, "出し惜しみしないは使う")
 	_check(

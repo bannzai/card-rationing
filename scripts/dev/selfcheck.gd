@@ -806,7 +806,7 @@ func _check_raised_max_uses() -> void:
 		Cards.deck_max_uses(state.deck[2]) == hero_max + 1 and state.uses_left(2) == hero_max + 1,
 		"英霊の最大と残りが 1 増える"
 	)
-	_check(state.hp == RunStateScript.START_HP - Events.RAISE_HERO_PRICE, "英霊を増やすと体力を払う")
+	_check(state.hp == state.max_hp - Events.RAISE_HERO_PRICE, "英霊を増やすと体力を払う")
 	state.gold = Events.RAISE_SPIRIT_PRICE
 	_check(not Events.choose(state, 1, spirit), "出来事で増やせるのは 1 回だけ")
 	state.gold = 0

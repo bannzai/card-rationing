@@ -714,7 +714,10 @@ func _check_wax_altar(main: MainScript) -> void:
 	if event_ui.deck_grid == null:
 		_check(false, "蝋の祭壇で最大使用回数を増やす英霊を選べる")
 		return
-	_check((event_ui.deck_grid.get_child(0) as Button).disabled, "英霊を増やす選択肢では精霊を選べない")
+	_check(
+		(event_ui.deck_grid.get_child(3) as Button).disabled,
+		"英霊を増やす選択肢では、まだ増やせる精霊 (守りの風) も選べない"
+	)
 	_check((event_ui.deck_grid.get_child(2) as Button).disabled, "最大使用回数を増やしきった英霊は選べない")
 	var max_before: int = run_state.max_uses(1)
 	var hp_before: int = run_state.hp

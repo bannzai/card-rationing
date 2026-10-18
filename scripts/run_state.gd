@@ -1,5 +1,6 @@
 extends Node
-## ラン (1 回の巡礼) 単位の状態の autoload (登録名 RunState)。契約者・デッキと各カードの残り使用回数・体力・
+## ラン (1 回の巡礼) 単位の状態の autoload (登録名 RunState)。契約者 (個性は契約者 ID から決まる。
+## scripts/contractors.gd)・デッキと各カードの残り使用回数・体力・
 ## 所持金・持っている護符・幕・地図 (シードと通った道)・進行の局面を持つ。戦闘単位の状態 (山札・手札・捨て札) は
 ## scripts/battle.gd が持ち、戦闘の開始・終了でここの残り使用回数を初期化しない
 ## (.claude/rules/card-uses-persist-across-run.md)。残り使用回数を増やす経路は restore_uses() だけ
@@ -20,9 +21,6 @@ const Cards := preload("res://scripts/cards.gd")
 const Contractors := preload("res://scripts/contractors.gd")
 const Relics := preload("res://scripts/relics.gd")
 
-## 新しいランの体力・最大体力。1 幕の前半の敵 (1 体の 1 ターンの攻撃 3〜7) の攻撃を 10 ターン前後受けられる値で、
-## 自動テストプレイ (#10) の結果で見直す
-const START_HP: int = 50
 ## 新しいランの所持金
 const START_GOLD: int = 0
 ## 保存データの形式。前の版のデータを読めなくなる形に変えたら上げる (違う版のデータは壊れたデータとして退避する)。
@@ -46,9 +44,9 @@ var character_id: String = Contractors.FIRST_CONTRACTOR
 ## デッキ。各要素は {"id": カード ID, "uses_left": 残り使用回数, "bonus_uses": 出来事で増やした最大使用回数
 ## (省略は 0)} で、同じ ID のカードも別の要素として持つ
 var deck: Array[Dictionary] = []
-## 巡礼者の体力と最大体力 (戦闘をまたいで持ち越す)
-var hp: int = START_HP
-var max_hp: int = START_HP
+## 巡礼者の体力と最大体力 (戦闘をまたいで持ち越す。始まりの値は契約者の max_hp)
+var hp: int = 0
+var max_hp: int = 0
 var gold: int = START_GOLD
 ## 持っている護符の ID (scripts/relics.gd の RELICS のキー) を手に入れた順に並べたもの (同じ護符は 1 つまで)
 var relics: Array[String] = []
@@ -77,19 +75,23 @@ func _ready() -> void:
 	new_run()
 
 
-## 新しいランを始める。デッキは deck_ids のカードを最大使用回数で持つ (空なら最初の契約者の初期デッキ)。
-## 地図は seed_value から作る (既定の 0 は地図を問わない検証と起動時のためで、本番の巡礼は
-## scripts/run_flow.gd の start_run() が乱数のシードを渡す)
-func new_run(deck_ids: Array[String] = [], seed_value: int = 0) -> void:
-	character_id = Contractors.FIRST_CONTRACTOR
+## contractor_id の契約者で新しいランを始める。デッキは deck_ids のカードを最大使用回数で持つ (空なら契約者の
+## 初期デッキ)。体力と最大体力は契約者の max_hp。地図は seed_value から作る (既定の 0 は地図を問わない検証と
+## 起動時のためで、本番の巡礼は scripts/run_flow.gd の start_run() が乱数のシードを渡す)
+func new_run(
+	deck_ids: Array[String] = [],
+	seed_value: int = 0,
+	contractor_id: String = Contractors.FIRST_CONTRACTOR
+) -> void:
+	character_id = contractor_id
 	deck = []
 	var ids: Array[String] = deck_ids
 	if ids.is_empty():
 		ids = Contractors.starter_deck(character_id)
 	for card_id: String in ids:
 		add_card(card_id)
-	hp = START_HP
-	max_hp = START_HP
+	max_hp = Contractors.CONTRACTORS[character_id]["max_hp"]
+	hp = max_hp
 	gold = START_GOLD
 	relics = []
 	relic_rolls = 0

@@ -1,17 +1,19 @@
 extends SceneTree
-## 戦略 bot の自動テストプレイ (headless。Makefile の simulate target)。3 つの戦略 (scripts/dev/strategy_bots.gd)
-## に、同じシードの 1 幕を SEED_COUNT ランずつ遊ばせ、戦略ごとの踏破率・平均到達階層・使い切った契約の数・
-## 最後まで使わずに残った強いカードの数・攻撃が尽きる速さ (攻撃が尽きて始まった戦闘の割合など) と、踏破率の差を
-## OUTPUT_PATH に JSON で書く。数値の読み方
+## 戦略 bot の自動テストプレイ (headless。Makefile の simulate target)。契約者 (scripts/contractors.gd) ごとに、
+## 3 つの戦略 (scripts/dev/strategy_bots.gd) に同じシードの 1 幕を SEED_COUNT ランずつ遊ばせ、戦略ごとの踏破率・
+## 平均到達階層・使い切った契約の数・最後まで使わずに残った強いカードの数・攻撃が尽きる速さ (攻撃が尽きて始まった
+## 戦闘の割合など) と、踏破率の差を OUTPUT_PATH に JSON で書く。トップの clear_rate_gap は契約者ごとの踏破率の差の
+## 最小 (どの契約者でも「状況で使い分ける」が勝っているかを 1 つの値で読むため)。数値の読み方
 ## (判定基準としきい値) は documents/DIRECTION.md で、ここではしきい値で失敗にしない。
 ## 全部のランを終えたら「simulate OK」の行を出して quit(0) する (Makefile はこの行と JSON の存在で判定する)。
 ## 1 ランごとに 1 フレーム進める (途中の実行時エラーで止まった時に、Makefile の --quit-after が効くように)。
 
 const Bots := preload("res://scripts/dev/strategy_bots.gd")
+const Contractors := preload("res://scripts/contractors.gd")
 const RunStateScript := preload("res://scripts/run_state.gd")
 
-## 戦略ごとに遊ぶランの数と、最初のシード (シードは FIRST_SEED から SEED_COUNT 個の連番で、3 つの戦略で同じ)。
-## ランの数は documents/DIRECTION.md の判定基準の「各 200 ラン」
+## 契約者と戦略の組ごとに遊ぶランの数と、最初のシード (シードは FIRST_SEED から SEED_COUNT 個の連番で、すべての組で
+## 同じ)。ランの数は documents/DIRECTION.md の判定基準の「各 200 ラン」
 const SEED_COUNT: int = 200
 const FIRST_SEED: int = 1
 ## 集計の JSON の書き出し先 (CI の artifact card-rationing-simulate に入る)
@@ -25,8 +27,8 @@ func _initialize() -> void:
 	_run.call_deferred()
 
 
-## 3 つの戦略を順に遊ばせ、集計を OUTPUT_PATH に書いて、結果を exit code と「simulate OK」の行で返して終える。
-## フレームを進めながら遊ばせるため、同じ実行中に重ねて呼び出さない
+## 契約者ごとに 3 つの戦略を順に遊ばせ、集計を OUTPUT_PATH に書いて、結果を exit code と「simulate OK」の行で
+## 返して終える。フレームを進めながら遊ばせるため、同じ実行中に重ねて呼び出さない
 func _run() -> void:
 	var state: RunStateScript = root.get_node_or_null("RunState")
 	if state == null:
@@ -35,22 +37,36 @@ func _run() -> void:
 		return
 	state.save_path = SIMULATE_SAVE_PATH
 	var started_msec: int = Time.get_ticks_msec()
-	var bots: Dictionary = {}
-	for strategy: int in Bots.Strategy.values():
-		bots[Bots.STRATEGY_KEYS[strategy]] = await _simulate(state, strategy)
+	var contractors: Dictionary = {}
+	var min_gap: float = INF
+	for contractor_id: String in Contractors.CONTRACTORS:
+		var bots: Dictionary = {}
+		for strategy: int in Bots.Strategy.values():
+			bots[Bots.STRATEGY_KEYS[strategy]] = await _simulate(state, strategy, contractor_id)
+		var others_best: float = maxf(
+			bots[Bots.STRATEGY_KEYS[Bots.Strategy.HOARD]]["clear_rate"],
+			bots[Bots.STRATEGY_KEYS[Bots.Strategy.SPEND]]["clear_rate"]
+		)
+		var gap: float = snappedf(
+			bots[Bots.STRATEGY_KEYS[Bots.Strategy.ADAPT]]["clear_rate"] - others_best, 0.01
+		)
+		min_gap = minf(min_gap, gap)
+		contractors[contractor_id] = {
+			"name": Contractors.CONTRACTORS[contractor_id]["name"], "bots": bots, "clear_rate_gap": gap
+		}
+		print(
+			(
+				"simulate: %s 踏破率の差 (状況で使い分ける − ほかの 2 つの高い方) %.1f ポイント"
+				% [Contractors.CONTRACTORS[contractor_id]["name"], gap]
+			)
+		)
 	state.delete_save()
-	var others_best: float = maxf(
-		bots[Bots.STRATEGY_KEYS[Bots.Strategy.HOARD]]["clear_rate"],
-		bots[Bots.STRATEGY_KEYS[Bots.Strategy.SPEND]]["clear_rate"]
-	)
 	var summary: Dictionary = {
 		"act": state.act,
 		"first_seed": FIRST_SEED,
 		"seed_count": SEED_COUNT,
-		"bots": bots,
-		"clear_rate_gap": snappedf(
-			bots[Bots.STRATEGY_KEYS[Bots.Strategy.ADAPT]]["clear_rate"] - others_best, 0.01
-		),
+		"contractors": contractors,
+		"clear_rate_gap": min_gap,
 	}
 	var file: FileAccess = FileAccess.open(OUTPUT_PATH, FileAccess.WRITE)
 	if file == null:
@@ -61,8 +77,7 @@ func _run() -> void:
 	file.close()
 	print(
 		(
-			"simulate: 踏破率の差 (状況で使い分ける − ほかの 2 つの高い方) %.1f ポイント"
-			% summary["clear_rate_gap"]
+			"simulate: 踏破率の差の契約者ごとの最小 %.1f ポイント" % summary["clear_rate_gap"]
 		)
 	)
 	print("simulate: %.1f 秒" % ((Time.get_ticks_msec() - started_msec) / 1000.0))
@@ -70,7 +85,8 @@ func _run() -> void:
 	quit(0)
 
 
-## strategy の戦略に SEED_COUNT ラン遊ばせた集計。{"name": 戦略の名前, "runs": ランの数, "clears": 踏破した数,
+## strategy の戦略に contractor_id の契約者で SEED_COUNT ラン遊ばせた集計。{"name": 戦略の名前, "runs": ランの数,
+## "clears": 踏破した数,
 ## "clear_rate": 踏破率 (%), "average_floor": 平均到達階層, "average_exhausted": 契約を使い切った回数の平均,
 ## "average_unused_strong": ランの終わりに残り使用回数が残っていた強いカードの枚数の平均,
 ## "average_relics": ランの終わりに持っていた護符の数の平均, "relic_runs": 護符を 1 つ以上持って終えたランの数,
@@ -83,7 +99,7 @@ func _run() -> void:
 ## "average_attack_out_floor": 攻撃が尽きたランで、初めて尽きた戦闘の階層の平均 (尽きたランが無ければ -1),
 ## "cleared_seeds": 踏破したシードの並び, "reached_floors": シードの順 (FIRST_SEED から) に並べた到達階層}。
 ## 後ろの 2 つは、make playtest で遊ばせるシードを選ぶのと、どの階層で倒れているかを読むのに使う
-func _simulate(state: RunStateScript, strategy: int) -> Dictionary:
+func _simulate(state: RunStateScript, strategy: int, contractor_id: String) -> Dictionary:
 	var cleared_seeds: Array[int] = []
 	var reached_floors: Array[int] = []
 	var floors: int = 0
@@ -95,7 +111,7 @@ func _simulate(state: RunStateScript, strategy: int) -> Dictionary:
 	var attack_out_runs: int = 0
 	var attack_out_floors: int = 0
 	for seed_value: int in range(FIRST_SEED, FIRST_SEED + SEED_COUNT):
-		var result: Dictionary = Bots.play_run(strategy, state, seed_value)
+		var result: Dictionary = Bots.play_run(strategy, state, seed_value, contractor_id)
 		if result["cleared"]:
 			cleared_seeds.append(seed_value)
 		reached_floors.append(result["floor"])
@@ -133,6 +149,7 @@ func _simulate(state: RunStateScript, strategy: int) -> Dictionary:
 		"cleared_seeds": cleared_seeds,
 		"reached_floors": reached_floors,
 	}
+	var label: String = "%s %s" % [Contractors.CONTRACTORS[contractor_id]["name"], stats["name"]]
 	print(
 		(
 			(
@@ -140,7 +157,7 @@ func _simulate(state: RunStateScript, strategy: int) -> Dictionary:
 				+ "護符 %.2f (持って終えたラン %d)"
 			)
 			% [
-				stats["name"],
+				label,
 				stats["clear_rate"],
 				stats["clears"],
 				SEED_COUNT,
@@ -159,7 +176,7 @@ func _simulate(state: RunStateScript, strategy: int) -> Dictionary:
 				+ "もがく %.1f%% (手札に攻撃が無かった時 %.1f%%) 攻撃が尽きたラン %d (初めて尽きた階層の平均 %.2f)"
 			)
 			% [
-				stats["name"],
+				label,
 				stats["attackless_battle_rate"],
 				stats["attackless_turn_rate"],
 				stats["struggle_rate"],

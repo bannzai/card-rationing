@@ -10,6 +10,7 @@ const AudioScript := preload("res://scripts/audio.gd")
 const BattleUiScript := preload("res://scripts/battle_ui.gd")
 const BossTalkScript := preload("res://scripts/boss_talk.gd")
 const Cards := preload("res://scripts/cards.gd")
+const CharacterSelectUiScript := preload("res://scripts/character_select_ui.gd")
 const Contractors := preload("res://scripts/contractors.gd")
 const Enemies := preload("res://scripts/enemies.gd")
 const EventUiScript := preload("res://scripts/event_ui.gd")
@@ -74,6 +75,17 @@ func _capture_scenes() -> bool:
 	var steps: Array[Array] = [
 		[func() -> bool: return true, "title"],
 		[_show_character_select, "character-select"],
+	]
+	# 契約者ごとの選択画面 (フォーカスした契約者の立ち絵と説明) と、その契約者の初期デッキの最初の戦闘
+	for contractor_id: String in Contractors.CONTRACTORS:
+		if contractor_id != Contractors.FIRST_CONTRACTOR:
+			steps.append(
+				[_focus_contractor.bind(contractor_id), "character-select-%s" % contractor_id]
+			)
+	for contractor_id: String in Contractors.CONTRACTORS:
+		steps.append([_show_contractor_battle.bind(contractor_id), "battle-%s" % contractor_id])
+	steps.append([_show_wide_hand_drawn, "battle-wide-hand-drawn"])
+	steps.append_array([
 		[_show_map, "map"],
 		[_show_deck_list, "deck-list"],
 		[_show_battle, "battle"],
@@ -93,7 +105,7 @@ func _capture_scenes() -> bool:
 		[_show_battle_relics, "battle-relics"],
 		[_show_battle_relic_info, "battle-relic-info"],
 		[_show_elite_reward, "reward-elite"],
-	]
+	])
 	for step: Array in steps:
 		if not step[0].call():
 			quit(1)
@@ -108,6 +120,50 @@ func _capture_scenes() -> bool:
 ## 契約者の選択
 func _show_character_select() -> bool:
 	main.show_character_select()
+	return true
+
+
+## 契約者の選択で contractor_id の契約者のボタンにフォーカスを移したところ (立ち絵と説明がその契約者になる)
+func _focus_contractor(contractor_id: String) -> bool:
+	main.show_character_select()
+	var select: CharacterSelectUiScript = main.screen as CharacterSelectUiScript
+	(select.character_buttons[contractor_id] as Button).grab_focus()
+	return select.shown_id == contractor_id
+
+
+## contractor_id の契約者で巡礼を始め、初期デッキのまま段 0 の最初の戦闘に入ったところ
+func _show_contractor_battle(contractor_id: String) -> bool:
+	main.start_run(contractor_id, MAP_SEED)
+	_show_at_row(0, RunStateScript.Phase.BATTLE)
+	return main.screen is BattleUiScript
+
+
+## 手札の多い契約者 (引く枚数の個性が最も大きい) が、夜風の囁き (3 枚引く) で手札を増やした戦闘 (手札が多くても
+## 画面の幅に収まることを見る)。夜風の囁きが手札に来るシードを順に探す
+func _show_wide_hand_drawn() -> bool:
+	var widest: String = Contractors.FIRST_CONTRACTOR
+	for contractor_id: String in Contractors.CONTRACTORS:
+		if (
+			Contractors.trait_value(contractor_id, "hand_bonus")
+			> Contractors.trait_value(widest, "hand_bonus")
+		):
+			widest = contractor_id
+	if not _show_contractor_battle(widest):
+		return false
+	var battle_ui: BattleUiScript = main.screen as BattleUiScript
+	var deck: Array[String] = Contractors.starter_deck(widest)
+	deck[0] = "night_whisper"
+	_set_deck(deck)
+	for seed_value: int in range(1, 51):
+		battle_ui.start_battle(seed_value)
+		var whisper_hand: int = _hand_index_of(battle_ui, "night_whisper")
+		if whisper_hand >= 0:
+			battle_ui.request_card(whisper_hand)
+			break
+	var expected: int = battle_ui.battle.hand_size() - 1 + Cards.CARDS["night_whisper"]["draw"]
+	if battle_ui.battle.hand.size() != expected:
+		push_error("夜風の囁きで手札を %d 枚にできない (手札 %d 枚)" % [expected, battle_ui.battle.hand.size()])
+		return false
 	return true
 
 

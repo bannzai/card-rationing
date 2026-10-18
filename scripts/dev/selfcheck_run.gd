@@ -188,7 +188,7 @@ func _check_run_flow() -> void:
 		state.gold == gold_before + NodeRules.reward_gold(state.node_seed(), ActMap.Kind.BATTLE),
 		"勝つと所持金を受け取る"
 	)
-	_check(state.hp == RunStateScript.START_HP - 20 + NodeRules.BATTLE_HEAL, "勝つと体力が回復する")
+	_check(state.hp == state.max_hp - 20 + NodeRules.BATTLE_HEAL, "勝つと体力が回復する")
 	_check(state.battles_won == 1, "勝った戦闘の数が増える")
 	_check(RunFlow.leave_node(state) and state.phase == RunStateScript.Phase.MAP, "報酬の後は地図へ戻る")
 	_check(not RunFlow.leave_node(state), "地図へ戻った後は節点を出られない")
@@ -379,7 +379,7 @@ func _check_events() -> void:
 	_check(not Events.choose(state, 0, one), "減っていないカードの回数は戻さない")
 	state.use_card(0)
 	_check(Events.choose(state, 0, one), "体力を払って回数を戻せる")
-	_check(state.hp == RunStateScript.START_HP - Events.BLOOD_PRICE, "体力を払う")
+	_check(state.hp == state.max_hp - Events.BLOOD_PRICE, "体力を払う")
 	_check(state.uses_left(0) == state.card(0)["max_uses"], "回数が最大に戻る")
 	state.free()
 	state = _state_at_event("blood_spring")

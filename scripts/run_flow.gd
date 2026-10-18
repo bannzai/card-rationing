@@ -38,8 +38,7 @@ const NODE_PHASES: Array = [
 
 ## character_id の契約者で、地図を seed_value から作って新しい巡礼を始める (地図の局面で保存する)
 static func start_run(state: RunStateScript, character_id: String, seed_value: int) -> void:
-	state.new_run(Contractors.starter_deck(character_id), seed_value)
-	state.character_id = character_id
+	state.new_run(Contractors.starter_deck(character_id), seed_value, character_id)
 	_change_phase(state, RunStateScript.Phase.MAP)
 
 
@@ -66,7 +65,8 @@ static func encounter(state: RunStateScript) -> Array[String]:
 
 
 ## 戦闘を終える。負けたら敗北、ボスに勝ったら踏破、ほかの戦闘に勝ったら (強敵なら先に護符を 1 つ受け取り) 所持金と
-## 体力 (護符の分を含む) を受け取って報酬の局面へ。戦闘の局面でなければ何もせず false
+## 体力 (護符の分を含む) を受け取り、契約者の個性で残り使用回数を戻して (NodeRules.win_restore()) 報酬の局面へ。
+## 戦闘の局面でなければ何もせず false
 static func finish_battle(state: RunStateScript, won: bool) -> bool:
 	if state.phase != RunStateScript.Phase.BATTLE:
 		return false
@@ -83,6 +83,7 @@ static func finish_battle(state: RunStateScript, won: bool) -> bool:
 		NodeRules.grant_elite_relic(state)
 	state.gold += NodeRules.battle_gold(state, kind)
 	state.heal(NodeRules.battle_heal(state))
+	NodeRules.win_restore(state)
 	_change_phase(state, RunStateScript.Phase.REWARD)
 	return true
 

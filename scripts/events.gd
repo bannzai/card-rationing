@@ -5,8 +5,10 @@ extends RefCounted
 ## 数値の根拠は documents/DIRECTION.md「決めたこと」で、自動テストプレイ (#10) の結果で見直す。
 
 ## 選択肢の処理の種類。SWAP = 選んだカードを手放して英霊 1 枚と契約する、BLOOD_RESTORE = 体力を払って
-## 選んだカードの残り使用回数を最大まで戻す、SPIRIT = 精霊 1 枚と契約する、GOLD = 所持金を得る、LEAVE = 何もしない
-enum Effect { SWAP, BLOOD_RESTORE, SPIRIT, GOLD, LEAVE }
+## 選んだカードの残り使用回数を最大まで戻す、SPIRIT = 精霊 1 枚と契約する、GOLD = 所持金を得る、LEAVE = 何もしない、
+## RAISE_HERO = 体力を払って選んだ英霊の最大使用回数と残り使用回数を 1 増やす、RAISE_SPIRIT = 所持金を払って
+## 選んだ精霊の最大使用回数と残り使用回数を 1 増やす
+enum Effect { SWAP, BLOOD_RESTORE, SPIRIT, GOLD, LEAVE, RAISE_HERO, RAISE_SPIRIT }
 
 const Cards := preload("res://scripts/cards.gd")
 const NodeRules := preload("res://scripts/node_rules.gd")
@@ -16,6 +18,13 @@ const RunStateScript := preload("res://scripts/run_state.gd")
 const SWAP_PICKS: int = 2
 const BLOOD_PRICE: int = 8
 const SPIRIT_GOLD: int = 20
+## 蝋の祭壇で英霊の最大使用回数を増やす時に払う体力と、精霊の最大使用回数を増やす時に払う所持金
+const RAISE_HERO_PRICE: int = 10
+const RAISE_SPIRIT_PRICE: int = 30
+## 最大使用回数を増やす選択肢の処理 → 選べるカードの区分
+const RAISE_BONDS: Dictionary = {
+	Effect.RAISE_HERO: Cards.Bond.HERO, Effect.RAISE_SPIRIT: Cards.Bond.SPIRIT
+}
 
 ## 出来事 ID → 定義
 const EVENTS: Dictionary = {
@@ -61,6 +70,25 @@ const EVENTS: Dictionary = {
 			},
 		],
 	},
+	"wax_altar":
+	{
+		"title": "蝋の祭壇",
+		"text": "祭壇に溶けた蝋が溜まっている。印に蝋を足せば、契約の回数そのものが増えるという。",
+		"options":
+		[
+			{
+				"label": "体力 %d を払い、英霊 1 枚の最大と残りの使用回数を 1 増やす" % RAISE_HERO_PRICE,
+				"effect": Effect.RAISE_HERO,
+				"picks": 1,
+			},
+			{
+				"label": "所持金 %d を払い、精霊 1 枚の最大と残りの使用回数を 1 増やす" % RAISE_SPIRIT_PRICE,
+				"effect": Effect.RAISE_SPIRIT,
+				"picks": 1,
+			},
+			{"label": "立ち去る", "effect": Effect.LEAVE, "picks": 0},
+		],
+	},
 }
 
 
@@ -96,11 +124,49 @@ static func can_choose(state: RunStateScript, option_index: int, picks: Array[in
 	var option: Dictionary = options[option_index]
 	if not _are_distinct_deck_indices(state, picks) or picks.size() != option["picks"]:
 		return false
-	match option["effect"]:
-		Effect.SWAP:
-			return swapped_deck_size(state.deck.size(), picks.size()) >= NodeRules.MIN_DECK_SIZE
+	var effect: Effect = option["effect"]
+	if effect == Effect.SWAP:
+		return swapped_deck_size(state.deck.size(), picks.size()) >= NodeRules.MIN_DECK_SIZE
+	return can_pay(state, effect) and picks.all(
+		func(index: int) -> bool: return can_pick(state, effect, index)
+	)
+
+
+## effect の選択肢の代価を今払えるか (体力は払った後に 1 以上残る時だけ払える)
+static func can_pay(state: RunStateScript, effect: Effect) -> bool:
+	match effect:
 		Effect.BLOOD_RESTORE:
-			return state.hp > BLOOD_PRICE and NodeRules.can_restore(state, picks[0])
+			return state.hp > BLOOD_PRICE
+		Effect.RAISE_HERO:
+			return state.hp > RAISE_HERO_PRICE
+		Effect.RAISE_SPIRIT:
+			return state.gold >= RAISE_SPIRIT_PRICE
+	return true
+
+
+## effect の選択肢で、デッキの index 番目のカードを選べるか (血の泉は残りの減ったカード、蝋の祭壇はその区分の
+## 最大使用回数をまだ増やせるカード)。契約の入れ替えはどのカードも選べる
+static func can_pick(state: RunStateScript, effect: Effect, index: int) -> bool:
+	if index < 0 or index >= state.deck.size():
+		return false
+	if effect == Effect.BLOOD_RESTORE:
+		return NodeRules.can_restore(state, index)
+	if RAISE_BONDS.has(effect):
+		return (
+			state.card(index)["bond"] == RAISE_BONDS[effect]
+			and Cards.deck_max_uses(state.deck[index]) < Cards.uses_limit(state.deck[index]["id"])
+		)
+	return true
+
+
+## state のデッキの index 番目のカードの最大使用回数を 1 増やし、残り使用回数も restore_uses() で 1 増やす
+## (蝋の祭壇)。最大が Cards.uses_limit() に届いていて増やせなければ false を返して何も変えない
+static func raise_max_uses(state: RunStateScript, index: int) -> bool:
+	var entry: Dictionary = state.deck[index]
+	if Cards.deck_max_uses(entry) >= Cards.uses_limit(entry["id"]):
+		return false
+	entry["bonus_uses"] = entry.get("bonus_uses", 0) + 1
+	state.restore_uses(index, 1)
 	return true
 
 
@@ -126,6 +192,12 @@ static func choose(state: RunStateScript, option_index: int, picks: Array[int]) 
 			state.add_card(gained_card(effect, state))
 		Effect.GOLD:
 			state.gold += SPIRIT_GOLD
+		Effect.RAISE_HERO:
+			state.take_damage(RAISE_HERO_PRICE)
+			raise_max_uses(state, picks[0])
+		Effect.RAISE_SPIRIT:
+			state.gold -= RAISE_SPIRIT_PRICE
+			raise_max_uses(state, picks[0])
 	state.visit["event_done"] = true
 	return true
 

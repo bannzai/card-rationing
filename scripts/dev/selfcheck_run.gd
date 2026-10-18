@@ -348,9 +348,10 @@ func _check_events() -> void:
 		for option: Dictionary in event["options"]:
 			effects[option["effect"]] = true
 			_check(not option["label"].is_empty(), "選択肢の文: %s" % event_id)
-	_check(Events.EVENTS.size() >= 2 and Events.EVENTS.size() <= 3, "出来事は 2〜3 種")
+	_check(Events.EVENTS.size() >= 2 and Events.EVENTS.size() <= 4, "出来事は 2〜4 種")
 	_check(effects.has(Events.Effect.SWAP), "デッキの入れ替えの出来事がある")
 	_check(effects.has(Events.Effect.BLOOD_RESTORE), "代償と引き換えの回復の出来事がある")
+	_check(effects.has(Events.Effect.RAISE_HERO), "最大使用回数を増やす出来事がある")
 	var first_event: String = Events.event_for(9)
 	var second_event: String = Events.event_for(9)
 	_check(first_event == second_event, "同じシードなら同じ出来事")
@@ -582,3 +583,49 @@ func _card_not_in(offers: Array[String]) -> String:
 func _remove_user_file(path: String) -> void:
 	if FileAccess.file_exists(path):
 		DirAccess.open(path.get_base_dir()).remove(path.get_file())
+
+
+## 増えた最大使用回数の保存: 往復で保たれ、bonus_uses の無い要素は 0 として読み、区分の上限を超える・残りが
+## 増えた最大を超える・負の bonus_uses は壊れたデータとして読まない
+func _check_raised_max_uses_save() -> void:
+	var state: RunStateScript = _raised_uses_state()
+	state.phase = RunStateScript.Phase.MAP
+	Events.raise_max_uses(state, 1)
+	var other: RunStateScript = RunStateScript.new()
+	_check(other.from_dict(state.to_dict()), "増えた最大使用回数のあるランを読み込める")
+	_check(
+		(
+			Cards.deck_max_uses(other.deck[1]) == Cards.deck_max_uses(state.deck[1])
+			and other.uses_left(1) == state.uses_left(1)
+		),
+		"往復で増えた最大使用回数が保たれる"
+	)
+	_check(
+		Cards.deck_max_uses(other.deck[2]) == Cards.CARDS["hero_strike"]["max_uses"],
+		"増やしていないカードはそのまま"
+	)
+	var hero_max: int = Cards.CARDS["hero_strike"]["max_uses"]
+	var cases: Array[Array] = [
+		[{"id": "hero_strike", "uses_left": hero_max + 1, "bonus_uses": 1}, true, "増えた最大まで"],
+		[{"id": "hero_strike", "uses_left": hero_max + 1}, false, "残りが最大を超える"],
+		[{"id": "hero_strike", "uses_left": 1, "bonus_uses": 2}, false, "区分の上限を超える"],
+		[{"id": "slash", "uses_left": 1, "bonus_uses": 1}, false, "全体の上限を超える"],
+		[{"id": "guard", "uses_left": 1, "bonus_uses": -1}, false, "負の増えた分"],
+		[{"id": "guard", "uses_left": 1, "bonus_uses": 0.5}, false, "整数でない増えた分"],
+	]
+	for case: Array in cases:
+		var data: Dictionary = state.to_dict()
+		data["deck"] = [case[0]]
+		_check(other.from_dict(data) == case[1], "保存データのデッキの要素: %s" % case[2])
+	state.free()
+	other.free()
+
+
+## 蝋の祭壇の節点に入った局面のランで、デッキが斬火 (最大使用回数が上限)・守りの風・雷槍の英霊・盾の英霊のもの
+func _raised_uses_state() -> RunStateScript:
+	var state: RunStateScript = _state_at_event("wax_altar")
+	var ids: Array[String] = ["slash", "guard", "hero_strike", "hero_wall"]
+	state.deck.clear()
+	for card_id: String in ids:
+		state.add_card(card_id)
+	return state

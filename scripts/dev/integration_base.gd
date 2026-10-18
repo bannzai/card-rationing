@@ -39,9 +39,13 @@ const INTEGRATION_SAVE_PATH: String = "user://integration_run.json"
 const INTEGRATION_SETTINGS_PATH: String = "user://integration_settings.cfg"
 ## 巡礼の地図と戦闘の乱数を固定するシード (値に意味は無く、失敗を再現できるように固定する)
 const RANDOM_SEED: int = 20261006
-## 出来事「血の泉」が出る地図を探すシードの数 (出来事は 3 種で、シード 1 つごとに 1 / 3 で当たる。selfcheck の
-## _state_at_event() と同じ数)
+## 出来事「血の泉」「蝋の祭壇」が出る地図を探すシードの数 (出来事は 4 種で、シード 1 つごとに 1 / 4 で当たる。
+## selfcheck の _state_at_event() と同じ数)
 const EVENT_SEED_LIMIT: int = 300
+## 戦闘の動きの終わりを実時間で待つ時の余裕 (秒)。headless の 1 フレームは数 ms (Makefile の SCRIPT_FRAME_LIMIT の
+## 根拠) なので、動きの最後のフレームの後に queue_free が済むまでには数十 ms で足り、CI の runner の遅れを見込んで
+## 0.2 秒にした
+const MOTION_MARGIN: float = 0.2
 
 ## autoload RunState (ラン単位の状態)・Settings (設定)・Audio (BGM と効果音)
 var run_state: RunStateScript = null
@@ -63,6 +67,60 @@ func _enter_kind(main: MainScript, kind: ActMap.Kind) -> void:
 	_check(button != null and not button.disabled, "地図で %s の節点を選べる" % ActMap.KIND_NAMES[kind])
 	if button != null:
 		await _click(button)
+
+
+## 戦闘の動きがすべて終わるまで待つ時間 (秒)。最も長い動き (残り 1 回・契約切れになったカードを使う動きと、
+## 敵 enemy_count 体の戦闘で最も遅く当たる攻撃の最後の当たりから、当たりの後で最も長い浮かぶ数字の終わりまでの
+## 大きい方) に MOTION_MARGIN を足す
+func _motion_settle_time(enemy_count: int = 1) -> float:
+	var last_hit: float = 0.0
+	for card: Dictionary in Cards.CARDS.values():
+		if not card.has("damage"):
+			continue
+		var order: int = enemy_count - 1 if card.get("area", false) else 0
+		var delay: float = Art.attack_delay(card.get("hits", 1) - 1, order)
+		if card["bond"] == Cards.Bond.HERO:
+			delay += Art.HERO_HITSTOP
+		last_hit = maxf(last_hit, delay)
+	return (
+		maxf(
+			Art.CARD_LIFT_TIME + Art.SEAL_FLASH_TIME + Art.STRONG_TIME + Art.CARD_FLY_TIME,
+			last_hit + Art.FLOAT_TIME
+		)
+		+ MOTION_MARGIN
+	)
+
+
+## node と、その下のすべての Control がマウスを通すか
+func _ignores_mouse(node: Node) -> bool:
+	if node is Control and (node as Control).mouse_filter != Control.MOUSE_FILTER_IGNORE:
+		return false
+	for child: Node in node.get_children():
+		if not _ignores_mouse(child):
+			return false
+	return true
+
+
+## parent の子に、文が text のラベルがあるか
+func _has_label(parent: Node, text: String) -> bool:
+	for child: Node in parent.get_children():
+		if child is Label and (child as Label).text == text:
+			return true
+	return false
+
+
+## event_id の出来事が出る地図のシードを 1 から順に探して新しい巡礼にし、その出来事の節点に入った局面にする
+## (画面は呼ぶ側が出す)。見つからなければ失敗にして false
+func _start_run_at_event(event_id: String) -> bool:
+	for seed_value: int in range(1, EVENT_SEED_LIMIT + 1):
+		run_state.new_run([], seed_value)
+		var at: Vector2i = ActMap.find_kind(run_state.rows, ActMap.Kind.EVENT)
+		run_state.path = ActMap.route_to(run_state.rows, at.x, at.y)
+		if Events.event_for(run_state.node_seed()) == event_id:
+			run_state.phase = RunStateScript.Phase.EVENT
+			return true
+	_check(false, "出来事 %s が出る地図が見つかる" % event_id)
+	return false
 
 
 ## ゲームを終了して起動し直し、タイトルの「続きから」を押す (ラン単位の状態は新しいランで消し、保存データ
@@ -125,7 +183,7 @@ func _load_saved() -> RunStateScript:
 ## デッキで残り使用回数が最大より減っている最初のカード (無ければ最初のカードを 1 回使ってそれを返す)
 func _first_used_card() -> int:
 	for index: int in range(run_state.deck.size()):
-		if run_state.uses_left(index) < run_state.card(index)["max_uses"]:
+		if run_state.uses_left(index) < Cards.deck_max_uses(run_state.deck[index]):
 			return index
 	return 0 if run_state.use_card(0) else -1
 

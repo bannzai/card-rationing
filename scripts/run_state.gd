@@ -4,7 +4,8 @@ extends Node
 ## 所持金・持っている護符・幕・地図 (シードと通った道)・進行の局面を持つ。戦闘単位の状態 (山札・手札・捨て札) は
 ## scripts/battle.gd が持ち、戦闘の開始・終了でここの残り使用回数を初期化しない
 ## (.claude/rules/card-uses-persist-across-run.md)。残り使用回数を増やす経路は restore_uses() だけ
-## (新しい契約の add_card() もこれを通す)。局面の移り変わりと自動保存は scripts/run_flow.gd が行う。
+## (新しい契約の add_card() と、最大使用回数を増やす scripts/events.gd の raise_max_uses() もこれを通す)。
+## 局面の移り変わりと自動保存は scripts/run_flow.gd が行う。
 ## --script の検証から使う時は root.get_node_or_null("RunState") で取るか、このスクリプトを new() する。
 
 ## 局面が変わった (画面の切り替えの合図。scripts/main.gd が受ける)
@@ -22,7 +23,8 @@ const Relics := preload("res://scripts/relics.gd")
 
 ## 新しいランの所持金
 const START_GOLD: int = 0
-## 保存データの形式。形式を変えたら上げる (違う版のデータは壊れたデータとして退避する)
+## 保存データの形式。前の版のデータを読めなくなる形に変えたら上げる (違う版のデータは壊れたデータとして退避する)。
+## デッキの要素の bonus_uses は省略を 0 として読むので、足しても上げていない
 const SAVE_VERSION: int = 3
 ## 本番の保存先
 const SAVE_PATH: String = "user://run.json"
@@ -39,7 +41,8 @@ const SAVED_PHASE_KINDS: Dictionary = {
 
 ## 巡礼に出ている契約者の ID (scripts/contractors.gd の CONTRACTORS のキー)
 var character_id: String = Contractors.FIRST_CONTRACTOR
-## デッキ。各要素は {"id": カード ID, "uses_left": 残り使用回数} で、同じ ID のカードも別の要素として持つ
+## デッキ。各要素は {"id": カード ID, "uses_left": 残り使用回数, "bonus_uses": 出来事で増やした最大使用回数
+## (省略は 0)} で、同じ ID のカードも別の要素として持つ
 var deck: Array[Dictionary] = []
 ## 巡礼者の体力と最大体力 (戦闘をまたいで持ち越す。始まりの値は契約者の max_hp)
 var hp: int = 0
@@ -127,14 +130,15 @@ func use_card(index: int) -> bool:
 	return true
 
 
-## デッキの index 番目のカードの残り使用回数を amount 回戻す (負なら最大まで)。最大を超えない。
-## 残り使用回数を増やす唯一の経路 (契約の更新・商人・出来事・新しい契約)。戻した後の残り使用回数を返す
+## デッキの index 番目のカードの残り使用回数を amount 回戻す (負なら最大まで)。最大 (出来事で増やした分を含む
+## Cards.deck_max_uses()) を超えない。残り使用回数を増やす唯一の経路 (契約の更新・商人・出来事・新しい契約・
+## 最大使用回数を増やす)。戻した後の残り使用回数を返す
 func restore_uses(index: int, amount: int = -1) -> int:
-	var max_uses: int = card(index)["max_uses"]
+	var limit: int = Cards.deck_max_uses(deck[index])
 	if amount < 0:
-		deck[index]["uses_left"] = max_uses
+		deck[index]["uses_left"] = limit
 	else:
-		deck[index]["uses_left"] = mini(max_uses, uses_left(index) + amount)
+		deck[index]["uses_left"] = mini(limit, uses_left(index) + amount)
 	return uses_left(index)
 
 
@@ -228,7 +232,10 @@ func from_dict(data: Variant) -> bool:
 		return false
 	var new_deck: Array[Dictionary] = []
 	for entry: Dictionary in data["deck"]:
-		new_deck.append({"id": entry["id"], "uses_left": int(entry["uses_left"])})
+		var new_entry: Dictionary = {"id": entry["id"], "uses_left": int(entry["uses_left"])}
+		if int(entry.get("bonus_uses", 0)) > 0:
+			new_entry["bonus_uses"] = int(entry["bonus_uses"])
+		new_deck.append(new_entry)
 	character_id = data["character_id"]
 	deck = new_deck
 	hp = int(data["hp"])
@@ -377,16 +384,21 @@ func _is_valid_progress(data: Dictionary) -> bool:
 	return kinds.has(node["kind"])
 
 
-## 保存データのデッキの 1 要素の形が合っているか
+## 保存データのデッキの 1 要素の形が合っているか (増やした最大使用回数は Cards.uses_limit() まで、残り使用回数は
+## 増やした後の最大まで)
 func _is_valid_deck_entry(entry: Variant) -> bool:
 	if typeof(entry) != TYPE_DICTIONARY or not entry.has("id") or not entry.has("uses_left"):
 		return false
 	if typeof(entry["id"]) != TYPE_STRING or not Cards.CARDS.has(entry["id"]):
 		return false
-	if not _is_integer(entry["uses_left"]):
+	var bonus: Variant = entry.get("bonus_uses", 0)
+	if not _is_integer(entry["uses_left"]) or not _is_integer(bonus) or int(bonus) < 0:
+		return false
+	var limit: int = Cards.CARDS[entry["id"]]["max_uses"] + int(bonus)
+	if int(bonus) > 0 and limit > Cards.uses_limit(entry["id"]):
 		return false
 	var uses: int = int(entry["uses_left"])
-	return uses >= 0 and uses <= Cards.CARDS[entry["id"]]["max_uses"]
+	return uses >= 0 and uses <= limit
 
 
 ## 整数として検査済みの値の並びを Array[int] にする (JSON は数を float で読むため)

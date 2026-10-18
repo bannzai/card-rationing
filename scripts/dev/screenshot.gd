@@ -13,6 +13,8 @@ const Cards := preload("res://scripts/cards.gd")
 const CharacterSelectUiScript := preload("res://scripts/character_select_ui.gd")
 const Contractors := preload("res://scripts/contractors.gd")
 const Enemies := preload("res://scripts/enemies.gd")
+const EventUiScript := preload("res://scripts/event_ui.gd")
+const Events := preload("res://scripts/events.gd")
 const HeadlessCheck := preload("res://scripts/dev/headless_check.gd")
 const MainScript := preload("res://scripts/main.gd")
 const Relics := preload("res://scripts/relics.gd")
@@ -26,6 +28,8 @@ const MAIN_SCENE: PackedScene = preload("res://scenes/main.tscn")
 const MAP_SEED: int = 5
 ## 地図の画面で、道をこの段まで進めて撮る (通った道の色と、先の契約の祠が見えるように)
 const MAP_PROGRESS_ROW: int = 3
+## 出来事「蝋の祭壇」が出る地図を探すシードの数 (scripts/dev/integration_base.gd の EVENT_SEED_LIMIT と同じ数)
+const EVENT_SEED_LIMIT: int = 300
 ## 撮影の間に使う保存先 (本番の保存データを触らない)
 const SCREENSHOT_SAVE_PATH: String = "user://screenshot_run.json"
 
@@ -91,6 +95,8 @@ func _capture_scenes() -> bool:
 		[_show_shrine_renew, "shrine-renew"],
 		[_show_shop, "shop"],
 		[_show_event, "event"],
+		[_show_wax_altar, "event-wax-altar"],
+		[_show_wax_altar_pick, "event-wax-altar-pick"],
 		[_show_boss_talk, "boss-talk"],
 		[_show_boss_battle, "battle-boss"],
 		[_show_settings, "settings"],
@@ -231,6 +237,35 @@ func _show_shop() -> bool:
 ## 出来事
 func _show_event() -> bool:
 	_show_at_kind(ActMap.Kind.EVENT, RunStateScript.Phase.EVENT)
+	return true
+
+
+## 出来事「蝋の祭壇」(体力と所持金が足りて、3 つの選択肢をどれも選べる)。蝋の祭壇が出る地図のシードを 1 から順に
+## 探す。デッキの先頭 (カードを選ぶ格子の 1 行目) に、契約切れの雷槍の英霊と、最大使用回数を増やした盾の英霊
+## (封蝋の印が定義の回数より 1 つ多い) を置く
+func _show_wax_altar() -> bool:
+	for seed_value: int in range(1, EVENT_SEED_LIMIT + 1):
+		run_state.new_run([], seed_value)
+		var at: Vector2i = ActMap.find_kind(run_state.rows, ActMap.Kind.EVENT)
+		run_state.path = ActMap.route_to(run_state.rows, at.x, at.y)
+		if Events.event_for(run_state.node_seed()) != "wax_altar":
+			continue
+		_set_deck(
+			["hero_strike", "hero_wall", "slash", "slash", "guard", "guard", "spirit_arrow", "breath"]
+		)
+		while run_state.use_card(0):
+			pass
+		Events.raise_max_uses(run_state, 1)
+		run_state.gold = 40
+		_show_route(run_state.path, RunStateScript.Phase.EVENT)
+		return true
+	push_error("蝋の祭壇が出る地図が見つからない")
+	return false
+
+
+## 蝋の祭壇で最大使用回数を増やす英霊を選ぶところ (増やせる英霊だけ押せる)
+func _show_wax_altar_pick() -> bool:
+	(main.screen as EventUiScript).select_option(0)
 	return true
 
 

@@ -84,6 +84,8 @@ func _initialize() -> void:
 	_check_shrine()
 	_check_shop()
 	_check_events()
+	_check_raised_max_uses()
+	_check_raised_max_uses_save()
 	_check_deck_sort()
 	_check_settings()
 	_check_bead_count()
@@ -773,6 +775,83 @@ func _check_battle_keeps_uses() -> void:
 	var before: Array[Dictionary] = state.deck.duplicate(true)
 	battle.start(state, ["wild_dog"], 5)
 	_check(state.deck == before, "次の戦闘の開始でも残り使用回数が戻らない")
+	state.free()
+
+
+## 最大使用回数を増やす経路 (出来事「蝋の祭壇」) と、増えた最大の扱い: 英霊は体力・精霊は所持金を払って
+## 1 枚の最大と残りが 1 増える。区分ごとの回数と Cards.MAX_USES_LIMIT を超えて増やせない。契約の祠・商人・血の泉は
+## 増えた後の最大まで戻し、戦闘の開始・終了で最大も残りも戻らない (.claude/rules/card-uses-persist-across-run.md)
+func _check_raised_max_uses() -> void:
+	for card_id: String in Cards.CARDS:
+		var card: Dictionary = Cards.CARDS[card_id]
+		var limit: int = Cards.uses_limit(card_id)
+		_check(
+			(
+				limit >= card["max_uses"]
+				and limit <= maxi(card["max_uses"], Cards.MAX_USES_LIMIT)
+				and limit - card["max_uses"] <= Cards.BONUS_USES_LIMITS[card["bond"]]
+			),
+			"増やせる最大使用回数の上限: %s" % card_id
+		)
+	var hero: Array[int] = [2]
+	var other_hero: Array[int] = [3]
+	var spirit: Array[int] = [1]
+	var full: Array[int] = [0]
+	var none: Array[int] = []
+	var state: RunStateScript = _raised_uses_state()
+	var hero_max: int = Cards.deck_max_uses(state.deck[2])
+	_check(not Events.choose(state, 0, spirit), "英霊を増やす選択肢で精霊は選べない")
+	_check(Events.choose(state, 0, hero), "体力を払って英霊の最大使用回数を増やせる")
+	_check(
+		Cards.deck_max_uses(state.deck[2]) == hero_max + 1 and state.uses_left(2) == hero_max + 1,
+		"英霊の最大と残りが 1 増える"
+	)
+	_check(state.hp == state.max_hp - Events.RAISE_HERO_PRICE, "英霊を増やすと体力を払う")
+	state.gold = Events.RAISE_SPIRIT_PRICE
+	_check(not Events.choose(state, 1, spirit), "出来事で増やせるのは 1 回だけ")
+	state.gold = 0
+	state.visit = {}
+	_check(not Events.choose(state, 0, hero), "英霊は区分の回数を超えて増やせない")
+	state.hp = Events.RAISE_HERO_PRICE
+	_check(not Events.choose(state, 0, other_hero), "体力が払う量以下なら英霊を増やせない")
+	_check(not Events.choose(state, 1, spirit), "所持金が足りなければ精霊を増やせない")
+	state.gold = Events.RAISE_SPIRIT_PRICE
+	_check(not Events.choose(state, 1, full), "最大使用回数が上限のカードは増やせない")
+	var guard_max: int = Cards.deck_max_uses(state.deck[1])
+	_check(Events.choose(state, 1, spirit), "所持金を払って精霊の最大使用回数を増やせる")
+	_check(
+		Cards.deck_max_uses(state.deck[1]) == guard_max + 1 and state.gold == 0, "精霊の最大が 1 増えて所持金を払う"
+	)
+	state.free()
+	state = _raised_uses_state()
+	_check(
+		Events.choose(state, 2, none) and Cards.deck_max_uses(state.deck[2]) == hero_max,
+		"立ち去ると何も増えない"
+	)
+	state.free()
+	# 増えた後の最大まで、祠・商人・血の泉・戦闘で戻す / 戻さない
+	state = _raised_uses_state()
+	Events.raise_max_uses(state, 1)
+	var raised: int = Cards.deck_max_uses(state.deck[1])
+	state.use_card(1)
+	state.use_card(1)
+	state.visit = {}
+	_check(NodeRules.shrine_renew(state, 1) and state.uses_left(1) == raised, "祠は増えた最大まで戻す")
+	state.use_card(1)
+	state.gold = NodeRules.RESTORE_PRICE
+	_check(NodeRules.buy_restore(state, 1) and state.uses_left(1) == raised, "商人は増えた最大まで戻す")
+	state.use_card(1)
+	state.restore_uses(1)
+	_check(state.uses_left(1) == raised, "最大まで戻す回復 (血の泉と同じ restore_uses) も増えた最大まで戻す")
+	state.use_card(1)
+	var battle: BattleScript = BattleScript.new()
+	battle.start(state, ["wild_dog"], 4)
+	battle.end_turn()
+	battle.start(state, ["wild_dog"], 5)
+	_check(
+		Cards.deck_max_uses(state.deck[1]) == raised and state.uses_left(1) == raised - 1,
+		"戦闘の開始・終了で増えた最大も残りも戻らない"
+	)
 	state.free()
 
 

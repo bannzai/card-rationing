@@ -14,6 +14,11 @@ enum Tier { LOWER, MIDDLE, UPPER }
 
 ## 契約の相手の区分の表示名
 const BOND_NAMES: Dictionary = {Bond.SPIRIT: "精霊", Bond.HERO: "英霊"}
+## 出来事で増やした後を含めた、デッキのカードの最大使用回数の上限 (封蝋の印がカードの幅に収まる数。
+## documents/DIRECTION.md「決めたこと」)
+const MAX_USES_LIMIT: int = 6
+## 契約の相手の区分ごとに、出来事で 1 枚の最大使用回数を増やせる回数の上限 (英霊は強いので精霊より絞る)
+const BONUS_USES_LIMITS: Dictionary = {Bond.SPIRIT: 2, Bond.HERO: 1}
 
 ## カード ID → 定義。max_uses が 1 回の巡礼 (ラン) で命令できる回数 (契約の回数)
 const CARDS: Dictionary = {
@@ -330,6 +335,20 @@ static func effect_text(card_id: String, damage: int = -1, block: int = -1) -> S
 	if card.has("energy"):
 		parts.append("エネルギー +%d" % card["energy"])
 	return " / ".join(parts)
+
+
+## card_id のカードの最大使用回数を、出来事で増やして届く上限 (区分ごとに増やせる回数と MAX_USES_LIMIT の
+## 小さい方。定義の回数が上限以上なら定義の回数)
+static func uses_limit(card_id: String) -> int:
+	var card: Dictionary = CARDS[card_id]
+	var raised: int = card["max_uses"] + BONUS_USES_LIMITS[card["bond"]]
+	return maxi(card["max_uses"], mini(MAX_USES_LIMIT, raised))
+
+
+## デッキの 1 要素 entry ({"id", "uses_left", "bonus_uses"} の形。scripts/run_state.gd の deck) の最大使用回数
+## (カードの定義の回数に、出来事で増やした分 bonus_uses を足す。bonus_uses の省略は 0)
+static func deck_max_uses(entry: Dictionary) -> int:
+	return CARDS[entry["id"]]["max_uses"] + entry.get("bonus_uses", 0)
 
 
 ## 使う時に敵を選ぶカードか (全体攻撃でない攻撃だけが対象を取る)

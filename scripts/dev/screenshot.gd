@@ -16,6 +16,7 @@ const EventUiScript := preload("res://scripts/event_ui.gd")
 const Events := preload("res://scripts/events.gd")
 const HeadlessCheck := preload("res://scripts/dev/headless_check.gd")
 const MainScript := preload("res://scripts/main.gd")
+const Relics := preload("res://scripts/relics.gd")
 const RunFlow := preload("res://scripts/run_flow.gd")
 const RunStateScript := preload("res://scripts/run_state.gd")
 const ShrineUiScript := preload("res://scripts/shrine_ui.gd")
@@ -89,6 +90,9 @@ func _capture_scenes() -> bool:
 		[_show_settings, "settings"],
 		[_show_defeat, "defeat"],
 		[_show_clear, "clear"],
+		[_show_battle_relics, "battle-relics"],
+		[_show_battle_relic_info, "battle-relic-info"],
+		[_show_elite_reward, "reward-elite"],
 	]
 	for step: Array in steps:
 		if not step[0].call():
@@ -120,10 +124,12 @@ func _show_deck_list() -> bool:
 	return true
 
 
-## 戦闘。5 枚のデッキなら全カードが手札に来るので、残り 1 回 (斬火) と契約切れ (雷槍の英霊) が必ず映る
+## 戦闘。5 枚のデッキなら全カードが手札に来るので、残り 1 回 (斬火)、1 回使った 3 回の英霊 (雷槍の英霊) と
+## 契約切れ (上位の焔王の英霊) が必ず映る
 func _show_battle() -> bool:
-	_set_deck(["slash", "guard", "hero_strike", "breath", "spirit_arrow"])
+	_set_deck(["slash", "guard", "hero_strike", "breath", "flame_king"])
 	run_state.use_card(2)
+	run_state.use_card(4)
 	for _i: int in range(Cards.CARDS["slash"]["max_uses"] - 1):
 		run_state.use_card(0)
 	_show_at_row(0, RunStateScript.Phase.BATTLE)
@@ -180,7 +186,7 @@ func _show_event() -> bool:
 
 ## 出来事「蝋の祭壇」(体力と所持金が足りて、3 つの選択肢をどれも選べる)。蝋の祭壇が出る地図のシードを 1 から順に
 ## 探す。デッキの先頭 (カードを選ぶ格子の 1 行目) に、契約切れの雷槍の英霊と、最大使用回数を増やした盾の英霊
-## (封蝋の印が 2 つ) を置く
+## (封蝋の印が定義の回数より 1 つ多い) を置く
 func _show_wax_altar() -> bool:
 	for seed_value: int in range(1, EVENT_SEED_LIMIT + 1):
 		run_state.new_run([], seed_value)
@@ -191,8 +197,9 @@ func _show_wax_altar() -> bool:
 		_set_deck(
 			["hero_strike", "hero_wall", "slash", "slash", "guard", "guard", "spirit_arrow", "breath"]
 		)
-		run_state.use_card(0)
-		run_state.raise_max_uses(1)
+		while run_state.use_card(0):
+			pass
+		Events.raise_max_uses(run_state, 1)
 		run_state.gold = 40
 		_show_route(run_state.path, RunStateScript.Phase.EVENT)
 		return true
@@ -241,6 +248,33 @@ func _show_defeat() -> bool:
 func _show_clear() -> bool:
 	_show_at_kind(ActMap.Kind.BOSS, RunStateScript.Phase.CLEAR)
 	return true
+
+
+## 護符をすべて持った戦闘 (印の並びと、戦闘の始めに働いた蝋の盾・夜明けの灯芯の文と防御・エネルギー)
+func _show_battle_relics() -> bool:
+	main.start_run(Contractors.FIRST_CONTRACTOR, MAP_SEED)
+	for relic_id: String in Relics.RELICS:
+		run_state.add_relic(relic_id)
+	_show_at_row(0, RunStateScript.Phase.BATTLE)
+	var battle_ui: BattleUiScript = main.screen as BattleUiScript
+	if battle_ui == null or battle_ui.relic_row.get_child_count() != Relics.RELICS.size():
+		push_error("戦闘画面に護符の印が並ばない")
+		return false
+	return true
+
+
+## 護符の印にマウスを載せた時の説明 (焼けぬ封蝋の、効く条件まで書いた説明)
+func _show_battle_relic_info() -> bool:
+	(main.screen as BattleUiScript).show_relic_info("unburnt_seal")
+	return true
+
+
+## 強敵に勝った後の報酬 (手に入れた護符の名前と効果)
+func _show_elite_reward() -> bool:
+	run_state.relics.clear()
+	run_state.add_relic("ember_edge")
+	_show_at_kind(ActMap.Kind.ELITE, RunStateScript.Phase.BATTLE)
+	return RunFlow.finish_battle(run_state, true) and run_state.relics.size() == 2
 
 
 ## 道を段 row の最初の節点まで進め、局面を phase にして画面を出す

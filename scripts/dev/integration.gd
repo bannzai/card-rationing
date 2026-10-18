@@ -1,4 +1,4 @@
-extends "res://scripts/dev/integration_base.gd"
+extends "res://scripts/dev/integration_relics.gd"
 ## メインシーンを tree に置いて動かす入力統合テスト (headless)。画面の遷移やキー・クリックで変わる振る舞いを
 ## 足したら、ここに検証を足す。実行方法は AGENTS.md「検証方法」を参照。
 ## キーは root.push_input() に InputEventKey を、クリックはボタンの中心への InputEventMouseButton を渡して起こす。
@@ -6,7 +6,8 @@ extends "res://scripts/dev/integration_base.gd"
 ## (起動し直した時と同じく、保存データだけから戻す)。
 ## 場面ごとに鳴る BGM と効果音は、autoload Audio のプレイヤーが鳴っているかで確かめる (headless でも再生の状態は
 ## 進む)。効果音は直前の操作のものが鳴り終わっていないことがあるため、確かめる操作の前に _stop_se() で止める。
-## 定数・autoload の参照・操作の部品は scripts/dev/integration_base.gd に置く。
+## 定数・autoload の参照・操作の部品は scripts/dev/integration_base.gd に、護符の検証は scripts/dev/integration_relics.gd
+## に置く。
 
 ## tree の準備が終わってから _run() を始める (シーンの追加は _initialize() の後でないとできない)
 func _initialize() -> void:
@@ -55,6 +56,7 @@ func _run() -> void:
 	Art.motion_scale = 1.0
 	await _check_input_during_motion(main)
 	await _check_input_during_attack_motion(main)
+	await _check_unburnt_seal_motion(main)
 	Art.motion_scale = 0.0
 	await _check_battle_resume_keeps_uses(main)
 	await _check_exhausted_deck_battle_and_reward(main)
@@ -65,6 +67,8 @@ func _run() -> void:
 	await _check_deck_grid_follows_focus(main)
 	await _check_shop(main)
 	await _check_event(main)
+	await _check_shop_relic(main)
+	await _check_elite_relic(main)
 	await _check_blood_spring_sound(main)
 	await _check_wax_altar(main)
 	await _check_deck_list(main)
@@ -703,7 +707,7 @@ func _check_wax_altar(main: MainScript) -> void:
 	_set_deck(["slash", "hero_strike", "hero_wall", "guard"])
 	while run_state.use_card(1):
 		pass
-	run_state.raise_max_uses(2)
+	Events.raise_max_uses(run_state, 2)
 	main.show_run_phase()
 	await _settle()
 	var event_ui: EventUiScript = main.screen as EventUiScript
@@ -719,13 +723,13 @@ func _check_wax_altar(main: MainScript) -> void:
 		"英霊を増やす選択肢では、まだ増やせる精霊 (守りの風) も選べない"
 	)
 	_check((event_ui.deck_grid.get_child(2) as Button).disabled, "最大使用回数を増やしきった英霊は選べない")
-	var max_before: int = run_state.max_uses(1)
+	var max_before: int = Cards.deck_max_uses(run_state.deck[1])
 	var hp_before: int = run_state.hp
 	await _click(event_ui.deck_grid.get_child(1) as Button)
 	_stop_se()
 	await _click(event_ui.confirm_button)
 	_check(
-		run_state.max_uses(1) == max_before + 1 and run_state.uses_left(1) == 1,
+		Cards.deck_max_uses(run_state.deck[1]) == max_before + 1 and run_state.uses_left(1) == 1,
 		"蝋の祭壇で英霊の最大と残りの使用回数が 1 増える"
 	)
 	_check(run_state.hp == hp_before - Events.RAISE_HERO_PRICE, "蝋の祭壇で体力を払う")
@@ -743,7 +747,7 @@ func _check_wax_altar(main: MainScript) -> void:
 	await _press_key(KEY_ESCAPE)
 	await _quit_and_continue(main)
 	_check(
-		run_state.max_uses(1) == max_before + 1 and run_state.uses_left(1) == 1,
+		Cards.deck_max_uses(run_state.deck[1]) == max_before + 1 and run_state.uses_left(1) == 1,
 		"増えた最大使用回数が「続きから」の後も保たれる"
 	)
 

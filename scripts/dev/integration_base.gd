@@ -183,7 +183,7 @@ func _load_saved() -> RunStateScript:
 ## デッキで残り使用回数が最大より減っている最初のカード (無ければ最初のカードを 1 回使ってそれを返す)
 func _first_used_card() -> int:
 	for index: int in range(run_state.deck.size()):
-		if run_state.uses_left(index) < run_state.max_uses(index):
+		if run_state.uses_left(index) < Cards.deck_max_uses(run_state.deck[index]):
 			return index
 	return 0 if run_state.use_card(0) else -1
 

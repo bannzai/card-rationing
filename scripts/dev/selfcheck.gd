@@ -1,10 +1,10 @@
-extends "res://scripts/dev/selfcheck_run.gd"
+extends "res://scripts/dev/selfcheck_relics.gd"
 ## 純粋なロジックとプロジェクト設定の検証 (headless)。ゲームのルール (カードの残り使用回数・戦闘・マップ・
 ## イベント) の計算を足したら、ここに検証を足す。実行方法は AGENTS.md「検証方法」を参照。地図・局面の移り変わり・
-## 報酬・祠・商人・出来事・契約の一覧・設定・音・素材の記録の検証は継承元の scripts/dev/selfcheck_run.gd にある。
+## 報酬・祠・商人・出来事・契約の一覧・設定・音・素材の記録の検証は継承元の scripts/dev/selfcheck_run.gd に、護符の
+## 検証と共有の部品は継承元の scripts/dev/selfcheck_relics.gd にある。
 
 const Art := preload("res://scripts/art.gd")
-const BattleScript := preload("res://scripts/battle.gd")
 const Bots := preload("res://scripts/dev/strategy_bots.gd")
 
 ## 起動検証 (main_scene の --quit) ではロードされない遷移先も含めた全シーン
@@ -34,17 +34,22 @@ const CARD_VALUE_RANGES: Dictionary = {
 	"draw": [1, 3],
 	"energy": [1, 3],
 }
-## 契約の相手の区分ごとの最大使用回数の範囲 (精霊は回数が多め、英霊は少ない)
-const BOND_USES_RANGES: Dictionary = {Cards.Bond.SPIRIT: [2, 6], Cards.Bond.HERO: [1, 2]}
+## 契約の相手の区分ごとの最大使用回数の範囲 (精霊は回数が多め、英霊は少ない)。英霊は TIER_USES_RANGES でも絞る
+const BOND_USES_RANGES: Dictionary = {Cards.Bond.SPIRIT: [2, 6], Cards.Bond.HERO: [1, 3]}
+## 英霊の段ごとの最大使用回数の範囲 (序盤に出る下位は 3 回、中位は 2 回、上位は 1 回)
+const TIER_USES_RANGES: Dictionary = {
+	Cards.Tier.LOWER: [3, 3], Cards.Tier.MIDDLE: [2, 2], Cards.Tier.UPPER: [1, 1]
+}
+## 品揃えの段の分布を数えるシードの数 (値に意味は無く、前半と後半の差が乱数のぶれより大きく出る数にする)
+const OFFER_SAMPLE_SEEDS: int = 200
+## 前半の帯の品揃えに並ぶ英霊のうち、上位の割合の上限
+const EARLY_UPPER_SHARE_LIMIT: float = 0.1
 ## 敵の体力と、行動の値・回数の範囲
 const ENEMY_HP_RANGE: Array[int] = [1, 300]
 const MOVE_VALUE_RANGE: Array[int] = [1, 40]
 const MOVE_HITS_RANGE: Array[int] = [1, 5]
-## 短い文言 (カード・敵・契約者の名前、カードの効果の文) に使わない句読点
-## (~/.claude/rules/coding-rules-general-user-facing-short-copy-punctuation.md)
-const SHORT_COPY_PUNCTUATION: Array[String] = ["、", "。", "，", "．"]
-## 戦略 bot の検証で遊ばせる地図のシード (値に意味は無く、検証のたびに同じ地図になるよう固定する)
-const BOT_SEED: int = 7
+## 護符を手に入れるランを探すシードの数 (強敵か商人で護符を得るランは多いので、数個で見つかる。見つからなければ失敗)
+const BOT_RELIC_SEED_LIMIT: int = 30
 ## 起動時に表示するシーン
 const MAIN_SCENE_PATH: String = "res://scenes/main.tscn"
 ## ADR 0001 で決めたレンダラ (CI の Xvfb + Mesa llvmpipe で描画できるもの)
@@ -58,6 +63,7 @@ func _initialize() -> void:
 	_check_scenes_load()
 	_check_cards()
 	_check_strength_and_uses()
+	_check_offer_tiers()
 	_check_contractors()
 	_check_enemies()
 	_check_encounters()
@@ -85,6 +91,10 @@ func _initialize() -> void:
 	_check_audio()
 	_check_credits()
 	_check_strategy_bots()
+	_check_relic_definitions()
+	_check_relic_battle_effects()
+	_check_unburnt_seal()
+	_check_relic_sources()
 	# Makefile の WARNING / ERROR 検査が行頭の接頭辞だけを見ることの回帰検査 (この行で落ちてはいけない)
 	print("selfcheck note: a normal line may mention error and warning words")
 	_finish()
@@ -139,6 +149,13 @@ func _check_cards() -> void:
 			_in_range(card["max_uses"], BOND_USES_RANGES[card["bond"]]),
 			"最大使用回数が区分の範囲内: %s" % card_id
 		)
+		var hero: bool = card["bond"] == Cards.Bond.HERO
+		_check(card.has("tier") == hero, "段を持つのは英霊だけで、英霊はすべて持つ: %s" % card_id)
+		if hero and card.has("tier"):
+			_check(
+				_in_range(card["max_uses"], TIER_USES_RANGES[card["tier"]]),
+				"最大使用回数が英霊の段の範囲内: %s" % card_id
+			)
 		_check(not card["name"].is_empty(), "名前がある: %s" % card_id)
 		_check(
 			card.has("damage") or card.has("block") or card.has("draw") or card.has("energy"),
@@ -167,13 +184,14 @@ func _check_cards() -> void:
 		)
 	# 強さの定義 (documents/DIRECTION.md「決めたこと」) の基準のカードと、全体攻撃・引く・エネルギーの点数
 	_check(is_equal_approx(Cards.strength("slash"), 3.0), "斬火の強さが 3")
-	_check(is_equal_approx(Cards.strength("hero_strike"), 6.0), "雷槍の英霊の強さが 6")
+	_check(is_equal_approx(Cards.strength("hero_strike"), 4.5), "雷槍の英霊 (コスト 1 で攻撃 9) の強さが 4.5")
 	_check(is_equal_approx(Cards.strength("ember_wave"), 3.0), "熾火の波 (全体攻撃 4) の強さが 3")
 	_check(is_equal_approx(Cards.strength("lantern_row"), 4.5), "灯の連なり (2 枚引く + エネルギー 1) の強さが 4.5")
 
 
-## 強さと最大使用回数の関係: 同じ種別の中で、強さが高いカードほど最大使用回数が多くならない (強さが同じなら
-## 制約しない)。同じ種別の英霊はどの精霊よりも強い
+## 強さと最大使用回数の関係: 同じ種別・同じ段 (精霊はまとめて 1 つの段) の中で、強さが高いカードほど最大使用
+## 回数が多くならない (強さが同じなら制約しない)。同じ種別の中では、英霊はどの精霊よりも強く、上の段の英霊は下の
+## 段のどの英霊よりも強い。どの種別にも英霊の 3 つの段がそろう
 func _check_strength_and_uses() -> void:
 	for stronger: String in Cards.CARDS:
 		for weaker: String in Cards.CARDS:
@@ -181,20 +199,77 @@ func _check_strength_and_uses() -> void:
 			var b: Dictionary = Cards.CARDS[weaker]
 			if a["kind"] != b["kind"]:
 				continue
-			if Cards.strength(stronger) > Cards.strength(weaker):
+			if _tier_rank(a) == _tier_rank(b) and Cards.strength(stronger) > Cards.strength(weaker):
 				_check(
 					a["max_uses"] <= b["max_uses"],
-					"強い %s の最大使用回数が弱い %s 以下" % [stronger, weaker]
+					"強い %s の最大使用回数が同じ段の弱い %s 以下" % [stronger, weaker]
 				)
-			if a["bond"] == Cards.Bond.HERO and b["bond"] == Cards.Bond.SPIRIT:
+			if _tier_rank(a) > _tier_rank(b):
 				_check(
 					Cards.strength(stronger) > Cards.strength(weaker),
-					"英霊 %s が同じ種別の精霊 %s より強い" % [stronger, weaker]
+					"上の段の %s が同じ種別の下の段の %s より強い" % [stronger, weaker]
 				)
+	for kind: int in [Cards.Kind.ATTACK, Cards.Kind.GUARD, Cards.Kind.SKILL]:
+		var tiers: Dictionary = {}
+		for card_id: String in Cards.CARDS:
+			var card: Dictionary = Cards.CARDS[card_id]
+			if card["kind"] == kind and card.has("tier"):
+				tiers[card["tier"]] = true
+		_check(tiers.size() == Cards.Tier.size(), "種別 %d に英霊の 3 つの段がそろう" % kind)
 
 
-## 契約者の定義: 名前と設定があり、初期デッキが 8〜12 枚で定義済みのカードだけからなり、英霊が 2 枚以下で、
-## 対象を選ぶ攻撃と最大使用回数 1 のカードを含む
+## 地図の段の帯ごとの品揃え: 前半の帯は下位の英霊が多く上位がほとんど出ず、後半の帯ほど上位が出やすい。
+## 報酬・祠・商人と出来事の英霊 (英霊だけから選ぶ品揃え) の両方で、OFFER_SAMPLE_SEEDS 個のシードで数える
+func _check_offer_tiers() -> void:
+	_check(NodeRules.offer_band(-1) == 0 and NodeRules.offer_band(4) == 0, "段 4 までと出発前は前半の帯")
+	_check(NodeRules.offer_band(5) == 1 and NodeRules.offer_band(9) == 1, "段 5〜9 は中盤の帯")
+	_check(
+		NodeRules.offer_band(10) == 2 and NodeRules.offer_band(ActMap.BOSS_ROW) == 2, "段 10 からは後半の帯"
+	)
+	for bond: int in [-1, Cards.Bond.HERO]:
+		var early: Dictionary = _offered_tier_counts(range(0, 5), bond)
+		var late: Dictionary = _offered_tier_counts(range(10, ActMap.BOSS_ROW), bond)
+		_check(
+			_tier_share(early, Cards.Tier.UPPER) <= EARLY_UPPER_SHARE_LIMIT,
+			"前半の品揃えの英霊のうち上位が 1 割以下 (区分 %d: %.2f)" % [bond, _tier_share(early, Cards.Tier.UPPER)]
+		)
+		_check(
+			_tier_share(early, Cards.Tier.LOWER) > _tier_share(late, Cards.Tier.LOWER),
+			"下位の英霊は前半の方が出やすい (区分 %d)" % bond
+		)
+		_check(
+			_tier_share(late, Cards.Tier.UPPER) > _tier_share(early, Cards.Tier.UPPER),
+			"上位の英霊は後半の方が出やすい (区分 %d)" % bond
+		)
+
+
+## rows の各段で、シード 1〜OFFER_SAMPLE_SEEDS の品揃え (bond の区分だけ。-1 なら全カード) に並んだ英霊の段ごとの枚数
+func _offered_tier_counts(rows: Array, bond: int) -> Dictionary:
+	var counts: Dictionary = {}
+	for row: int in rows:
+		for seed_value: int in range(1, OFFER_SAMPLE_SEEDS + 1):
+			for card_id: String in NodeRules.card_offers(seed_value, row, bond):
+				var card: Dictionary = Cards.CARDS[card_id]
+				if card.has("tier"):
+					counts[card["tier"]] = counts.get(card["tier"], 0) + 1
+	return counts
+
+
+## counts (段 → 枚数) の英霊のうち、tier の段の割合
+func _tier_share(counts: Dictionary, tier: int) -> float:
+	var total: int = 0
+	for count: int in counts.values():
+		total += count
+	return float(counts.get(tier, 0)) / maxi(total, 1)
+
+
+## 強さの順に並べた段の位置 (精霊 0、下位 1、中位 2、上位 3)
+func _tier_rank(card: Dictionary) -> int:
+	return card["tier"] + 1 if card.has("tier") else 0
+
+
+## 契約者の定義: 名前と設定があり、初期デッキが 8〜12 枚で定義済みのカードだけからなり、英霊が 2 枚以下で
+## どれも下位の段 (序盤は 3 回使える英霊にする)、対象を選ぶ攻撃を含む
 func _check_contractors() -> void:
 	_check(Contractors.CONTRACTORS.has(Contractors.FIRST_CONTRACTOR), "最初の契約者が定義済み")
 	for contractor_id: String in Contractors.CONTRACTORS:
@@ -208,18 +283,19 @@ func _check_contractors() -> void:
 		_check(_in_range(deck.size(), STARTER_DECK_SIZE_RANGE), "初期デッキが 8〜12 枚: %s" % contractor_id)
 		var heroes: int = 0
 		var has_target_attack: bool = false
-		var has_single_use: bool = false
 		for card_id: String in deck:
 			_check(Cards.CARDS.has(card_id), "初期デッキのカードが定義済み: %s" % card_id)
 			if not Cards.CARDS.has(card_id):
 				continue
 			if Cards.CARDS[card_id]["bond"] == Cards.Bond.HERO:
 				heroes += 1
+				_check(
+					Cards.CARDS[card_id].get("tier", -1) == Cards.Tier.LOWER,
+					"初期デッキの英霊は下位の段: %s" % card_id
+				)
 			has_target_attack = has_target_attack or Cards.needs_target(card_id)
-			has_single_use = has_single_use or Cards.CARDS[card_id]["max_uses"] == 1
 		_check(heroes <= STARTER_HERO_LIMIT, "初期デッキの英霊が 2 枚以下: %s" % contractor_id)
 		_check(has_target_attack, "初期デッキに対象を選ぶ攻撃がある: %s" % contractor_id)
-		_check(has_single_use, "初期デッキに最大使用回数 1 のカードがある: %s" % contractor_id)
 
 
 ## 敵の定義: 格ごとの種類の数、名前、体力と行動の値の範囲、会話の台詞を持つのはボスだけで 2〜4 行
@@ -303,7 +379,7 @@ func _check_run_state_uses() -> void:
 	state.new_run()
 	var starter: Array[String] = Contractors.starter_deck(Contractors.FIRST_CONTRACTOR)
 	_check(state.deck.size() == starter.size(), "新しいランのデッキが最初の契約者の初期デッキと同じ枚数")
-	var single: int = starter.find("hero_strike")
+	var single: int = state.add_card("flame_king")
 	var slash: int = starter.find("slash")
 	var slash_max: int = Cards.CARDS["slash"]["max_uses"]
 	_check(state.uses_left(single) == 1 and state.can_use(single), "最大使用回数 1 のカードが使える")
@@ -339,12 +415,17 @@ func _check_save_and_load() -> void:
 	state.new_run([], 7)
 	state.use_card(0)
 	state.use_card(0)
-	state.use_card(Contractors.starter_deck(Contractors.FIRST_CONTRACTOR).find("hero_strike"))
+	var hero: int = Contractors.starter_deck(Contractors.FIRST_CONTRACTOR).find("hero_strike")
+	for _use: int in Cards.CARDS["hero_strike"]["max_uses"]:
+		state.use_card(hero)
 	state.take_damage(7)
 	state.path.append(ActMap.next_columns(state.rows, state.path)[0])
 	state.phase = RunStateScript.Phase.BATTLE
 	state.gold = 12
 	state.battles_won = 2
+	state.add_relic("unburnt_seal")
+	state.add_relic("ember_edge")
+	state.relic_rolls = 5
 	_check(state.save_to(SELFCHECK_SAVE_PATH) == OK, "保存できる")
 	_check(not FileAccess.file_exists(SELFCHECK_SAVE_PATH + ".tmp"), "保存の後に書きかけのファイルが残らない")
 	_check(state.save_to(SELFCHECK_SAVE_PATH) == OK, "既にある保存データを置き換えて保存できる")
@@ -358,6 +439,10 @@ func _check_save_and_load() -> void:
 	_check(other.path == state.path and other.phase == state.phase, "往復で通った道と局面が保たれる")
 	_check(other.exhausted_count == 1 and other.battles_won == 2, "往復でランの結果の数が保たれる")
 	_check(other.character_id == Contractors.FIRST_CONTRACTOR, "往復で契約者が保たれる")
+	_check(
+		other.relics == state.relics and other.relic_rolls == 5,
+		"往復で護符 (手に入れた順) と焼けぬ封蝋の判定の通し番号が保たれる"
+	)
 	_remove_user_file(SELFCHECK_SAVE_PATH)
 	state.free()
 	other.free()
@@ -374,6 +459,8 @@ func _check_corrupt_save() -> void:
 		"hp": 1,
 		"max_hp": 1,
 		"gold": 0,
+		"relics": [],
+		"relic_rolls": 0,
 		"act": 1,
 		"map_seed": 0,
 		"path": [],
@@ -423,6 +510,12 @@ func _check_corrupt_save() -> void:
 		{"deck": [{"id": "slash", "uses_left": 99}]},
 		{"deck": [{"id": "slash", "uses_left": -1}]},
 		{"deck": [{"id": "slash"}]},
+		{"relics": "x"},
+		{"relics": [1]},
+		{"relics": ["nope"]},
+		{"relics": ["ember_edge", "ember_edge"]},
+		{"relic_rolls": -1},
+		{"relic_rolls": 0.5},
 	]
 	var texts: Array[String] = ["{not json", '{"version": 1, "deck": "x"}']
 	for defect: Dictionary in broken:
@@ -502,7 +595,7 @@ func _check_unreadable_save(corrupt_path: String) -> void:
 ## 1 ターンの流れ: ドロー・エネルギー・攻撃 (防御が先に受ける)・防御・ドローの効果・混ぜ直し・敵の行動
 func _check_battle_turn() -> void:
 	var state: RunStateScript = RunStateScript.new()
-	state.new_run(["slash", "guard", "breath", "spirit_arrow", "hero_strike"])
+	state.new_run(["slash", "guard", "breath", "spirit_arrow", "ash_fang"])
 	var battle: BattleScript = BattleScript.new()
 	battle.start(state, ["wild_dog"], 1)
 	_check(battle.hand.size() == 5 and battle.draw_pile.is_empty(), "開始時に 5 枚引く")
@@ -523,7 +616,7 @@ func _check_battle_turn() -> void:
 	_check(battle.hand.size() == 4 and battle.discard_pile.size() == 1, "使ったカードは捨て札へ")
 	_check(battle.play(_hand_index_of(battle, state, "guard")), "守りの風を使える")
 	_check(battle.block == 5 and battle.energy == 1, "防御 5・エネルギー 1")
-	_check(not battle.can_play(_hand_index_of(battle, state, "hero_strike")), "コスト 2 は払えない")
+	_check(not battle.can_play(_hand_index_of(battle, state, "ash_fang")), "コスト 2 は払えない")
 	_check(battle.play(_hand_index_of(battle, state, "breath")), "灯の精を使える")
 	_check(battle.hand.size() == 4 and battle.discard_pile.is_empty(), "捨て札を混ぜ直して 2 枚引く")
 	_check(battle.play(_hand_index_of(battle, state, "spirit_arrow"), 0), "火の粉を使える")
@@ -635,10 +728,10 @@ func _check_enemy_intent_order() -> void:
 ## 勝敗: 敵をすべて倒したら勝利、体力 0 で敗北。勝利の後の戦闘は残り使用回数を引き継ぐ (同じシードで同じ進行)
 func _check_battle_outcomes() -> void:
 	var state: RunStateScript = RunStateScript.new()
-	state.new_run(["hero_strike", "guard"])
+	state.new_run(["old_blade", "guard"])
 	var battle: BattleScript = BattleScript.new()
 	battle.start(state, ["wild_dog"], 2)
-	_check(battle.play(_hand_index_of(battle, state, "hero_strike"), 0), "雷槍の英霊を使える")
+	_check(battle.play(_hand_index_of(battle, state, "old_blade"), 0), "古剣の英霊 (攻撃 7×2) を使える")
 	_check(battle.outcome == BattleScript.Outcome.WIN, "敵を倒して勝利")
 	_check(not battle.play(_hand_index_of(battle, state, "guard")), "勝利の後はカードを使えない")
 	_check(not battle.struggle(0), "勝利の後はもがけない")
@@ -700,11 +793,11 @@ func _check_raised_max_uses() -> void:
 	var full: Array[int] = [0]
 	var none: Array[int] = []
 	var state: RunStateScript = _raised_uses_state()
-	var hero_max: int = state.max_uses(2)
+	var hero_max: int = Cards.deck_max_uses(state.deck[2])
 	_check(not Events.choose(state, 0, spirit), "英霊を増やす選択肢で精霊は選べない")
 	_check(Events.choose(state, 0, hero), "体力を払って英霊の最大使用回数を増やせる")
 	_check(
-		state.max_uses(2) == hero_max + 1 and state.uses_left(2) == hero_max + 1,
+		Cards.deck_max_uses(state.deck[2]) == hero_max + 1 and state.uses_left(2) == hero_max + 1,
 		"英霊の最大と残りが 1 増える"
 	)
 	_check(state.hp == RunStateScript.START_HP - Events.RAISE_HERO_PRICE, "英霊を増やすと体力を払う")
@@ -718,19 +811,22 @@ func _check_raised_max_uses() -> void:
 	_check(not Events.choose(state, 1, spirit), "所持金が足りなければ精霊を増やせない")
 	state.gold = Events.RAISE_SPIRIT_PRICE
 	_check(not Events.choose(state, 1, full), "最大使用回数が上限のカードは増やせない")
-	var guard_max: int = state.max_uses(1)
+	var guard_max: int = Cards.deck_max_uses(state.deck[1])
 	_check(Events.choose(state, 1, spirit), "所持金を払って精霊の最大使用回数を増やせる")
 	_check(
-		state.max_uses(1) == guard_max + 1 and state.gold == 0, "精霊の最大が 1 増えて所持金を払う"
+		Cards.deck_max_uses(state.deck[1]) == guard_max + 1 and state.gold == 0, "精霊の最大が 1 増えて所持金を払う"
 	)
 	state.free()
 	state = _raised_uses_state()
-	_check(Events.choose(state, 2, none) and state.max_uses(2) == hero_max, "立ち去ると何も増えない")
+	_check(
+		Events.choose(state, 2, none) and Cards.deck_max_uses(state.deck[2]) == hero_max,
+		"立ち去ると何も増えない"
+	)
 	state.free()
 	# 増えた後の最大まで、祠・商人・血の泉・戦闘で戻す / 戻さない
 	state = _raised_uses_state()
-	state.raise_max_uses(1)
-	var raised: int = state.max_uses(1)
+	Events.raise_max_uses(state, 1)
+	var raised: int = Cards.deck_max_uses(state.deck[1])
 	state.use_card(1)
 	state.use_card(1)
 	state.visit = {}
@@ -747,50 +843,10 @@ func _check_raised_max_uses() -> void:
 	battle.end_turn()
 	battle.start(state, ["wild_dog"], 5)
 	_check(
-		state.max_uses(1) == raised and state.uses_left(1) == raised - 1,
+		Cards.deck_max_uses(state.deck[1]) == raised and state.uses_left(1) == raised - 1,
 		"戦闘の開始・終了で増えた最大も残りも戻らない"
 	)
 	state.free()
-
-
-## 増えた最大使用回数の保存: 往復で保たれ、bonus_uses の無い要素は 0 として読み、区分の上限を超える・残りが
-## 増えた最大を超える・負の bonus_uses は壊れたデータとして読まない
-func _check_raised_max_uses_save() -> void:
-	var state: RunStateScript = _raised_uses_state()
-	state.phase = RunStateScript.Phase.MAP
-	state.raise_max_uses(1)
-	var other: RunStateScript = RunStateScript.new()
-	_check(other.from_dict(state.to_dict()), "増えた最大使用回数のあるランを読み込める")
-	_check(
-		other.max_uses(1) == state.max_uses(1) and other.uses_left(1) == state.uses_left(1),
-		"往復で増えた最大使用回数が保たれる"
-	)
-	_check(other.max_uses(2) == Cards.CARDS["hero_strike"]["max_uses"], "増やしていないカードはそのまま")
-	var hero_max: int = Cards.CARDS["hero_strike"]["max_uses"]
-	var cases: Array[Array] = [
-		[{"id": "hero_strike", "uses_left": hero_max + 1, "bonus_uses": 1}, true, "増えた最大まで"],
-		[{"id": "hero_strike", "uses_left": hero_max + 1}, false, "残りが最大を超える"],
-		[{"id": "hero_strike", "uses_left": 1, "bonus_uses": 2}, false, "区分の上限を超える"],
-		[{"id": "slash", "uses_left": 1, "bonus_uses": 1}, false, "全体の上限を超える"],
-		[{"id": "guard", "uses_left": 1, "bonus_uses": -1}, false, "負の増えた分"],
-		[{"id": "guard", "uses_left": 1, "bonus_uses": 0.5}, false, "整数でない増えた分"],
-	]
-	for case: Array in cases:
-		var data: Dictionary = state.to_dict()
-		data["deck"] = [case[0]]
-		_check(other.from_dict(data) == case[1], "保存データのデッキの要素: %s" % case[2])
-	state.free()
-	other.free()
-
-
-## 蝋の祭壇の節点に入った局面のランで、デッキが斬火 (最大使用回数が上限)・守りの風・雷槍の英霊・盾の英霊のもの
-func _raised_uses_state() -> RunStateScript:
-	var state: RunStateScript = _state_at_event("wax_altar")
-	var ids: Array[String] = ["slash", "guard", "hero_strike", "hero_wall"]
-	state.deck.clear()
-	for card_id: String in ids:
-		state.add_card(card_id)
-	return state
 
 
 ## 山札と捨て札が両方空の時のドローは、引ける分だけ引いて止まる (デッキが 5 枚未満でも落ちない)
@@ -828,7 +884,7 @@ func _check_exhausted_deck_battle() -> void:
 
 
 ## 自動テストプレイの戦略 bot (scripts/dev/strategy_bots.gd): 同じシードなら 1 幕の結果が同じで、ランの終わり
-## まで進む。回数の少ないカード (残り 1 回の雷槍の英霊だけの手札) を使うかが、戦略と状況で分かれる
+## まで進む。回数の少ないカード (残り 2 回の古剣の英霊だけの手札) を使うかが、戦略と状況で分かれる
 func _check_strategy_bots() -> void:
 	_remove_user_file(SELFCHECK_SAVE_PATH)
 	var state: RunStateScript = RunStateScript.new()
@@ -846,7 +902,7 @@ func _check_strategy_bots() -> void:
 	while state.use_card(0):
 		pass
 	_check(Bots.attack_uses_left(state) == 0, "攻撃カードが契約切れなら攻撃の残りは 0")
-	state.new_run(["hero_strike"], BOT_SEED)
+	state.new_run(["old_blade"], BOT_SEED)
 	state.path = ActMap.route_to(state.rows, 0, state.rows[0][0]["column"])
 	var battle: BattleScript = BattleScript.new()
 	battle.start(state, ["skeleton"], 1)
@@ -871,6 +927,19 @@ func _check_strategy_bots() -> void:
 		_bot_move(Bots.Strategy.ADAPT, battle, state) == Bots.BattleMove.PLAY,
 		"状況で使い分けるは、強敵との戦闘では使う"
 	)
+	# 護符を手に入れるランでも、同じシードなら同じ結果 (焼けぬ封蝋の判定もシードから決まる)
+	var relic_seed: int = -1
+	for seed_value: int in range(1, BOT_RELIC_SEED_LIMIT + 1):
+		if Bots.play_run(Bots.Strategy.SPEND, state, seed_value)["relics"] > 0:
+			relic_seed = seed_value
+			break
+	_check(relic_seed > 0, "護符を手に入れるランがある (シード 1〜%d)" % BOT_RELIC_SEED_LIMIT)
+	if relic_seed > 0:
+		var with_relic: Dictionary = Bots.play_run(Bots.Strategy.SPEND, state, relic_seed)
+		_check(
+			with_relic == Bots.play_run(Bots.Strategy.SPEND, state, relic_seed),
+			"護符を手に入れるランも同じシードなら同じ結果 (シード %d)" % relic_seed
+		)
 	state.free()
 	_remove_user_file(SELFCHECK_SAVE_PATH)
 
@@ -878,27 +947,6 @@ func _check_strategy_bots() -> void:
 ## strategy の戦略が battle で次に取る 1 手の種類 (Bots.BattleMove)
 func _bot_move(strategy: int, battle: BattleScript, state: RunStateScript) -> int:
 	return Bots.battle_move(strategy, battle, state)["move"]
-
-
-## battle の手札の中で card_id のカードがある位置 (無ければ -1)
-func _hand_index_of(battle: BattleScript, state: RunStateScript, card_id: String) -> int:
-	for hand_index: int in range(battle.hand.size()):
-		if state.deck[battle.hand[hand_index]]["id"] == card_id:
-			return hand_index
-	return -1
-
-
-## value が bounds ([最小, 最大]) の範囲内か
-func _in_range(value: Variant, bounds: Array) -> bool:
-	return value >= bounds[0] and value <= bounds[1]
-
-
-## 短い文言に句読点が無いか (SHORT_COPY_PUNCTUATION のどれも含まない)
-func _is_short_copy(text: String) -> bool:
-	for mark: String in SHORT_COPY_PUNCTUATION:
-		if text.contains(mark):
-			return false
-	return true
 
 
 ## 敵の格と幕の前半・後半ごとの組み合わせの候補に出る敵の体力の並び

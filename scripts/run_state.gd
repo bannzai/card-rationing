@@ -1,10 +1,10 @@
 extends Node
 ## ラン (1 回の巡礼) 単位の状態の autoload (登録名 RunState)。契約者・デッキと各カードの残り使用回数・体力・
-## 所持金・幕・地図 (シードと通った道)・進行の局面を持つ。戦闘単位の状態 (山札・手札・捨て札) は
+## 所持金・持っている護符・幕・地図 (シードと通った道)・進行の局面を持つ。戦闘単位の状態 (山札・手札・捨て札) は
 ## scripts/battle.gd が持ち、戦闘の開始・終了でここの残り使用回数を初期化しない
 ## (.claude/rules/card-uses-persist-across-run.md)。残り使用回数を増やす経路は restore_uses() だけ
-## (新しい契約の add_card() と、最大使用回数を増やす raise_max_uses() もこれを通す)。局面の移り変わりと
-## 自動保存は scripts/run_flow.gd が行う。
+## (新しい契約の add_card() と、最大使用回数を増やす scripts/events.gd の raise_max_uses() もこれを通す)。
+## 局面の移り変わりと自動保存は scripts/run_flow.gd が行う。
 ## --script の検証から使う時は root.get_node_or_null("RunState") で取るか、このスクリプトを new() する。
 
 ## 局面が変わった (画面の切り替えの合図。scripts/main.gd が受ける)
@@ -18,6 +18,7 @@ enum Phase { MAP, BATTLE, REWARD, SHRINE, SHOP, EVENT, DEFEAT, CLEAR }
 const ActMap := preload("res://scripts/act_map.gd")
 const Cards := preload("res://scripts/cards.gd")
 const Contractors := preload("res://scripts/contractors.gd")
+const Relics := preload("res://scripts/relics.gd")
 
 ## 新しいランの体力・最大体力。1 幕の前半の敵 (1 体の 1 ターンの攻撃 3〜7) の攻撃を 10 ターン前後受けられる値で、
 ## 自動テストプレイ (#10) の結果で見直す
@@ -26,7 +27,7 @@ const START_HP: int = 50
 const START_GOLD: int = 0
 ## 保存データの形式。前の版のデータを読めなくなる形に変えたら上げる (違う版のデータは壊れたデータとして退避する)。
 ## デッキの要素の bonus_uses は省略を 0 として読むので、足しても上げていない
-const SAVE_VERSION: int = 2
+const SAVE_VERSION: int = 3
 ## 本番の保存先
 const SAVE_PATH: String = "user://run.json"
 ## 保存してよい局面と、その局面で今いる節点に許す種類 (MAP は出発前を含めてどこでもよい)。ランの終わりの
@@ -49,6 +50,10 @@ var deck: Array[Dictionary] = []
 var hp: int = START_HP
 var max_hp: int = START_HP
 var gold: int = START_GOLD
+## 持っている護符の ID (scripts/relics.gd の RELICS のキー) を手に入れた順に並べたもの (同じ護符は 1 つまで)
+var relics: Array[String] = []
+## 焼けぬ封蝋の判定を引いた回数 (次に引く判定の通し番号。判定は地図のシードとこの番号から決まる)
+var relic_rolls: int = 0
 ## 幕 (1 始まり)
 var act: int = 1
 ## 地図のシード。地図そのものは保存せず、このシードから作り直す
@@ -86,6 +91,8 @@ func new_run(deck_ids: Array[String] = [], seed_value: int = 0) -> void:
 	hp = START_HP
 	max_hp = START_HP
 	gold = START_GOLD
+	relics = []
+	relic_rolls = 0
 	act = 1
 	map_seed = seed_value
 	rows = ActMap.generate(map_seed)
@@ -106,12 +113,6 @@ func uses_left(index: int) -> int:
 	return deck[index]["uses_left"]
 
 
-## デッキの index 番目のカードの最大使用回数 (カードの定義の回数に、出来事で増やした分を足す)
-func max_uses(index: int) -> int:
-	return card(index)["max_uses"] + deck[index].get("bonus_uses", 0)
-
-
-
 ## デッキの index 番目のカードが使えるか (残りが 1 以上)。残り 0 は「契約切れ」でデッキに残るが使えない
 func can_use(index: int) -> bool:
 	return uses_left(index) >= 1
@@ -127,26 +128,16 @@ func use_card(index: int) -> bool:
 	return true
 
 
-## デッキの index 番目のカードの残り使用回数を amount 回戻す (負なら最大まで)。最大を超えない。
-## 残り使用回数を増やす唯一の経路 (契約の更新・商人・出来事・新しい契約・最大使用回数を増やす)。戻した後の
-## 残り使用回数を返す
+## デッキの index 番目のカードの残り使用回数を amount 回戻す (負なら最大まで)。最大 (出来事で増やした分を含む
+## Cards.deck_max_uses()) を超えない。残り使用回数を増やす唯一の経路 (契約の更新・商人・出来事・新しい契約・
+## 最大使用回数を増やす)。戻した後の残り使用回数を返す
 func restore_uses(index: int, amount: int = -1) -> int:
-	var limit: int = max_uses(index)
+	var limit: int = Cards.deck_max_uses(deck[index])
 	if amount < 0:
 		deck[index]["uses_left"] = limit
 	else:
 		deck[index]["uses_left"] = mini(limit, uses_left(index) + amount)
 	return uses_left(index)
-
-
-## デッキの index 番目のカードの最大使用回数を 1 増やし、残り使用回数も restore_uses() で 1 増やす (出来事
-## 「蝋の祭壇」)。最大が Cards.uses_limit() に届いていて増やせなければ false を返して何も変えない
-func raise_max_uses(index: int) -> bool:
-	if max_uses(index) >= Cards.uses_limit(deck[index]["id"]):
-		return false
-	deck[index]["bonus_uses"] = deck[index].get("bonus_uses", 0) + 1
-	restore_uses(index, 1)
-	return true
 
 
 ## card_id のカードと新しく契約してデッキの末尾に足す。回数は restore_uses() で最大まで入れる
@@ -164,6 +155,14 @@ func remove_card(index: int) -> void:
 	deck.remove_at(index)
 
 
+## relic_id の護符を手に入れる (持っていれば何もしない)。手に入れたら true。持っているかは relics.has() で見る
+func add_relic(relic_id: String) -> bool:
+	if relics.has(relic_id):
+		return false
+	relics.append(relic_id)
+	return true
+
+
 ## 巡礼者が damage を受ける (体力は 0 未満にしない)
 func take_damage(damage: int) -> void:
 	hp = maxi(0, hp - damage)
@@ -179,6 +178,11 @@ func current_node() -> Dictionary:
 	if path.is_empty():
 		return {}
 	return ActMap.node_at(rows, path.size() - 1, path.back())
+
+
+## 今いる節点の地図の段 (出発前は -1)
+func current_row() -> int:
+	return path.size() - 1
 
 
 ## 今いる節点のシード。戦闘の乱数・報酬と品揃え・出来事の選択に使い、同じ節点なら同じ値になる
@@ -209,6 +213,8 @@ func to_dict() -> Dictionary:
 		"hp": hp,
 		"max_hp": max_hp,
 		"gold": gold,
+		"relics": relics.duplicate(),
+		"relic_rolls": relic_rolls,
 		"act": act,
 		"map_seed": map_seed,
 		"path": path.duplicate(),
@@ -233,6 +239,10 @@ func from_dict(data: Variant) -> bool:
 	hp = int(data["hp"])
 	max_hp = int(data["max_hp"])
 	gold = int(data["gold"])
+	relics = []
+	for relic_id: String in data["relics"]:
+		relics.append(relic_id)
+	relic_rolls = int(data["relic_rolls"])
 	act = int(data["act"])
 	map_seed = int(data["map_seed"])
 	rows = ActMap.generate(map_seed)
@@ -294,14 +304,23 @@ func load_from(file_path: String) -> LoadResult:
 
 
 ## 保存データの形が合っているか (版・各項目が整数で範囲内・デッキの各カードが定義済みで残り回数が 0〜最大・
-## 道が地図のとおり・局面が今いる節点と合う)
+## 護符が定義済みで重ならない・道が地図のとおり・局面が今いる節点と合う)
 func _is_valid_save(data: Variant) -> bool:
 	if typeof(data) != TYPE_DICTIONARY:
 		return false
 	var integer_keys: Array[String] = [
-		"version", "hp", "max_hp", "gold", "act", "map_seed", "phase", "exhausted_count", "battles_won"
+		"version",
+		"hp",
+		"max_hp",
+		"gold",
+		"relic_rolls",
+		"act",
+		"map_seed",
+		"phase",
+		"exhausted_count",
+		"battles_won",
 	]
-	var keys: Array = ["character_id", "deck", "path"]
+	var keys: Array = ["character_id", "deck", "relics", "path"]
 	keys.append_array(integer_keys)
 	if not keys.all(func(key: String) -> bool: return data.has(key)):
 		return false
@@ -312,7 +331,7 @@ func _is_valid_save(data: Variant) -> bool:
 	var hp_ok: bool = (
 		int(data["max_hp"]) >= 1 and int(data["hp"]) >= 0 and int(data["hp"]) <= int(data["max_hp"])
 	)
-	var count_keys: Array[String] = ["gold", "exhausted_count", "battles_won"]
+	var count_keys: Array[String] = ["gold", "relic_rolls", "exhausted_count", "battles_won"]
 	var counts_ok: bool = count_keys.all(func(key: String) -> bool: return int(data[key]) >= 0)
 	var character_ok: bool = (
 		typeof(data["character_id"]) == TYPE_STRING
@@ -324,8 +343,21 @@ func _is_valid_save(data: Variant) -> bool:
 		and character_ok
 		and int(data["act"]) >= 1
 		and data["deck"].all(_is_valid_deck_entry)
+		and _is_valid_relics(data["relics"])
 		and _is_valid_progress(data)
 	)
+
+
+## 保存データの護符の並びの形が合っているか (定義済みの護符 ID の文字列で、同じ護符が 2 つ無い)
+func _is_valid_relics(raw_relics: Variant) -> bool:
+	if typeof(raw_relics) != TYPE_ARRAY:
+		return false
+	var seen: Dictionary = {}
+	for relic_id: Variant in raw_relics:
+		if typeof(relic_id) != TYPE_STRING or not Relics.RELICS.has(relic_id) or seen.has(relic_id):
+			return false
+		seen[relic_id] = true
+	return true
 
 
 ## 保存データの道と局面が、シードから作り直した地図と合っているか

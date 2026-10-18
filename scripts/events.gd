@@ -101,12 +101,13 @@ static func event_for(seed_value: int) -> String:
 	return ids[rng.randi_range(0, ids.size() - 1)]
 
 
-## 出来事の選択肢 effect で得るカードの ID (SWAP は英霊、SPIRIT は精霊。ほかは空文字)。seed_value が同じなら同じ
-static func gained_card(effect: Effect, seed_value: int) -> String:
+## state の今いる出来事で、選択肢 effect で得るカードの ID (SWAP は英霊、SPIRIT は精霊。ほかは空文字)。
+## 報酬と同じく今いる節点のシードと段の帯 (NodeRules.offers_here()) で決まる
+static func gained_card(effect: Effect, state: RunStateScript) -> String:
 	if effect == Effect.SWAP:
-		return NodeRules.card_offers(seed_value, Cards.Bond.HERO)[0]
+		return NodeRules.offers_here(state, Cards.Bond.HERO)[0]
 	if effect == Effect.SPIRIT:
-		return NodeRules.card_offers(seed_value, Cards.Bond.SPIRIT)[0]
+		return NodeRules.offers_here(state, Cards.Bond.SPIRIT)[0]
 	return ""
 
 
@@ -153,8 +154,19 @@ static func can_pick(state: RunStateScript, effect: Effect, index: int) -> bool:
 	if RAISE_BONDS.has(effect):
 		return (
 			state.card(index)["bond"] == RAISE_BONDS[effect]
-			and state.max_uses(index) < Cards.uses_limit(state.deck[index]["id"])
+			and Cards.deck_max_uses(state.deck[index]) < Cards.uses_limit(state.deck[index]["id"])
 		)
+	return true
+
+
+## state のデッキの index 番目のカードの最大使用回数を 1 増やし、残り使用回数も restore_uses() で 1 増やす
+## (蝋の祭壇)。最大が Cards.uses_limit() に届いていて増やせなければ false を返して何も変えない
+static func raise_max_uses(state: RunStateScript, index: int) -> bool:
+	var entry: Dictionary = state.deck[index]
+	if Cards.deck_max_uses(entry) >= Cards.uses_limit(entry["id"]):
+		return false
+	entry["bonus_uses"] = entry.get("bonus_uses", 0) + 1
+	state.restore_uses(index, 1)
 	return true
 
 
@@ -172,20 +184,20 @@ static func choose(state: RunStateScript, option_index: int, picks: Array[int]) 
 			descending.reverse()
 			for index: int in descending:
 				state.remove_card(index)
-			state.add_card(gained_card(effect, seed_value))
+			state.add_card(gained_card(effect, state))
 		Effect.BLOOD_RESTORE:
 			state.take_damage(BLOOD_PRICE)
 			state.restore_uses(picks[0])
 		Effect.SPIRIT:
-			state.add_card(gained_card(effect, seed_value))
+			state.add_card(gained_card(effect, state))
 		Effect.GOLD:
 			state.gold += SPIRIT_GOLD
 		Effect.RAISE_HERO:
 			state.take_damage(RAISE_HERO_PRICE)
-			state.raise_max_uses(picks[0])
+			raise_max_uses(state, picks[0])
 		Effect.RAISE_SPIRIT:
 			state.gold -= RAISE_SPIRIT_PRICE
-			state.raise_max_uses(picks[0])
+			raise_max_uses(state, picks[0])
 	state.visit["event_done"] = true
 	return true
 

@@ -242,19 +242,19 @@ func _check_battle_rewards() -> void:
 		for seed_value: int in range(20):
 			var gold: int = NodeRules.reward_gold(seed_value, kind)
 			_check(gold >= span[0] and gold <= span[1], "報酬の所持金が範囲内: 種類 %d" % kind)
-	var offers: Array[String] = NodeRules.card_offers(5)
-	_check(offers == NodeRules.card_offers(5), "同じシードなら同じカードが並ぶ")
+	var offers: Array[String] = NodeRules.card_offers(5, 0)
+	_check(offers == NodeRules.card_offers(5, 0), "同じシードなら同じカードが並ぶ")
 	_check(offers.size() == NodeRules.OFFER_COUNT, "カードが %d 枚並ぶ" % NodeRules.OFFER_COUNT)
 	var unique: Dictionary = {}
 	for card_id: String in offers:
 		unique[card_id] = true
 		_check(Cards.CARDS.has(card_id), "並んだカードが定義済み: %s" % card_id)
 	_check(unique.size() == offers.size(), "並んだカードは互いに違う")
-	for card_id: String in NodeRules.card_offers(5, Cards.Bond.HERO):
+	for card_id: String in NodeRules.card_offers(5, 0, Cards.Bond.HERO):
 		_check(Cards.CARDS[card_id]["bond"] == Cards.Bond.HERO, "英霊だけを並べられる")
 	var state: RunStateScript = _state_at(ActMap.Kind.BATTLE, 11)
 	state.phase = RunStateScript.Phase.REWARD
-	var reward_offers: Array[String] = NodeRules.card_offers(state.node_seed())
+	var reward_offers: Array[String] = NodeRules.offers_here(state)
 	var outsider: String = _card_not_in(reward_offers)
 	if not outsider.is_empty():
 		_check(not NodeRules.take_reward_card(state, outsider), "並んでいないカードは受け取れない")
@@ -288,7 +288,7 @@ func _check_shrine() -> void:
 	_check(NodeRules.shrine_break(state, 0) and state.deck.size() == size_before - 1, "破棄で 1 枚外れる")
 	state.free()
 	state = _state_at(ActMap.Kind.SHRINE, 11)
-	var offers: Array[String] = NodeRules.card_offers(state.node_seed())
+	var offers: Array[String] = NodeRules.offers_here(state)
 	var outsider: String = _card_not_in(offers)
 	if not outsider.is_empty():
 		_check(not NodeRules.shrine_contract(state, outsider), "並んでいないカードとは契約できない")
@@ -309,7 +309,7 @@ func _check_shrine() -> void:
 ## 商人: 所持金が足りる時だけ、並んだカードを 1 枚ずつ買える。残り使用回数を戻す・外すは 1 回の訪問で 1 回ずつ
 func _check_shop() -> void:
 	var state: RunStateScript = _state_at(ActMap.Kind.SHOP, 11)
-	var offers: Array[String] = NodeRules.card_offers(state.node_seed())
+	var offers: Array[String] = NodeRules.offers_here(state)
 	_check(not NodeRules.buy_card(state, offers[0]), "所持金が足りなければ買えない")
 	state.gold = 300
 	var size_before: int = state.deck.size()
@@ -402,8 +402,8 @@ func _check_events() -> void:
 	state.free()
 
 
-## 契約の一覧の並べ方: 強さ順はカードの強さの強い順 (同じ強さはデッキの順。雷槍の英霊と盾の英霊は 6、斬火は 3、
-## 守りの風は 2.5)、残り回数順は残りの少ない順で同じ残りの中は強さ順
+## 契約の一覧の並べ方: 強さ順はカードの強さの強い順 (同じ強さはデッキの順。盾の英霊は 5、雷槍の英霊は 4.5、
+## 斬火は 3、守りの風は 2.5)、残り回数順は残りの少ない順で同じ残りの中は強さ順
 func _check_deck_sort() -> void:
 	var deck: Array[Dictionary] = [
 		{"id": "slash", "uses_left": 1},
@@ -412,7 +412,7 @@ func _check_deck_sort() -> void:
 		{"id": "hero_wall", "uses_left": 0},
 	]
 	var strength: Array[int] = DeckListUiScript.sorted_indices(deck, DeckListUiScript.Order.STRENGTH)
-	_check(strength == [1, 3, 0, 2], "強さ順: %s" % [strength])
+	_check(strength == [3, 1, 0, 2], "強さ順: %s" % [strength])
 	var uses: Array[int] = DeckListUiScript.sorted_indices(deck, DeckListUiScript.Order.USES_LEFT)
 	_check(uses == [3, 1, 0, 2], "残り回数順: %s" % [uses])
 
@@ -583,3 +583,49 @@ func _card_not_in(offers: Array[String]) -> String:
 func _remove_user_file(path: String) -> void:
 	if FileAccess.file_exists(path):
 		DirAccess.open(path.get_base_dir()).remove(path.get_file())
+
+
+## 増えた最大使用回数の保存: 往復で保たれ、bonus_uses の無い要素は 0 として読み、区分の上限を超える・残りが
+## 増えた最大を超える・負の bonus_uses は壊れたデータとして読まない
+func _check_raised_max_uses_save() -> void:
+	var state: RunStateScript = _raised_uses_state()
+	state.phase = RunStateScript.Phase.MAP
+	Events.raise_max_uses(state, 1)
+	var other: RunStateScript = RunStateScript.new()
+	_check(other.from_dict(state.to_dict()), "増えた最大使用回数のあるランを読み込める")
+	_check(
+		(
+			Cards.deck_max_uses(other.deck[1]) == Cards.deck_max_uses(state.deck[1])
+			and other.uses_left(1) == state.uses_left(1)
+		),
+		"往復で増えた最大使用回数が保たれる"
+	)
+	_check(
+		Cards.deck_max_uses(other.deck[2]) == Cards.CARDS["hero_strike"]["max_uses"],
+		"増やしていないカードはそのまま"
+	)
+	var hero_max: int = Cards.CARDS["hero_strike"]["max_uses"]
+	var cases: Array[Array] = [
+		[{"id": "hero_strike", "uses_left": hero_max + 1, "bonus_uses": 1}, true, "増えた最大まで"],
+		[{"id": "hero_strike", "uses_left": hero_max + 1}, false, "残りが最大を超える"],
+		[{"id": "hero_strike", "uses_left": 1, "bonus_uses": 2}, false, "区分の上限を超える"],
+		[{"id": "slash", "uses_left": 1, "bonus_uses": 1}, false, "全体の上限を超える"],
+		[{"id": "guard", "uses_left": 1, "bonus_uses": -1}, false, "負の増えた分"],
+		[{"id": "guard", "uses_left": 1, "bonus_uses": 0.5}, false, "整数でない増えた分"],
+	]
+	for case: Array in cases:
+		var data: Dictionary = state.to_dict()
+		data["deck"] = [case[0]]
+		_check(other.from_dict(data) == case[1], "保存データのデッキの要素: %s" % case[2])
+	state.free()
+	other.free()
+
+
+## 蝋の祭壇の節点に入った局面のランで、デッキが斬火 (最大使用回数が上限)・守りの風・雷槍の英霊・盾の英霊のもの
+func _raised_uses_state() -> RunStateScript:
+	var state: RunStateScript = _state_at_event("wax_altar")
+	var ids: Array[String] = ["slash", "guard", "hero_strike", "hero_wall"]
+	state.deck.clear()
+	for card_id: String in ids:
+		state.add_card(card_id)
+	return state

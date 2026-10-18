@@ -6,6 +6,8 @@ extends RefCounted
 
 const Art := preload("res://scripts/art.gd")
 const CardView := preload("res://scripts/card_view.gd")
+const Cards := preload("res://scripts/cards.gd")
+const Relics := preload("res://scripts/relics.gd")
 const RunStateScript := preload("res://scripts/run_state.gd")
 
 ## 画面の見出しの文字の大きさ (戦闘画面の階の表示より一段大きくする)
@@ -131,6 +133,12 @@ static func status_text(state: RunStateScript) -> String:
 	return "体力 %d / %d   所持金 %d   契約 %d 枚" % [state.hp, state.max_hp, state.gold, state.deck.size()]
 
 
+## relic_id の護符の名前と効果の 1 行 (報酬・商人・戦闘画面の説明に使う)
+static func relic_text(relic_id: String) -> String:
+	var relic: Dictionary = Relics.RELICS[relic_id]
+	return "「%s」%s" % [relic["name"], relic["text"]]
+
+
 ## parent に、カードを横に並べる行を足す
 static func add_card_row(parent: Control) -> HBoxContainer:
 	var row: HBoxContainer = HBoxContainer.new()
@@ -175,7 +183,8 @@ static func add_deck_grid(
 	(grid.get_parent() as ScrollContainer).follow_focus = true
 	for index: int in range(state.deck.size()):
 		var view: CardView = CardView.new()
-		view.show_deck_card(state.deck[index]["id"], state.uses_left(index), state.max_uses(index))
+		var entry: Dictionary = state.deck[index]
+		view.show_deck_card(entry["id"], entry["uses_left"], Cards.deck_max_uses(entry))
 		view.disabled = not enabled.call(index)
 		view.pressed.connect(on_pick.bind(index))
 		grid.add_child(view)

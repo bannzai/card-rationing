@@ -130,6 +130,11 @@ func show_offer(id: String, note: String = "") -> void:
 	_show(id, max_uses, max_uses, note)
 
 
+## 効果の文を text に差し替える (戦闘の手札で、護符を足したダメージと防御を見せる)
+func show_effect(text: String) -> void:
+	effect_label.text = text
+
+
 ## 手札での番号 (数字キー。1 始まり) を絵の右上に出す
 func set_key_number(number: int) -> void:
 	key_label.text = str(number)

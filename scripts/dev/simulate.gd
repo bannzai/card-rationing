@@ -40,9 +40,7 @@ func _run() -> void:
 	var contractors: Dictionary = {}
 	var min_gap: float = INF
 	# 一時的な調整用 (最大体力の掃引)。値を決めたら消す
-	var sweep: Dictionary = {
-		"yura": [38, 44, 50, 56, 62], "shion": [30, 38, 46, 54], "kagari": [34, 42, 50]
-	}
+	var sweep: Dictionary = {"yura": [40, 42, 46, 48], "shion": [28, 32], "kagari": [32, 36]}
 	for variant: String in _variants(sweep):
 		var contractor_id: String = variant.get_slice("@", 0)
 		var hp_override: int = int(variant.get_slice("@", 1))

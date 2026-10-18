@@ -28,8 +28,8 @@ const CANDLE_SIZE: Vector2 = Vector2(38, 64)
 const HEALTH_BEADS: int = 10
 const BEAD_SIZE: Vector2 = Vector2(16, 16)
 ## 発動中の加護の一覧の文字の大きさ。一覧は巡礼者の右・手札の上の空き (scenes/battle.tscn の PowerColumn。
-## 幅 286・高さ 100) に置き、最も長い 1 行 (「毎ターン エネルギー +1 ×2」) が幅に、見出しと 4 行が高さに収まる
-## 大きさにした
+## 幅 286・高さ 170。上の案内の文 (MessageLabel) はその上で終わる) に置き、最も長い 1 行 (「毎ターン エネルギー +1
+## ×2」) が幅に、見出しと加護の全 6 種の行が高さに収まる大きさにした (超えても上へ伸び、手札には重ならない)
 const POWER_FONT_SIZE: int = 15
 
 ## 進行中の戦闘

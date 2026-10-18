@@ -324,6 +324,26 @@ func _check_power_lasts(main: MainScript) -> void:
 	_start_battle_with(battle_ui, ["wild_dog"], 2)
 	await _settle()
 	_check(not battle_ui.power_column.visible, "次の戦闘では発動中の加護の一覧が消える")
+	# 加護の全種が発動していても、一覧は案内の文と手札に重ならない
+	var power_ids: Array[String] = []
+	for card_id: String in Cards.CARDS:
+		if Cards.CARDS[card_id]["kind"] == Cards.Kind.POWER:
+			power_ids.append(card_id)
+	_set_deck(power_ids)
+	_start_battle_with(battle_ui, ["wild_dog"], 1)
+	for deck_index: int in range(power_ids.size()):
+		battle_ui.battle.powers.append(deck_index)
+	battle_ui.refresh()
+	await _settle()
+	var column: Rect2 = battle_ui.power_column.get_global_rect()
+	_check(
+		(
+			_visible_children(battle_ui.power_column) == power_ids.size() + 1
+			and column.end.y <= battle_ui.hand_row.get_global_rect().position.y
+			and column.position.y >= battle_ui.message_label.get_global_rect().end.y
+		),
+		"加護の全 %d 種が発動していても、一覧が案内の文と手札に重ならない" % power_ids.size()
+	)
 
 
 ## 戦闘の動きの途中に続けて入力しても、戦闘の状態と表示が壊れない: カードを使う動きの最中に次のカードをキーで

@@ -159,16 +159,6 @@ func add_relic(relic_id: String) -> bool:
 	return true
 
 
-## デッキの index 番目のカードを今使う時に、焼けぬ封蝋で残り使用回数が減らないか。効くカードの時だけ判定を
-## 1 回引き (通し番号を進める)、持っていないか効かないカードなら引かずに false
-func spares_use(index: int) -> bool:
-	if not relics.has("unburnt_seal") or not Relics.can_spare(deck[index]["id"], uses_left(index)):
-		return false
-	var spared: bool = Relics.roll_spare(map_seed, relic_rolls)
-	relic_rolls += 1
-	return spared
-
-
 ## 巡礼者が damage を受ける (体力は 0 未満にしない)
 func take_damage(damage: int) -> void:
 	hp = maxi(0, hp - damage)
@@ -184,6 +174,11 @@ func current_node() -> Dictionary:
 	if path.is_empty():
 		return {}
 	return ActMap.node_at(rows, path.size() - 1, path.back())
+
+
+## 今いる節点の地図の段 (出発前は -1)
+func current_row() -> int:
+	return path.size() - 1
 
 
 ## 今いる節点のシード。戦闘の乱数・報酬と品揃え・出来事の選択に使い、同じ節点なら同じ値になる

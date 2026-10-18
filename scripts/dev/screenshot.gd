@@ -118,10 +118,12 @@ func _show_deck_list() -> bool:
 	return true
 
 
-## 戦闘。5 枚のデッキなら全カードが手札に来るので、残り 1 回 (斬火) と契約切れ (雷槍の英霊) が必ず映る
+## 戦闘。5 枚のデッキなら全カードが手札に来るので、残り 1 回 (斬火)、1 回使った 3 回の英霊 (雷槍の英霊) と
+## 契約切れ (上位の焔王の英霊) が必ず映る
 func _show_battle() -> bool:
-	_set_deck(["slash", "guard", "hero_strike", "breath", "spirit_arrow"])
+	_set_deck(["slash", "guard", "hero_strike", "breath", "flame_king"])
 	run_state.use_card(2)
+	run_state.use_card(4)
 	for _i: int in range(Cards.CARDS["slash"]["max_uses"] - 1):
 		run_state.use_card(0)
 	_show_at_row(0, RunStateScript.Phase.BATTLE)

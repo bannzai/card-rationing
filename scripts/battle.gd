@@ -140,7 +140,7 @@ func play(hand_index: int, target: int = -1) -> bool:
 	var damage: int = card_damage(deck_index)
 	var guard: int = card_block(deck_index)
 	relic_triggers = _play_triggers(deck_index)
-	if run_state.spares_use(deck_index):
+	if spares_use(deck_index):
 		relic_triggers.append("unburnt_seal")
 	else:
 		run_state.use_card(deck_index)
@@ -222,6 +222,19 @@ func alive_enemies() -> Array[int]:
 ## target が生きている敵を指しているか
 func is_alive(target: int) -> bool:
 	return target >= 0 and target < enemies.size() and enemies[target]["hp"] > 0
+
+
+## デッキの deck_index 番目のカードを今使う時に、焼けぬ封蝋で残り使用回数が減らないか。効くカードの時だけ判定を
+## 1 回引き (run_state.relic_rolls を進める)、持っていないか効かないカードなら引かずに false
+func spares_use(deck_index: int) -> bool:
+	if (
+		not run_state.relics.has("unburnt_seal")
+		or not Relics.can_spare(run_state.deck[deck_index]["id"], run_state.uses_left(deck_index))
+	):
+		return false
+	var spared: bool = Relics.roll_spare(run_state.map_seed, run_state.relic_rolls)
+	run_state.relic_rolls += 1
+	return spared
 
 
 ## デッキの deck_index 番目のカードを今使った時の 1 回のダメージ (攻撃でなければ 0)。熾火の刃と、最後の 1 回

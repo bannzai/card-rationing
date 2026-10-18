@@ -117,7 +117,7 @@ func leave() -> void:
 func _build_goods() -> void:
 	var row: HBoxContainer = UiKit.add_card_row(content)
 	var sold: Array = run_state.visit.get("sold", [])
-	for card_id: String in NodeRules.card_offers(run_state.node_seed()):
+	for card_id: String in NodeRules.offers_here(run_state):
 		var price: int = NodeRules.card_price(card_id)
 		var note: String = "売り切れ" if sold.has(card_id) else "値段 %d" % price
 		var button: Button = UiKit.add_offer_card(row, card_id, note, buy.bind(card_id))

@@ -111,17 +111,21 @@ func _check_unburnt_seal() -> void:
 	_check(differs, "地図のシードが違えば判定の並びも違う")
 	var state: RunStateScript = RunStateScript.new()
 	state.new_run(["slash", "hero_strike"], BOT_SEED)
-	_check(not state.spares_use(0) and state.relic_rolls == 0, "護符を持っていなければ判定を引かない")
+	var battle: BattleScript = BattleScript.new()
+	battle.start(state, ["skeleton"], 1)
+	_check(not battle.spares_use(0) and state.relic_rolls == 0, "護符を持っていなければ判定を引かない")
 	state.add_relic("unburnt_seal")
-	_check(not state.spares_use(1) and state.relic_rolls == 0, "英霊には効かず判定を引かない")
+	_check(not battle.spares_use(1) and state.relic_rolls == 0, "英霊には効かず判定を引かない")
 	var expected: bool = Relics.roll_spare(BOT_SEED, 0)
-	_check(state.spares_use(0) == expected and state.relic_rolls == 1, "精霊は判定を引き、結果はシードと通し番号のとおり")
+	_check(
+		battle.spares_use(0) == expected and state.relic_rolls == 1,
+		"精霊は判定を引き、結果はシードと通し番号のとおり"
+	)
 	state.deck[0]["uses_left"] = 1
-	_check(not state.spares_use(0) and state.relic_rolls == 1, "最後の 1 回には効かず判定を引かない")
+	_check(not battle.spares_use(0) and state.relic_rolls == 1, "最後の 1 回には効かず判定を引かない")
 	# 戦闘で使うと、判定が減らないと出た時だけ残りが減らず、焼けぬ封蝋が働いたと残る
 	state.new_run(["slash"], BOT_SEED)
 	state.add_relic("unburnt_seal")
-	var battle: BattleScript = BattleScript.new()
 	for turn: int in range(Cards.CARDS["slash"]["max_uses"]):
 		battle.start(state, ["skeleton"], turn)
 		var uses_before: int = state.uses_left(0)

@@ -38,12 +38,18 @@ const BEAD_DULL: Texture2D = preload("res://assets/art/bead_dull.png")
 ## 文を載せる羊皮紙と、ボタンの木の札 (どちらも端を残して引き伸ばす)
 const PARCHMENT: Texture2D = preload("res://assets/art/parchment.png")
 const PLAQUE: Texture2D = preload("res://assets/art/plaque.png")
+## 防御のカードの絵 (霧の精霊。加護のカードも色を変えて使う)
+const CARD_GUARD_ART: Texture2D = preload("res://assets/art/card_guard.jpg")
 ## カードの種別 → 絵
 const CARD_ART: Dictionary = {
 	Cards.Kind.ATTACK: preload("res://assets/art/card_attack.jpg"),
-	Cards.Kind.GUARD: preload("res://assets/art/card_guard.jpg"),
+	Cards.Kind.GUARD: CARD_GUARD_ART,
 	Cards.Kind.SKILL: preload("res://assets/art/card_skill.jpg"),
+	Cards.Kind.POWER: CARD_GUARD_ART,
 }
+## カードの種別 → 絵に掛ける色 (無い種別は絵の色のまま)。加護は防御の霧の精霊の絵を蝋燭の金色に染め、身を包む
+## 光に見せて防御と見分ける (絵を足さずに済ませた理由は documents/DIRECTION.md「決めたこと」)
+const CARD_ART_TINT: Dictionary = {Cards.Kind.POWER: Color(1.35, 1.0, 0.5)}
 ## 敵の格 → 絵
 const ENEMY_ART: Dictionary = {
 	Enemies.Rank.NORMAL: preload("res://assets/art/enemy_normal.png"),

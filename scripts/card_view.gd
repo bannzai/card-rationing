@@ -158,11 +158,14 @@ func _show(id: String, uses: int, max_uses: int, note: String) -> void:
 	card_id = id
 	uses_left = uses
 	art.texture = Art.CARD_ART[card["kind"]]
+	art.self_modulate = Art.CARD_ART_TINT.get(card["kind"], Color.WHITE)
 	name_label.text = card["name"]
 	effect_label.text = Cards.effect_text(id)
 	note_label.text = note
 	cost_label.text = str(card["cost"])
 	bond_label.text = Cards.BOND_NAMES[card["bond"]]
+	if card["kind"] == Cards.Kind.POWER:
+		bond_label.text += "の" + Cards.POWER_NAME
 	Art.set_icons(seal_row, Art.SEAL, Art.SEAL_BURNT, uses, max_uses, SEAL_SIZE)
 	# 契約切れのカードは色を抜く (中身の各ノードは use_parent_material で face の material を使う)
 	if uses == 0 and face.material == null:

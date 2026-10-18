@@ -90,6 +90,7 @@ func _capture_scenes() -> bool:
 		[_show_deck_list, "deck-list"],
 		[_show_battle, "battle"],
 		[_show_battle_drawn, "battle-drawn"],
+		[_show_battle_power, "battle-power"],
 		[_show_reward, "reward"],
 		[_show_shrine, "shrine"],
 		[_show_shrine_renew, "shrine-renew"],
@@ -210,6 +211,36 @@ func _show_battle_drawn() -> bool:
 			break
 	if battle_ui.battle.hand.size() != 6:
 		push_error("灯の精で手札を 6 枚にできない (手札 %d 枚)" % battle_ui.battle.hand.size())
+		return false
+	return true
+
+
+## 加護を 3 枚使ってターンを終えた戦闘 (発動中の加護の一覧・加護の防御・手札に来た加護のカードの見た目を見る)。
+## 最初の手札と山札の並びを決め、加護 3 枚を最初の手札に、残りの加護 3 枚を次のターンの手札に置く
+func _show_battle_power() -> bool:
+	var battle_ui: BattleUiScript = main.screen as BattleUiScript
+	_set_deck(
+		[
+			"lamp_ward",
+			"ember_heart",
+			"war_banner",
+			"slash",
+			"guard",
+			"guiding_light",
+			"lighthouse_keeper",
+			"defiant_spark",
+			"spirit_arrow",
+		]
+	)
+	battle_ui.start_battle(1)
+	battle_ui.battle.hand = [0, 1, 2, 3, 4]
+	battle_ui.battle.draw_pile = [8, 7, 6, 5]
+	battle_ui.battle.discard_pile = []
+	for card_id: String in ["lamp_ward", "ember_heart", "war_banner"]:
+		battle_ui.request_card(_hand_index_of(battle_ui, card_id))
+	battle_ui.end_turn()
+	if battle_ui.battle.powers.size() != 3 or not battle_ui.power_column.visible:
+		push_error("加護 3 枚が発動中にならない (%d 枚)" % battle_ui.battle.powers.size())
 		return false
 	return true
 

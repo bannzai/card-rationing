@@ -1,4 +1,4 @@
-extends "res://scripts/dev/integration_events.gd"
+extends "res://scripts/dev/integration_powers.gd"
 ## メインシーンを tree に置いて動かす入力統合テスト (headless)。画面の遷移やキー・クリックで変わる振る舞いを
 ## 足したら、ここに検証を足す。実行方法は AGENTS.md「検証方法」を参照。
 ## キーは root.push_input() に InputEventKey を、クリックはボタンの中心への InputEventMouseButton を渡して起こす。
@@ -8,7 +8,8 @@ extends "res://scripts/dev/integration_events.gd"
 ## 進む)。効果音は直前の操作のものが鳴り終わっていないことがあるため、確かめる操作の前に _stop_se() で止める。
 ## 定数・autoload の参照・操作の部品は scripts/dev/integration_base.gd に、護符の検証は scripts/dev/integration_relics.gd
 ## に、契約者の選択と個性の検証は scripts/dev/integration_contractors.gd に、出来事の画面の検証は
-## scripts/dev/integration_events.gd に置く。
+## scripts/dev/integration_events.gd に、加護の検証は
+## scripts/dev/integration_powers.gd に置く。
 
 ## tree の準備が終わってから _run() を始める (シーンの追加は _initialize() の後でないとできない)
 func _initialize() -> void:
@@ -54,6 +55,7 @@ func _run() -> void:
 	await _check_hand_card_seals(main)
 	await _check_battle_sounds(main)
 	await _check_hand_fits_after_draw(main)
+	await _check_power_lasts(main)
 	Art.motion_scale = 1.0
 	await _check_input_during_motion(main)
 	await _check_input_during_attack_motion(main)

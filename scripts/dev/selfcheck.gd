@@ -1,12 +1,12 @@
-extends "res://scripts/dev/selfcheck_events.gd"
+extends "res://scripts/dev/selfcheck_powers.gd"
 ## 純粋なロジックとプロジェクト設定の検証 (headless)。ゲームのルール (カードの残り使用回数・戦闘・マップ・
 ## イベント) の計算を足したら、ここに検証を足す。実行方法は AGENTS.md「検証方法」を参照。地図・局面の移り変わり・
 ## 報酬・祠・商人・出来事・契約の一覧・設定・音・素材の記録の検証は継承元の scripts/dev/selfcheck_run.gd に、護符の
 ## 検証と共有の部品は継承元の scripts/dev/selfcheck_relics.gd に、契約者の個性の検証は継承元の
 ## scripts/dev/selfcheck_contractors.gd に、出来事の絵と取り引きの出来事の検証は継承元の
-## scripts/dev/selfcheck_events.gd にある。
+## scripts/dev/selfcheck_events.gd に、加護の戦闘での効果の検証は継承元の
+## scripts/dev/selfcheck_powers.gd にある。
 
-const Bots := preload("res://scripts/dev/strategy_bots.gd")
 
 ## 起動検証 (main_scene の --quit) ではロードされない遷移先も含めた全シーン
 const SCENES: Array[String] = [
@@ -14,8 +14,9 @@ const SCENES: Array[String] = [
 	"res://scenes/battle.tscn",
 	"res://scenes/boss_talk.tscn",
 ]
-## 1 幕の中身の量 (issue #9 の指定): カードの種類の数・敵の格ごとの種類の数・ボスの台詞の行数・初期デッキの枚数
-const CARD_COUNT_RANGE: Array[int] = [25, 30]
+## 1 幕の中身の量 (issue #9 の指定): カードの種類の数・敵の格ごとの種類の数・ボスの台詞の行数・初期デッキの枚数。
+## カードの種類の上限は、issue #9 の 25〜30 種の上限に、issue #45 で足す加護の 4〜6 種の上限を足した数
+const CARD_COUNT_RANGE: Array[int] = [25, 36]
 const RANK_COUNT_RANGES: Dictionary = {
 	Enemies.Rank.NORMAL: [6, 8], Enemies.Rank.ELITE: [2, 2], Enemies.Rank.BOSS: [1, 1]
 }
@@ -34,6 +35,11 @@ const CARD_VALUE_RANGES: Dictionary = {
 	"block": [1, 30],
 	"draw": [1, 3],
 	"energy": [1, 3],
+	"turn_block": [1, 10],
+	"turn_draw": [1, 2],
+	"turn_energy": [1, 2],
+	"attack_bonus": [1, 5],
+	"struggle_bonus": [1, 10],
 }
 ## 契約の相手の区分ごとの最大使用回数の範囲 (精霊は回数が多め、英霊は少ない)。英霊は TIER_USES_RANGES でも絞る
 const BOND_USES_RANGES: Dictionary = {Cards.Bond.SPIRIT: [2, 6], Cards.Bond.HERO: [1, 3]}
@@ -74,6 +80,7 @@ func _initialize() -> void:
 	_check_corrupt_save()
 	_check_battle_turn()
 	_check_battle_effects()
+	_check_battle_powers()
 	_check_enemy_intent_order()
 	_check_battle_outcomes()
 	_check_battle_keeps_uses()
@@ -147,7 +154,7 @@ func _check_scenes_load() -> void:
 
 ## カードの定義: 種類の数・各値の範囲・区分ごとの最大使用回数・種別の割合・名前と効果の文、効果のキーと種別の対応
 func _check_cards() -> void:
-	_check(_in_range(Cards.CARDS.size(), CARD_COUNT_RANGE), "カードが 25〜30 種")
+	_check(_in_range(Cards.CARDS.size(), CARD_COUNT_RANGE), "カードが 25〜36 種")
 	var kind_counts: Dictionary = {}
 	for card_id: String in Cards.CARDS:
 		var card: Dictionary = Cards.CARDS[card_id]
@@ -166,10 +173,15 @@ func _check_cards() -> void:
 				"最大使用回数が英霊の段の範囲内: %s" % card_id
 			)
 		_check(not card["name"].is_empty(), "名前がある: %s" % card_id)
-		_check(
-			card.has("damage") or card.has("block") or card.has("draw") or card.has("energy"),
-			"効果がある: %s" % card_id
+		var has_power: bool = Cards.power_turn_points(card_id) > 0.0
+		var has_immediate: bool = (
+			card.has("damage") or card.has("block") or card.has("draw") or card.has("energy")
 		)
+		_check(has_power or has_immediate, "効果がある: %s" % card_id)
+		# 加護だけが続く効果を持ち、加護は使った時の効果を持たない (battle.play() は種別で発動中の加護に入れる)
+		var power: bool = card["kind"] == Cards.Kind.POWER
+		_check(has_power == power, "続く効果を持つのは加護だけで、加護はすべて持つ: %s" % card_id)
+		_check(not (power and has_immediate), "加護は使った時の効果を持たない: %s" % card_id)
 		_check(not Cards.effect_text(card_id).is_empty(), "効果の文がある: %s" % card_id)
 		_check(
 			_is_short_copy(card["name"]) and _is_short_copy(Cards.effect_text(card_id)),
@@ -191,11 +203,19 @@ func _check_cards() -> void:
 			share >= KIND_SHARE_RANGE[0] and share <= KIND_SHARE_RANGE[1],
 			"種別 %d のカードの割合が 2〜5 割 (%.2f)" % [kind, share]
 		)
+	_check_power_cards()
 	# 強さの定義 (documents/DIRECTION.md「決めたこと」) の基準のカードと、全体攻撃・引く・エネルギーの点数
 	_check(is_equal_approx(Cards.strength("slash"), 3.0), "斬火の強さが 3")
 	_check(is_equal_approx(Cards.strength("hero_strike"), 4.5), "雷槍の英霊 (コスト 1 で攻撃 9) の強さが 4.5")
 	_check(is_equal_approx(Cards.strength("ember_wave"), 3.0), "熾火の波 (全体攻撃 4) の強さが 3")
 	_check(is_equal_approx(Cards.strength("lantern_row"), 4.5), "灯の連なり (2 枚引く + エネルギー 1) の強さが 4.5")
+	# 加護は 1 ターンの点数 × 3 ターン: 毎ターン防御 3 は 9 点、攻撃の上乗せ 3 は攻撃 2 枚分で 18 点
+	_check(is_equal_approx(Cards.strength("lamp_ward"), 4.5), "灯守りの精 (毎ターン防御 3・コスト 1) の強さが 4.5")
+	_check(is_equal_approx(Cards.strength("war_banner"), 9.0), "戦旗の英霊 (攻撃の上乗せ 3・コスト 1) の強さが 9")
+	_check(Cards.power_text("slash").is_empty(), "加護でないカードの続く効果の文は空")
+	_check(
+		Cards.effect_text("lamp_ward") == "戦闘の間 毎ターン防御 3", "加護の効果の文は「戦闘の間」から始まる"
+	)
 
 
 ## 強さと最大使用回数の関係: 同じ種別・同じ段 (精霊はまとめて 1 つの段) の中で、強さが高いカードほど最大使用
@@ -954,6 +974,7 @@ func _check_strategy_bots() -> void:
 			with_relic == Bots.play_run(Bots.Strategy.SPEND, state, relic_seed),
 			"護符を手に入れるランも同じシードなら同じ結果 (シード %d)" % relic_seed
 		)
+	_check_bot_powers(state, battle)
 	state.free()
 	_remove_user_file(SELFCHECK_SAVE_PATH)
 

@@ -2,7 +2,7 @@ extends Control
 ## 戦闘画面。進行は scripts/battle.gd に任せ、ここは表示と入力 (マウスのクリックとキーボード) だけを受け持つ。
 ## 見た目は「蝋と灯火」(documents/DIRECTION.md「デザインの方向」): 祠の道の絵の左に巡礼者、右に敵を置き、
 ## エネルギーは灯っている蝋燭の数、体力は数珠の珠で示す。手札のカード (scripts/card_view.gd) は残り使用回数を
-## 封蝋の印の列で必ず見せ、契約切れ (残り 0) のカードは色を失う。
+## 封蝋の印の列で必ず見せ、契約切れ (残り 0) のカードは色を失う。使って発動中の加護は、巡礼者の右・手札の上に並べる。
 ## カードを使うたびとターンの終わりにランを保存し、勝敗が決まったら scripts/run_flow.gd で戦闘を終える
 ## (報酬・踏破・敗北の画面へは scripts/main.gd が切り替える)。
 ## カードを使った後の残り使用回数・被弾・勝敗に合わせて効果音を鳴らす (回数の増減を耳でも分かるように)。
@@ -33,6 +33,10 @@ const STRUGGLE_PENDING: int = -2
 const CANDLE_SIZE: Vector2 = Vector2(38, 64)
 const HEALTH_BEADS: int = 10
 const BEAD_SIZE: Vector2 = Vector2(16, 16)
+## 発動中の加護の一覧の文字の大きさ。一覧は巡礼者の右・手札の上の空き (scenes/battle.tscn の PowerColumn。
+## 幅 286・高さ 170。上の案内の文 (MessageLabel) はその上で終わる) に置き、最も長い 1 行 (「毎ターン エネルギー +1
+## ×2」) が幅に、見出しと加護の全 6 種の行が高さに収まる大きさにした (超えても上へ伸び、手札には重ならない)
+const POWER_FONT_SIZE: int = 15
 ## 護符の説明の文で、マウスを載せた印も働いた護符も無い時に出す案内
 const RELIC_HINT: String = "護符の印にマウスを載せると説明が出る"
 
@@ -72,6 +76,8 @@ var screen_tween: Tween = null
 @onready var pilgrim: TextureRect = $Pilgrim
 @onready var enemy_row: HBoxContainer = $EnemyRow
 @onready var message_label: Label = $MessageLabel
+## 発動中の加護の一覧 (最初の子が見出しで、加護 1 種につき 1 行の文を refresh() が足す)
+@onready var power_column: VBoxContainer = $PowerColumn
 @onready var energy_row: HBoxContainer = $PlayerPanel/EnergyRow
 @onready var energy_label: Label = $PlayerPanel/EnergyLabel
 @onready var health_row: HBoxContainer = $PlayerPanel/HealthRow
@@ -91,6 +97,10 @@ func _ready() -> void:
 	pilgrim_base = pilgrim.position
 	screen_base = position
 	message_label.add_theme_color_override("font_color", Art.CANDLE)
+	var power_header: Label = _add_power_label()
+	power_header.text = Cards.POWER_NAME
+	power_header.tooltip_text = "使った%sはこの戦闘の終わりまで続く" % Cards.POWER_NAME
+	Art.on_picture(power_header, Art.CANDLE)
 	struggle_button.pressed.connect(request_struggle)
 	end_turn_button.pressed.connect(end_turn)
 	effects_layer = Control.new()
@@ -240,8 +250,12 @@ func refresh() -> void:
 	message_label.text = _message_text()
 	_refresh_enemies()
 	_refresh_hand()
+	_refresh_powers()
 	_refresh_relics()
 	var over: bool = battle.outcome != Battle.Outcome.NONE
+	struggle_button.text = (
+		"もがく (S)\nコスト %d / 攻撃 %d" % [Battle.STRUGGLE_COST, battle.struggle_damage()]
+	)
 	struggle_button.disabled = over or battle.energy < Battle.STRUGGLE_COST
 	end_turn_button.disabled = over
 
@@ -568,6 +582,38 @@ func _refresh_hand() -> void:
 		)
 		view.set_key_number(index + 1)
 		view.disabled = not battle.can_play(index)
+
+
+## 発動中の加護を、加護 1 種につき 1 行 (続く効果の文。同じ加護を 2 枚以上使っていれば枚数を添える) で見出しの下に
+## 並べ、マウスを乗せるとカードの名前と効果を出す。発動中の加護が無ければ一覧ごと隠す
+func _refresh_powers() -> void:
+	# カード ID → 使った枚数 (Dictionary は足した順を保つので、使った順に並ぶ)
+	var counts: Dictionary = {}
+	for deck_index: int in battle.powers:
+		var card_id: String = run_state.deck[deck_index]["id"]
+		counts[card_id] = counts.get(card_id, 0) + 1
+	power_column.visible = not counts.is_empty()
+	while power_column.get_child_count() < counts.size() + 1:
+		Art.on_picture(_add_power_label())
+	var ids: Array = counts.keys()
+	for index: int in range(1, power_column.get_child_count()):
+		var label: Label = power_column.get_child(index)
+		label.visible = index <= ids.size()
+		if not label.visible:
+			continue
+		var card_id: String = ids[index - 1]
+		var count: int = counts[card_id]
+		label.text = Cards.power_text(card_id) + (" ×%d" % count if count > 1 else "")
+		label.tooltip_text = "%s\n%s" % [Cards.CARDS[card_id]["name"], Cards.effect_text(card_id)]
+
+
+## 発動中の加護の一覧に 1 行のラベルを足して返す (マウスを乗せた時の説明が出るよう、マウスを受ける)
+func _add_power_label() -> Label:
+	var label: Label = Label.new()
+	label.add_theme_font_size_override("font_size", POWER_FONT_SIZE)
+	label.mouse_filter = Control.MOUSE_FILTER_PASS
+	power_column.add_child(label)
+	return label
 
 
 ## 持っている護符の印 (scripts/relic_view.gd) を手に入れた順に並べる (印は使い回す)。護符が無ければ説明の文も

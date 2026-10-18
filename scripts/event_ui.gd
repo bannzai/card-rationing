@@ -1,8 +1,8 @@
 extends Control
 ## 出来事の画面。出来事の絵の横に文と選択肢を並べ、カードを選ぶ選択肢 (契約の入れ替え・血の泉・蝋の祭壇など) は
 ## デッキから選んで決める (デッキの格子に幅を譲るため、カードを選ぶ間は絵を隠す)。選んだら結果をランに反映して
-## 地図へ戻る。当たり外れのある選択肢 (封蝋の骰子) は、結果を見せてから地図へ戻る。処理は scripts/events.gd、
-## 選んでいる途中の選択肢とカードと、見せている結果だけをここに持つ。
+## 地図へ戻る。当たり外れのある選択肢 (封蝋の骰子) は、地図へ戻った局面として保存してから結果を見せ、「進む」で
+## 地図へ戻る。処理は scripts/events.gd、選んでいる途中の選択肢とカードと、見せている結果だけをここに持つ。
 
 const Art := preload("res://scripts/art.gd")
 const AudioScript := preload("res://scripts/audio.gd")
@@ -151,6 +151,7 @@ func _decide(option_index: int, chosen: Array[int]) -> void:
 			if won
 			else "外れ。「%s」の契約を失った" % card_name
 		)
+		_save_as_left()
 		pending_option = -1
 		picks = []
 		_rebuild()
@@ -158,6 +159,17 @@ func _decide(option_index: int, chosen: Array[int]) -> void:
 	if RESTORE_SOUND_EFFECTS.has(effect):
 		audio.play_se(AudioScript.Se.RESTORE)
 	RunFlow.leave_node(run_state)
+
+
+## 結果を見せている間に終了しても、賭けの結果を見てから選び直せないよう、節点を出て地図へ戻った局面として
+## 保存する (局面は結果の画面のまま。「進む」で RunFlow.leave_node() が同じ内容を保存し直す)
+func _save_as_left() -> void:
+	var phase: RunStateScript.Phase = run_state.phase
+	run_state.phase = RunStateScript.Phase.MAP
+	var status: Error = run_state.autosave()
+	run_state.phase = phase
+	if status != OK:
+		push_error("自動保存に失敗: %s (%s)" % [run_state.save_path, error_string(status)])
 
 
 ## 今の段階の画面の中身を作り直す (カードを選ぶ段階だけ絵を隠す)

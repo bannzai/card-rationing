@@ -128,8 +128,8 @@ func _check_ash_furnace(main: MainScript) -> void:
 
 
 ## 出来事「封蝋の骰子」で使いかけのカードを賭けると、結果 (当たれば残りが最大に戻り回数の回復の効果音、外れれば
-## カードを失い契約切れの効果音) を見せ、「進む」で地図へ戻る。結果を見せている間は保存しないので、そこで終了して
-## 「続きから」で再開すると賭ける前の出来事に戻り、同じ節点の骰子は同じ結果になる
+## カードを失い契約切れの効果音) を見せ、「進む」で地図へ戻る。結果を見せる前に地図へ戻った局面として保存するので、
+## 外れを見て終了し「続きから」で再開しても、カードを失ったまま地図に戻り、賭け直せない
 func _check_seal_dice(main: MainScript) -> void:
 	for wins: bool in [true, false]:
 		if not _start_run_at_gamble(wins):
@@ -164,23 +164,19 @@ func _check_seal_dice(main: MainScript) -> void:
 		else:
 			_check(run_state.deck.size() == 1, "骰子が外れると賭けたカードを失う")
 			_check(_se_playing(AudioScript.Se.EXPIRED), "骰子が外れると契約切れの効果音が鳴る")
+		if wins:
+			await _click(event_ui.proceed_button)
+			_check(main.screen is MapUiScript, "封蝋の骰子の結果の後は地図")
+			continue
 		await _quit_and_continue(main)
-		event_ui = main.screen as EventUiScript
 		_check(
-			event_ui != null and event_ui.proceed_button == null and run_state.deck.size() == 2,
-			"結果を見せている間に終了すると、賭ける前の出来事から再開する"
+			(
+				main.screen is MapUiScript
+				and run_state.phase == RunStateScript.Phase.MAP
+				and run_state.deck.size() == 1
+			),
+			"外れの結果を見せている間に終了すると、カードを失ったまま地図から再開する (賭け直せない)"
 		)
-		if event_ui == null:
-			return
-		await _click(event_ui.option_buttons[0])
-		await _click(event_ui.deck_grid.get_child(0) as Button)
-		await _click(event_ui.confirm_button)
-		_check(
-			(run_state.deck.size() == 2) == wins and event_ui.proceed_button != null,
-			"再開しても同じ節点の骰子は同じ結果になる"
-		)
-		await _click(event_ui.proceed_button)
-		_check(main.screen is MapUiScript, "封蝋の骰子の結果の後は地図")
 
 
 ## 出来事「蝋の祭壇」で体力を払って契約切れの英霊を選ぶと、最大と残りの使用回数が 1 増え (精霊と、増やしきった

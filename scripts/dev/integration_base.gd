@@ -219,6 +219,31 @@ func _visible_children(parent: Node) -> int:
 	return count
 
 
+## parent の子で、文が text のラベルの数
+func _count_labels(parent: Node, text: String) -> int:
+	var count: int = 0
+	for child: Node in parent.get_children():
+		if child is Label and (child as Label).text == text:
+			count += 1
+	return count
+
+
+## parent の子に、全体の攻撃の波の輪 (閉じた Line2D) があるか
+func _has_wave(parent: Node) -> bool:
+	for child: Node in parent.get_children():
+		if child is Line2D and (child as Line2D).closed:
+			return true
+	return false
+
+
+## parent の子に、英霊の攻撃の画面の閃光 (ColorRect) があるか
+func _has_screen_flash(parent: Node) -> bool:
+	for child: Node in parent.get_children():
+		if child is ColorRect:
+			return true
+	return false
+
+
 ## keycode のキーを押して、画面の更新とレイアウトが終わるまで待つ
 func _press_key(keycode: int) -> void:
 	var event: InputEventKey = InputEventKey.new()

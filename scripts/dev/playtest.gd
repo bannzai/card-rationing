@@ -3,7 +3,8 @@ extends SceneTree
 ## テストプレイ。Makefile の playtest target が描画付きで起動して Movie Maker モードで録画し、agent が録画と
 ## 静止画を目視する (実行方法は AGENTS.md「検証方法」)。判断は make simulate と同じ関数で、同じシードなら
 ## 同じ道・同じ手になる。地図・戦闘・契約の祠・ボス戦に最初に着いた時点を tmp/playtest-<場面>.png に撮る。
-## カードを使ったフレームを、使った後の残りの区分ごとに最初の 1 回だけログに出す (録画から戦闘の動きのコマを切り出す)。
+## カードを使ったフレームを、使った後の残りの区分ごとと攻撃の演出の種類ごとに最初の 1 回だけログに出す (録画から
+## 戦闘の動きのコマを切り出す)。
 ## ランの終わり (踏破か敗北) の結果の画面を映してから「playtest OK」の行を出して quit(0) する。踏破できずに
 ## 敗北しても失敗にはせず、到達した所までを録画する (ボス戦に着かなければボスの静止画は無い)。
 ## 画面を進められない時は quit(1) で終わる。保存データは本番と別の保存先に書き、ランの終わりに消える。
@@ -13,6 +14,7 @@ const AudioScript := preload("res://scripts/audio.gd")
 const BattleUiScript := preload("res://scripts/battle_ui.gd")
 const BossTalkScript := preload("res://scripts/boss_talk.gd")
 const Bots := preload("res://scripts/dev/strategy_bots.gd")
+const Cards := preload("res://scripts/cards.gd")
 const Contractors := preload("res://scripts/contractors.gd")
 const Enemies := preload("res://scripts/enemies.gd")
 const EventUiScript := preload("res://scripts/event_ui.gd")
@@ -53,6 +55,8 @@ var run_state: RunStateScript = null
 var captured: Dictionary = {}
 ## カードを使ったフレームを出した、使った後の残りの区分 (_log_card_use())
 var logged_uses: Dictionary = {}
+## 使ったフレームを出した、攻撃の演出の種類 (_log_attack())
+var logged_attacks: Dictionary = {}
 
 
 ## tree の準備が終わってから _run() を始める (シーンの追加は _initialize() の後でないとできない)
@@ -185,6 +189,7 @@ func _play_battle() -> bool:
 			battle_ui.choose_target(move["target"])
 		if deck_index >= 0 and run_state.uses_left(deck_index) < uses_before:
 			_log_card_use(run_state.uses_left(deck_index))
+			_log_attack(run_state.deck[deck_index]["id"])
 		await _wait(MOVE_FRAMES)
 	# 録画のどこで攻撃が尽きてもがいているかを、フレームの位置で切り出せるようにする (録画の 30 フレームが 1 秒)
 	print(
@@ -211,6 +216,27 @@ func _log_card_use(uses: int) -> void:
 		return
 	logged_uses[kind] = true
 	print("playtest: カードを使った (フレーム %d、残り %d 回)" % [Engine.get_process_frames(), uses])
+
+
+## 攻撃カード card_id を使ったフレームを、攻撃の演出の種類 (英霊・全体・複数回・単体) ごとに最初の 1 回だけ出す
+## (録画から、種類ごとの攻撃の演出の途中のコマを切り出すため。録画のコマは、このフレームの数コマ後)
+func _log_attack(card_id: String) -> void:
+	var card: Dictionary = Cards.CARDS[card_id]
+	if not card.has("damage"):
+		return
+	var kind: String = "単体"
+	if card["bond"] == Cards.Bond.HERO:
+		kind = "英霊"
+	elif card.get("area", false):
+		kind = "全体"
+	elif card.get("hits", 1) > 1:
+		kind = "複数回"
+	if logged_attacks.has(kind):
+		return
+	logged_attacks[kind] = true
+	print(
+		"playtest: %sの攻撃 (フレーム %d、%s)" % [kind, Engine.get_process_frames(), card["name"]]
+	)
 
 
 ## 契約の祠で、戦略が選んだ方 (契約の更新か新しい契約) の段階を映してから選ぶ

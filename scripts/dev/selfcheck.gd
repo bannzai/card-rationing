@@ -925,6 +925,26 @@ func _check_relic_sources() -> void:
 	_check(NodeRules.restore_price(state) == NodeRules.RESTORE_PRICE, "繕いの帳面が無ければ回数を戻す値段は元のまま")
 	state.add_relic("mended_ledger")
 	_check(NodeRules.restore_price(state) == 20, "繕いの帳面で回数を戻す値段が 20")
+	# 強敵で得た旅の銭袋・巡礼の数珠は、その勝利の所持金と体力から効く (報酬の画面の数と受け取った量が合う)
+	for gained: String in ["coin_pouch", "pilgrim_beads"]:
+		state.relics.assign(Relics.RELICS.keys().filter(func(id: String) -> bool: return id != gained))
+		state.phase = RunStateScript.Phase.BATTLE
+		state.hp = 10
+		gold_before = state.gold
+		RunFlow.finish_battle(state, true)
+		_check(state.relics.back() == gained, "最後に残った護符を強敵で得る: %s" % gained)
+		_check(
+			(
+				state.gold == gold_before + NodeRules.battle_gold(state, ActMap.Kind.ELITE)
+				and state.hp == 10 + NodeRules.battle_heal(state)
+			),
+			"強敵で得た護符もその勝利の所持金と体力に効き、報酬の画面の数と合う: %s" % gained
+		)
+	_check(
+		NodeRules.battle_gold(state, ActMap.Kind.ELITE)
+		== NodeRules.reward_gold(state.node_seed(), ActMap.Kind.ELITE) + 8,
+		"旅の銭袋の分が勝った時の所持金に入る"
+	)
 	state.free()
 	_remove_user_file(SELFCHECK_SAVE_PATH)
 

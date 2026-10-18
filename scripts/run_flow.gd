@@ -65,8 +65,8 @@ static func encounter(state: RunStateScript) -> Array[String]:
 	return Enemies.encounter(rank, row >= ActMap.LATE_ROW, state.node_seed())
 
 
-## 戦闘を終える。負けたら敗北、ボスに勝ったら踏破、ほかの戦闘に勝ったら所持金と体力 (護符の分を含む) と、強敵
-## なら護符を 1 つ受け取って報酬の局面へ。戦闘の局面でなければ何もせず false
+## 戦闘を終える。負けたら敗北、ボスに勝ったら踏破、ほかの戦闘に勝ったら (強敵なら先に護符を 1 つ受け取り) 所持金と
+## 体力 (護符の分を含む) を受け取って報酬の局面へ。戦闘の局面でなければ何もせず false
 static func finish_battle(state: RunStateScript, won: bool) -> bool:
 	if state.phase != RunStateScript.Phase.BATTLE:
 		return false
@@ -78,10 +78,11 @@ static func finish_battle(state: RunStateScript, won: bool) -> bool:
 	if kind == ActMap.Kind.BOSS:
 		_change_phase(state, RunStateScript.Phase.CLEAR)
 		return true
-	state.gold += NodeRules.battle_gold(state, kind)
-	state.heal(NodeRules.battle_heal(state))
+	# 強敵の護符を先に渡し、その勝利の所持金と体力から効かせる (報酬の画面は渡した後の状態で同じ関数の値を見せる)
 	if kind == ActMap.Kind.ELITE:
 		NodeRules.grant_elite_relic(state)
+	state.gold += NodeRules.battle_gold(state, kind)
+	state.heal(NodeRules.battle_heal(state))
 	_change_phase(state, RunStateScript.Phase.REWARD)
 	return true
 

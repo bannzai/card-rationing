@@ -7,8 +7,9 @@ extends Control
 ## (報酬・踏破・敗北の画面へは scripts/main.gd が切り替える)。
 ## カードを使った後の残り使用回数・被弾・勝敗に合わせて効果音を鳴らす (回数の増減を耳でも分かるように)。
 ## 操作の前後の差で戦闘の動き (使ったカードが持ち上がって封蝋の印が焼け、敵の方へ消える・被弾の揺れと数字・倒した
-## 敵が薄くなる・ターンの始まりのフェード。長さと強さは scripts/art.gd) を付ける。動きは表示だけで、戦闘の状態は
-## 即時に変わり、次の入力も待たせない。最後の敵を倒した時だけ、動きが見えるよう画面の切り替えを待つ。
+## 敵が薄くなる・ターンの始まりのフェード。長さと強さは scripts/art.gd) を付ける。攻撃カードは、敵に当たる演出を
+## 攻撃の形 (単体・複数回・全体) と区分 (精霊・英霊) で変え、当たりごとに揺れと数字を出す。動きは表示だけで、
+## 戦闘の状態は即時に変わり、次の入力も待たせない。最後の敵を倒した時だけ、動きが見えるよう画面の切り替えを待つ。
 
 const ActMap := preload("res://scripts/act_map.gd")
 const Art := preload("res://scripts/art.gd")
@@ -44,6 +45,15 @@ var pilgrim_tween: Tween = null
 var hand_tween: Tween = null
 ## 勝敗が決まった後の戦闘の終わりを予約したか (勝った後の待ちの間の入力で、戦闘を 2 度終えないように)
 var finish_scheduled: bool = false
+## 直前に使った攻撃カード ({"card_id", "hits": battle.last_play_hits の複製})。_after_action() が受け取って
+## 空にする (攻撃カードを使わなかった操作では空)
+var played_attack: Dictionary = {}
+## 攻撃の 2 回目以降の当たりと英霊の間 (ヒットストップ) の後の演出を待たせている tween (戦闘を始め直す時と画面を
+## 隠す時に止め、次の戦闘の敵に演出を出さない)
+var attack_tweens: Array[Tween] = []
+## 戦闘画面の元の位置 (英霊の攻撃で揺らした後に戻す) と、動いている画面の揺れの tween
+var screen_base: Vector2 = Vector2.ZERO
+var screen_tween: Tween = null
 
 ## scenes/battle.tscn のノード (enemy_row の敵・hand_row のカード・energy_row の蝋燭・health_row の珠は
 ## refresh() が足す)
@@ -69,6 +79,7 @@ func _ready() -> void:
 	($Background as TextureRect).texture = Art.BATTLE_BG
 	pilgrim.texture = Art.PILGRIM
 	pilgrim_base = pilgrim.position
+	screen_base = position
 	message_label.add_theme_color_override("font_color", Art.CANDLE)
 	struggle_button.pressed.connect(request_struggle)
 	end_turn_button.pressed.connect(end_turn)
@@ -76,6 +87,12 @@ func _ready() -> void:
 	effects_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	effects_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(effects_layer)
+
+
+## 画面を隠したら (戦闘を終えて scripts/main.gd が切り替えた)、待たせている攻撃の演出を止める
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_VISIBILITY_CHANGED and not visible:
+		_stop_attacks()
 
 
 ## キーボード操作。数字キーでカード (対象を選んでいる時は敵)、S でもがく、Enter でターン終了、
@@ -98,6 +115,7 @@ func _unhandled_key_input(event: InputEvent) -> void:
 func start_battle(seed_value: int) -> void:
 	battle = Battle.new()
 	battle.start(run_state, RunFlow.encounter(run_state), seed_value)
+	_stop_attacks()
 	pending_hand_index = -1
 	finish_scheduled = false
 	refresh()
@@ -217,7 +235,8 @@ func refresh() -> void:
 
 ## 手札の hand_index 番目のカードを target の敵に使う (対象を取らないカードは target を省く)。使えた時は、
 ## 回数が減ったことを耳で知らせる効果音を鳴らし (使ったカードは捨て札へ行き、残りの表示が見えなくなるため)、
-## 使ったカードの複製で使う動きを見せる (手札の表示は refresh() で詰めるので、元の位置を先に控える)
+## 使ったカードの複製で使う動きを見せる (手札の表示は refresh() で詰めるので、元の位置を先に控える)。攻撃カードは
+## 当たりごとの結果を控え、_after_action() で当たる演出を付ける
 func _play_card(hand_index: int, target: int = -1) -> void:
 	var deck_index: int = battle.hand[hand_index]
 	var card_id: String = run_state.deck[deck_index]["id"]
@@ -230,13 +249,18 @@ func _play_card(hand_index: int, target: int = -1) -> void:
 		_animate_card(
 			card_id, uses_before, uses, max_uses, from, _card_destination(card_id, target)
 		)
+		if not battle.last_play_hits.is_empty():
+			played_attack = {"card_id": card_id, "hits": battle.last_play_hits.duplicate(true)}
 
 
 ## 操作の後: ランを保存し (戦闘の途中で終えても、使った回数と受けた傷が戻らないように)、勝敗が決まっていれば
 ## 戦闘を終える (画面の切り替えは scripts/main.gd が局面の変化で行う)。勝った時は倒す動きと決めの 1 枚の動きが
 ## 見えるよう Art.WIN_DELAY 待ってから終え、待つ前に保存する (待ちの間に終了しても、使った回数が戻らないように)。
-## 画面を更新し、操作の前の値 before (_snapshot()) との差で動きを付ける。enemy_acted は敵が行動した (ターン終了)
+## 画面を更新し、操作の前の値 before (_snapshot()) との差と、使った攻撃カード (played_attack) で動きを付ける。
+## enemy_acted は敵が行動した (ターン終了)
 func _after_action(before: Dictionary, enemy_acted: bool = false) -> void:
+	var attack: Dictionary = played_attack
+	played_attack = {}
 	if battle.outcome == Battle.Outcome.NONE:
 		_autosave()
 	elif not finish_scheduled:
@@ -251,7 +275,7 @@ func _after_action(before: Dictionary, enemy_acted: bool = false) -> void:
 	refresh()
 	# 戦闘を終えて画面が切り替わった (scripts/main.gd が隠した) 後は動きを付けない
 	if visible:
-		_animate_changes(before, enemy_acted)
+		_animate_changes(before, enemy_acted, attack)
 
 
 ## ランを保存する。失敗したら ERROR を出す
@@ -278,10 +302,14 @@ func _snapshot() -> Dictionary:
 
 
 ## 操作の前の値 before との差で動きを付ける: 巡礼者と敵の被弾 (揺れ・赤い光・減った体力の数字。防御で受けた量は
-## 別の色の数字)、倒した敵が薄くなる、ターンが変わったら手札と敵の予告をフェードで現す
-func _animate_changes(before: Dictionary, enemy_acted: bool) -> void:
+## 別の色の数字)、倒した敵が薄くなる、ターンが変わったら手札と敵の予告をフェードで現す。攻撃カード attack
+## (played_attack) が当たった敵は、差ではなく当たりごとの演出 (_animate_attack()) で見せる
+func _animate_changes(before: Dictionary, enemy_acted: bool, attack: Dictionary) -> void:
 	if not Art.motion_on():
 		return
+	var struck: Dictionary = {}
+	if not attack.is_empty():
+		struck = _animate_attack(attack)
 	var lost: int = before["hp"] - run_state.hp
 	var blocked: int = battle.blocked_last_enemy_turn if enemy_acted else 0
 	if lost > 0 or blocked > 0:
@@ -292,6 +320,8 @@ func _animate_changes(before: Dictionary, enemy_acted: bool) -> void:
 		hand_tween = Art.fade_in(hand_row, hand_tween)
 	var old_enemies: Array[Dictionary] = before["enemies"]
 	for index: int in range(mini(old_enemies.size(), battle.enemies.size())):
+		if struck.has(index):
+			continue
 		var enemy: Dictionary = battle.enemies[index]
 		var view: EnemyView = enemy_row.get_child(index)
 		var lost_hp: int = old_enemies[index]["hp"] - enemy["hp"]
@@ -319,6 +349,101 @@ func _show_numbers(at: Vector2, lost: int, blocked: int) -> void:
 			"防御 %d" % blocked,
 			Art.BLOCKED_COLOR
 		)
+
+
+## 攻撃カード attack (played_attack) が敵に当たる演出を、当たりごとに Art.attack_delay() の時に出す (1 回目は
+## すぐ)。当たった敵の enemies の index の集まり (キーだけを使う) を返す。当たりで倒した敵は、倒す動きを最後の
+## 当たりまで待たせ、それまでは生きている時の色で見せる
+func _animate_attack(attack: Dictionary) -> Dictionary:
+	var card: Dictionary = Cards.CARDS[attack["card_id"]]
+	var hero: bool = card["bond"] == Cards.Bond.HERO
+	var area: bool = card.get("area", false)
+	var hits: Array = attack["hits"]
+	var last_hit: Dictionary = {}
+	for index: int in range(hits.size()):
+		last_hit[hits[index]["target"]] = index
+	for target: int in last_hit:
+		if battle.enemies[target]["hp"] <= 0:
+			(enemy_row.get_child(target) as EnemyView).art.modulate = Color.WHITE
+	for index: int in range(hits.size()):
+		var entry: Dictionary = hits[index]
+		var defeats: bool = (
+			last_hit[entry["target"]] == index and battle.enemies[entry["target"]]["hp"] <= 0
+		)
+		_after_delay(
+			Art.attack_delay(entry["hit"], entry["order"]),
+			_strike_enemy.bind(entry, area, hero, defeats)
+		)
+	return last_hit
+
+
+## 攻撃の当たり entry (battle.last_play_hits の 1 要素) の演出を、当たった敵の絵の上に出す: 全体の攻撃 (area) は
+## 波の輪、それ以外は斬撃の軌跡 (複数回の攻撃は 1 回ごとに向きを入れ替える) に、閃光と火の粉を添える。英霊 (hero)
+## は大きくし、画面を光らせ、間 (ヒットストップ) を置いてから揺れと数字を出す。defeats なら倒す動きも出す
+func _strike_enemy(entry: Dictionary, area: bool, hero: bool, defeats: bool) -> void:
+	var view: EnemyView = _struck_view(entry)
+	if view == null:
+		return
+	var at: Vector2 = view.art.get_global_rect().get_center() - effects_layer.global_position
+	var magnitude: float = Art.HERO_SCALE if hero else 1.0
+	if area:
+		Art.wave(effects_layer, at, magnitude)
+	else:
+		var tilt: float = -Art.STRIKE_ANGLE if entry["hit"] % 2 == 0 else Art.STRIKE_ANGLE
+		Art.strike(effects_layer, at, tilt, magnitude)
+	Art.impact(effects_layer, at, magnitude)
+	Art.sparks(effects_layer, at, magnitude)
+	if hero:
+		Art.screen_flash(effects_layer)
+		_after_delay(Art.HERO_HITSTOP, _land_hit.bind(entry, hero, defeats))
+	else:
+		_land_hit(entry, hero, defeats)
+
+
+## 攻撃の当たり entry を受けた敵を揺らし、減った体力と防御で受けた量の数字を出す。英霊 (hero) なら画面も揺らす。
+## defeats なら倒す動きを出す
+func _land_hit(entry: Dictionary, hero: bool, defeats: bool) -> void:
+	var view: EnemyView = _struck_view(entry)
+	if view == null:
+		return
+	view.play_hit()
+	_show_numbers(view.art.get_global_rect().get_center(), entry["lost"], entry["absorbed"])
+	if defeats:
+		view.play_defeat()
+	if hero:
+		screen_tween = Art.hit(self, null, screen_tween, screen_base, Art.SCREEN_SHAKE)
+
+
+## 攻撃の当たり entry を受けた敵の見た目。画面を隠した後や、敵の数が変わった後 (演出を出す先が無い) は null
+func _struck_view(entry: Dictionary) -> EnemyView:
+	var target: int = entry["target"]
+	if not visible or target >= enemy_row.get_child_count():
+		return null
+	return enemy_row.get_child(target) as EnemyView
+
+
+## delay 秒 (motion_scale を掛ける前) の後に callback を呼ぶ。0 ならすぐ呼ぶ。待たせる tween は attack_tweens に
+## 控える (_stop_attacks() で止める)
+func _after_delay(delay: float, callback: Callable) -> void:
+	if delay <= 0.0:
+		callback.call()
+		return
+	var valid: Array[Tween] = []
+	for tween: Tween in attack_tweens:
+		if tween.is_valid():
+			valid.append(tween)
+	attack_tweens = valid
+	var waiting: Tween = create_tween()
+	waiting.tween_interval(delay * Art.motion_scale)
+	waiting.tween_callback(callback)
+	attack_tweens.append(waiting)
+
+
+## 待たせている攻撃の演出をすべて止める
+func _stop_attacks() -> void:
+	for tween: Tween in attack_tweens:
+		tween.kill()
+	attack_tweens.clear()
 
 
 ## card_id のカードを target の敵に使った時に、カードの複製が飛んでいく先 (全体の座標)。攻撃は狙った敵

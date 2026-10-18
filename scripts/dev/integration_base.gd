@@ -42,6 +42,10 @@ const RANDOM_SEED: int = 20261006
 ## 出来事「血の泉」「蝋の祭壇」が出る地図を探すシードの数 (出来事は 4 種で、シード 1 つごとに 1 / 4 で当たる。
 ## selfcheck の _state_at_event() と同じ数)
 const EVENT_SEED_LIMIT: int = 300
+## 戦闘の動きの終わりを実時間で待つ時の余裕 (秒)。headless の 1 フレームは数 ms (Makefile の SCRIPT_FRAME_LIMIT の
+## 根拠) なので、動きの最後のフレームの後に queue_free が済むまでには数十 ms で足り、CI の runner の遅れを見込んで
+## 0.2 秒にした
+const MOTION_MARGIN: float = 0.2
 
 ## autoload RunState (ラン単位の状態)・Settings (設定)・Audio (BGM と効果音)
 var run_state: RunStateScript = null
@@ -63,6 +67,46 @@ func _enter_kind(main: MainScript, kind: ActMap.Kind) -> void:
 	_check(button != null and not button.disabled, "地図で %s の節点を選べる" % ActMap.KIND_NAMES[kind])
 	if button != null:
 		await _click(button)
+
+
+## 戦闘の動きがすべて終わるまで待つ時間 (秒)。最も長い動き (残り 1 回・契約切れになったカードを使う動きと、
+## 敵 enemy_count 体の戦闘で最も遅く当たる攻撃の最後の当たりから、当たりの後で最も長い浮かぶ数字の終わりまでの
+## 大きい方) に MOTION_MARGIN を足す
+func _motion_settle_time(enemy_count: int = 1) -> float:
+	var last_hit: float = 0.0
+	for card: Dictionary in Cards.CARDS.values():
+		if not card.has("damage"):
+			continue
+		var order: int = enemy_count - 1 if card.get("area", false) else 0
+		var delay: float = Art.attack_delay(card.get("hits", 1) - 1, order)
+		if card["bond"] == Cards.Bond.HERO:
+			delay += Art.HERO_HITSTOP
+		last_hit = maxf(last_hit, delay)
+	return (
+		maxf(
+			Art.CARD_LIFT_TIME + Art.SEAL_FLASH_TIME + Art.STRONG_TIME + Art.CARD_FLY_TIME,
+			last_hit + Art.FLOAT_TIME
+		)
+		+ MOTION_MARGIN
+	)
+
+
+## node と、その下のすべての Control がマウスを通すか
+func _ignores_mouse(node: Node) -> bool:
+	if node is Control and (node as Control).mouse_filter != Control.MOUSE_FILTER_IGNORE:
+		return false
+	for child: Node in node.get_children():
+		if not _ignores_mouse(child):
+			return false
+	return true
+
+
+## parent の子に、文が text のラベルがあるか
+func _has_label(parent: Node, text: String) -> bool:
+	for child: Node in parent.get_children():
+		if child is Label and (child as Label).text == text:
+			return true
+	return false
 
 
 ## event_id の出来事が出る地図のシードを 1 から順に探して新しい巡礼にし、その出来事の節点に入った局面にする
@@ -231,6 +275,31 @@ func _visible_children(parent: Node) -> int:
 		if child is CanvasItem and (child as CanvasItem).visible:
 			count += 1
 	return count
+
+
+## parent の子で、文が text のラベルの数
+func _count_labels(parent: Node, text: String) -> int:
+	var count: int = 0
+	for child: Node in parent.get_children():
+		if child is Label and (child as Label).text == text:
+			count += 1
+	return count
+
+
+## parent の子に、全体の攻撃の波の輪 (閉じた Line2D) があるか
+func _has_wave(parent: Node) -> bool:
+	for child: Node in parent.get_children():
+		if child is Line2D and (child as Line2D).closed:
+			return true
+	return false
+
+
+## parent の子に、英霊の攻撃の画面の閃光 (ColorRect) があるか
+func _has_screen_flash(parent: Node) -> bool:
+	for child: Node in parent.get_children():
+		if child is ColorRect:
+			return true
+	return false
 
 
 ## keycode のキーを押して、画面の更新とレイアウトが終わるまで待つ

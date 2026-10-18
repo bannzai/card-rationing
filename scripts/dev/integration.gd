@@ -8,12 +8,6 @@ extends "res://scripts/dev/integration_base.gd"
 ## 進む)。効果音は直前の操作のものが鳴り終わっていないことがあるため、確かめる操作の前に _stop_se() で止める。
 ## 定数・autoload の参照・操作の部品は scripts/dev/integration_base.gd に置く。
 
-## 戦闘の動きの終わりを実時間で待つ時の余裕 (秒)。headless の 1 フレームは数 ms (Makefile の SCRIPT_FRAME_LIMIT の
-## 根拠) なので、動きの最後のフレームの後に queue_free が済むまでには数十 ms で足り、CI の runner の遅れを見込んで
-## 0.2 秒にした
-const MOTION_MARGIN: float = 0.2
-
-
 ## tree の準備が終わってから _run() を始める (シーンの追加は _initialize() の後でないとできない)
 func _initialize() -> void:
 	_run.call_deferred()
@@ -34,8 +28,9 @@ func _run() -> void:
 	run_state.save_path = INTEGRATION_SAVE_PATH
 	settings.settings_path = INTEGRATION_SETTINGS_PATH
 	# 入力の直後の画面を確かめる検証が、勝った後の画面の切り替えの待ちや動きの途中の表示に左右されないよう、戦闘の
-	# 動きを止める (動きを付けたまま確かめるのは、倍率を 1 に戻して呼ぶ _check_input_during_motion() と
-	# _check_win_waits_for_motion() だけ。途中で return しても 0 に戻るよう、倍率は呼ぶ側で切り替える)
+	# 動きを止める (動きを付けたまま確かめるのは、倍率を 1 に戻して呼ぶ _check_input_during_motion()・
+	# _check_input_during_attack_motion()・_check_win_waits_for_motion() だけ。途中で return しても 0 に戻るよう、
+	# 倍率は呼ぶ側で切り替える)
 	Art.motion_scale = 0.0
 	_remove_user_file(INTEGRATION_SAVE_PATH)
 	_remove_user_file(INTEGRATION_SETTINGS_PATH)
@@ -59,6 +54,7 @@ func _run() -> void:
 	await _check_hand_fits_after_draw(main)
 	Art.motion_scale = 1.0
 	await _check_input_during_motion(main)
+	await _check_input_during_attack_motion(main)
 	Art.motion_scale = 0.0
 	await _check_battle_resume_keeps_uses(main)
 	await _check_exhausted_deck_battle_and_reward(main)
@@ -404,34 +400,76 @@ func _check_win_waits_for_motion(main: MainScript) -> void:
 	)
 
 
-## 戦闘の動きがすべて終わるまで待つ時間 (秒)。最も長い動き (残り 1 回・契約切れになったカードを使う動きと、浮かぶ
-## 数字の大きい方) に MOTION_MARGIN を足す
-func _motion_settle_time() -> float:
-	return (
-		maxf(
-			Art.CARD_LIFT_TIME + Art.SEAL_FLASH_TIME + Art.STRONG_TIME + Art.CARD_FLY_TIME,
-			Art.FLOAT_TIME
-		)
-		+ MOTION_MARGIN
+## 攻撃の演出の途中に続けて入力しても、戦闘の状態と表示が壊れない: 複数回の攻撃 (双つ灯) は当たりごとに数字が
+## 浮き、その演出の途中に全体の攻撃 (熾火の波)・英霊の攻撃 (雷槍の英霊) をキーで、単体の攻撃 (斬火) を画面の
+## 閃光が出ている間にクリックで、対象の選択を挟んで続けて使い、ターンを終える。敵の体力・エネルギー・残り使用回数は入力の時に変わる。全体の攻撃は波の輪、英霊の
+## 攻撃は画面の閃光を出す。演出が終わると層が空になり、敵と画面の位置と色が元に戻る
+func _check_input_during_attack_motion(main: MainScript) -> void:
+	var battle_ui: BattleUiScript = main.screen as BattleUiScript
+	if battle_ui == null:
+		_check(false, "攻撃の演出の検証: 戦闘の画面が出ている")
+		return
+	var ids: Array[String] = ["twin_flame", "ember_wave", "hero_strike", "slash", "guard"]
+	_set_deck(ids)
+	_start_battle_with(battle_ui, ["wild_dog", "skeleton"], 1)
+	# 4 枚の攻撃で倒れない体力にし、4 枚を 1 ターンで使えるエネルギーにする (値は検証の都合で、意味は無い)
+	for enemy: Dictionary in battle_ui.battle.enemies:
+		enemy["hp"] = 100
+		enemy["max_hp"] = 100
+	battle_ui.battle.energy = 10
+	battle_ui.refresh()
+	await _settle()
+	var twin: Dictionary = Cards.CARDS["twin_flame"]
+	await _press_key(KEY_1 + _hand_index_of(battle_ui, "twin_flame"))
+	await _press_key(KEY_1)
+	_check(
+		battle_ui.battle.enemies[0]["hp"] == 100 - twin["damage"] * twin["hits"],
+		"双つ灯の当たりはすべて、入力の時に敵の体力へ反映される"
 	)
-
-
-## node と、その下のすべての Control がマウスを通すか
-func _ignores_mouse(node: Node) -> bool:
-	if node is Control and (node as Control).mouse_filter != Control.MOUSE_FILTER_IGNORE:
-		return false
-	for child: Node in node.get_children():
-		if not _ignores_mouse(child):
-			return false
-	return true
-
-
-## parent の子に、文が text のラベルがあるか
-func _has_label(parent: Node, text: String) -> bool:
-	for child: Node in parent.get_children():
-		if child is Label and (child as Label).text == text:
-			return true
-	return false
+	await create_timer(Art.HIT_INTERVAL + MOTION_MARGIN).timeout
+	_check(
+		_count_labels(battle_ui.effects_layer, "-%d" % twin["damage"]) == twin["hits"],
+		"双つ灯は当たりごとに減った体力の数字が浮く"
+	)
+	await _press_key(KEY_1 + _hand_index_of(battle_ui, "ember_wave"))
+	_check(_has_wave(battle_ui.effects_layer), "全体の攻撃は波の輪を出す")
+	await _press_key(KEY_1 + _hand_index_of(battle_ui, "hero_strike"))
+	await _press_key(KEY_2)
+	_check(_has_screen_flash(battle_ui.effects_layer), "英霊の攻撃は画面を光らせる")
+	_check(_ignores_mouse(battle_ui.effects_layer), "画面の閃光と攻撃の演出はすべてマウスを通す")
+	await _click(_hand_buttons(battle_ui)[_hand_index_of(battle_ui, "slash")])
+	await _press_key(KEY_1)
+	var enemies: Array[Dictionary] = battle_ui.battle.enemies
+	var wave: int = Cards.CARDS["ember_wave"]["damage"]
+	var spent: int = 0
+	var all_used: bool = true
+	for deck_index: int in range(ids.size() - 1):
+		var card: Dictionary = Cards.CARDS[ids[deck_index]]
+		spent += card["cost"]
+		all_used = all_used and run_state.uses_left(deck_index) == card["max_uses"] - 1
+	_check(
+		(
+			enemies[0]["hp"] == 100 - twin["damage"] * twin["hits"] - wave - Cards.CARDS["slash"]["damage"]
+			and enemies[1]["hp"] == 100 - wave - Cards.CARDS["hero_strike"]["damage"]
+			and battle_ui.battle.energy == 10 - spent
+			and battle_ui.battle.hand.size() == 1
+			and all_used
+		),
+		"攻撃の演出の途中に続けて使ったカードも、敵の体力・エネルギー・手札・残り使用回数に反映される"
+	)
+	await _press_key(KEY_ENTER)
+	_check(battle_ui.battle.turn == 2, "攻撃の演出の途中に Enter でターンを終える")
+	await create_timer(_motion_settle_time(enemies.size())).timeout
+	await _settle()
+	_check(battle_ui.effects_layer.get_child_count() == 0, "攻撃の演出が終わると、層の子がすべて消える")
+	var restored: bool = battle_ui.position.is_equal_approx(battle_ui.screen_base)
+	for view: EnemyViewScript in battle_ui.enemy_row.get_children():
+		restored = (
+			restored
+			and view.column.position.is_equal_approx(Vector2.ZERO)
+			and view.art.self_modulate.is_equal_approx(Color.WHITE)
+		)
+	_check(restored, "攻撃の演出が終わると、画面と敵の位置と色が元に戻る")
 
 
 ## 戦闘の途中で終了して「続きから」で再開しても、使ったカードの残り使用回数と受けた傷は戻らない

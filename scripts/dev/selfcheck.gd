@@ -327,9 +327,11 @@ func _check_contractors() -> void:
 		_check(has_target_attack, "初期デッキに対象を選ぶ攻撃がある: %s" % contractor_id)
 
 
-## 敵の定義: 格ごとの種類の数、名前、体力と行動の値の範囲、会話の台詞を持つのはボスだけで 2〜4 行
+## 敵の定義: 格ごとの種類の数、名前、体力と行動の値の範囲、会話の台詞を持つのはボスだけで 2〜4 行、ボス以外は
+## 1 体ごとの絵を持ち、どの 2 体も同じ絵でない
 func _check_enemies() -> void:
 	var rank_counts: Dictionary = {}
+	var arts: Dictionary = {}
 	for enemy_id: String in Enemies.ENEMIES:
 		var enemy: Dictionary = Enemies.ENEMIES[enemy_id]
 		_check(
@@ -346,11 +348,14 @@ func _check_enemies() -> void:
 			_check(attack or not move.has("hits"), "hits は攻撃だけ: %s" % enemy_id)
 		var rank: int = enemy["rank"]
 		rank_counts[rank] = rank_counts.get(rank, 0) + 1
+		arts[Art.enemy_art(enemy_id)] = true
+		_check(Art.ENEMY_ID_ART.has(enemy_id) != (rank == Enemies.Rank.BOSS), "敵ごとの絵: %s" % enemy_id)
 		_check(enemy.has("talk") == (rank == Enemies.Rank.BOSS), "会話の台詞を持つのはボスだけ: %s" % enemy_id)
 		if enemy.has("talk"):
 			_check(_in_range(enemy["talk"].size(), TALK_LINES_RANGE), "ボスの台詞が 2〜4 行: %s" % enemy_id)
 			for line: String in enemy["talk"]:
 				_check(not line.is_empty(), "ボスの台詞が空でない: %s" % enemy_id)
+	_check(arts.size() == Enemies.ENEMIES.size(), "どの 2 体の敵も同じ絵でない (%d 枚)" % arts.size())
 	for rank: int in RANK_COUNT_RANGES:
 		_check(
 			_in_range(rank_counts.get(rank, 0), RANK_COUNT_RANGES[rank]),

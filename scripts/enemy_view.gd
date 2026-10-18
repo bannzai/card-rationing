@@ -1,5 +1,5 @@
 extends Button
-## 戦闘の敵 1 体の見た目。格ごとに共有する絵・予告 (次の行動)・名前・体力の数珠と数・防御を縦に並べる。
+## 戦闘の敵 1 体の見た目。敵ごとの絵・予告 (次の行動)・名前・体力の数珠と数・防御を縦に並べる。
 ## ボタンとして押せ、対象の選択で使う。大きさは敵の格で決める。
 
 const Art := preload("res://scripts/art.gd")
@@ -78,7 +78,7 @@ func _draw() -> void:
 func show_enemy(number: int, enemy: Dictionary) -> void:
 	var rank: int = Enemies.ENEMIES[enemy["id"]]["rank"]
 	custom_minimum_size = RANK_SIZES[rank]
-	art.texture = Art.ENEMY_ART[rank]
+	art.texture = Art.enemy_art(enemy["id"])
 	name_label.text = "%d. %s%s" % [number, enemy["name"], RANK_NAMES[rank]]
 	defeated = enemy["hp"] <= 0
 	disabled = defeated

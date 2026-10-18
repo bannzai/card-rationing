@@ -175,7 +175,7 @@ static func add_deck_grid(
 	(grid.get_parent() as ScrollContainer).follow_focus = true
 	for index: int in range(state.deck.size()):
 		var view: CardView = CardView.new()
-		view.show_deck_card(state.deck[index]["id"], state.uses_left(index))
+		view.show_deck_card(state.deck[index]["id"], state.uses_left(index), state.max_uses(index))
 		view.disabled = not enabled.call(index)
 		view.pressed.connect(on_pick.bind(index))
 		grid.add_child(view)

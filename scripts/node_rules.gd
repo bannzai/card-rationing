@@ -128,9 +128,9 @@ static func buy_removal(state: RunStateScript, index: int) -> bool:
 	return true
 
 
-## デッキの index 番目のカードの残り使用回数を戻す意味があるか (最大より減っている)
+## デッキの index 番目のカードの残り使用回数を戻す意味があるか (出来事で増やした後の最大より減っている)
 static func can_restore(state: RunStateScript, index: int) -> bool:
-	return _is_deck_index(state, index) and state.uses_left(index) < state.card(index)["max_uses"]
+	return _is_deck_index(state, index) and state.uses_left(index) < state.max_uses(index)
 
 
 ## デッキの index 番目のカードを外してよいか (外してもデッキが MIN_DECK_SIZE 枚以上残る)

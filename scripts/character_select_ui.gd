@@ -41,7 +41,6 @@ func _ready() -> void:
 	layout.offset_left = PORTRAIT_RECT.end.x + 24
 	detail_width = UiKit.NOTE_TEXT_WIDTH - (layout.offset_left - UiKit.LAYOUT_MARGIN)
 	UiKit.add_label(layout, "契約者ごとに個性と、最初に契約している精霊・英霊が違う。")
-	detail_label = UiKit.add_note(layout, "", UiKit.BODY_FONT_SIZE, detail_width)
 	for character_id: String in Contractors.CONTRACTORS:
 		var button: Button = UiKit.add_button(
 			layout,
@@ -49,9 +48,12 @@ func _ready() -> void:
 			chosen.emit.bind(character_id)
 		)
 		button.focus_entered.connect(show_contractor.bind(character_id))
-		button.mouse_entered.connect(show_contractor.bind(character_id))
+		# マウスを載せたボタンにフォーカスも移し、見せている契約者と Enter で選ぶ契約者をそろえる
+		button.mouse_entered.connect(button.grab_focus)
 		character_buttons[character_id] = button
 	back_button = UiKit.add_button(layout, "戻る", back_requested.emit)
+	# 説明は契約者ごとに行数が違うので、ボタンの位置が動かないようボタンの下に置く
+	detail_label = UiKit.add_note(layout, "", UiKit.BODY_FONT_SIZE, detail_width)
 	show_contractor(Contractors.FIRST_CONTRACTOR)
 	character_buttons[Contractors.FIRST_CONTRACTOR].grab_focus()
 

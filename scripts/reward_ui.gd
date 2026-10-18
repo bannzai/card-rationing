@@ -4,6 +4,9 @@ extends Control
 
 const AudioScript := preload("res://scripts/audio.gd")
 const Contractors := preload("res://scripts/contractors.gd")
+## 契約者の個性で回数が戻った時に、回数の回復の効果音を鳴らすまでの秒数。勝利の効果音
+## (assets/audio/se_win.wav) の長さ 1.6 秒 (ffprobe で実測) に合わせ、回数の増減の音型を勝利の音と聞き分けられるようにする
+const RESTORE_SE_DELAY: float = 1.6
 const NodeRules := preload("res://scripts/node_rules.gd")
 const RunFlow := preload("res://scripts/run_flow.gd")
 const RunStateScript := preload("res://scripts/run_state.gd")
@@ -62,7 +65,10 @@ func _show_win_restore(layout: VBoxContainer) -> void:
 	)
 	var audio: AudioScript = get_tree().root.get_node_or_null("Audio")
 	if audio != null:
-		audio.play_se(AudioScript.Se.RESTORE)
+		# 同時に鳴る勝利の効果音 (scripts/battle_ui.gd) と重ならないよう、鳴り終わってから鳴らす
+		get_tree().create_timer(RESTORE_SE_DELAY).timeout.connect(
+			audio.play_se.bind(AudioScript.Se.RESTORE)
+		)
 
 
 ## card_id のカードと契約して地図へ戻る

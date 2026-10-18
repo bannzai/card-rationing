@@ -2,7 +2,7 @@ extends RefCounted
 ## 1 回の戦闘の状態 (山札・手札・捨て札・エネルギー・防御・敵) と進行。UI なしで呼べる (selfcheck と
 ## 自動テストプレイが直接使う)。カードの残り使用回数は持たず、RunState (run_state) のものを使って減らす。
 ## 山札の混ぜ直しと敵の行動の選択の乱数はシード付きで、同じシードなら同じ進行になる。
-## 山札・手札・捨て札の要素は run_state.deck の index (同じカードでも別の要素として扱う)。
+## 山札・手札・捨て札・発動中の加護の要素は run_state.deck の index (同じカードでも別の要素として扱う)。
 
 ## 戦闘の結果
 enum Outcome { NONE, WIN, LOSE }
@@ -29,6 +29,8 @@ var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 var draw_pile: Array[int] = []
 var hand: Array[int] = []
 var discard_pile: Array[int] = []
+## 使って発動中の加護 (使った順)。この戦闘の終わりまで山札・捨て札に戻らない。同じ加護を 2 枚使うと効果は重なる
+var powers: Array[int] = []
 ## このターンに残っているエネルギー
 var energy: int = 0
 ## 巡礼者の防御 (自分のターンの開始で 0 に戻る)
@@ -53,6 +55,7 @@ func start(state: RunStateScript, enemy_ids: Array[String], seed_value: int) -> 
 	_shuffle(draw_pile)
 	hand = []
 	discard_pile = []
+	powers = []
 	block = 0
 	turn = 0
 	outcome = Outcome.NONE
@@ -74,12 +77,13 @@ func start(state: RunStateScript, enemy_ids: Array[String], seed_value: int) -> 
 	start_turn()
 
 
-## 巡礼者のターンの開始: エネルギーを戻し、防御を消し、HAND_SIZE 枚引く
+## 巡礼者のターンの開始: エネルギーを戻し、防御を消し、HAND_SIZE 枚引く。発動中の加護の毎ターンの防御・
+## エネルギー・引く枚数は、防御を消した後に足す
 func start_turn() -> void:
 	turn += 1
-	energy = ENERGY_PER_TURN
-	block = 0
-	draw(HAND_SIZE)
+	energy = ENERGY_PER_TURN + power_total("turn_energy")
+	block = power_total("turn_block")
+	draw(HAND_SIZE + power_total("turn_draw"))
 
 
 ## count 枚引く。山札が尽きたら捨て札を混ぜ直す。両方空なら引ける分だけで止める。引いた枚数を返す
@@ -106,7 +110,8 @@ func can_play(hand_index: int) -> bool:
 
 
 ## 手札の hand_index 番目のカードを使う。対象を取るカードは target (enemies の index) の敵を狙い、全体攻撃は
-## 生きている敵すべてを狙う。エネルギーを払い、残り使用回数を 1 減らし、効果を出して捨て札へ送る。使えなければ false
+## 生きている敵すべてを狙う。エネルギーを払い、残り使用回数を 1 減らし、効果を出して捨て札へ送る (加護は捨て札へ
+## 送らず、発動中の加護に入れる)。攻撃は 1 回ごと・敵ごとに、発動中の加護の攻撃の上乗せを足す。使えなければ false
 func play(hand_index: int, target: int = -1) -> bool:
 	if not can_play(hand_index):
 		return false
@@ -118,14 +123,18 @@ func play(hand_index: int, target: int = -1) -> bool:
 	run_state.use_card(deck_index)
 	energy -= card["cost"]
 	hand.remove_at(hand_index)
-	discard_pile.append(deck_index)
+	if card["kind"] == Cards.Kind.POWER:
+		powers.append(deck_index)
+	else:
+		discard_pile.append(deck_index)
 	if card.has("damage"):
 		var targets: Array[int] = [target]
 		if card.get("area", false):
 			targets = alive_enemies()
+		var damage: int = card["damage"] + power_total("attack_bonus")
 		for _i: int in range(card.get("hits", 1)):
 			for index: int in targets:
-				_damage_enemy(index, card["damage"])
+				_damage_enemy(index, damage)
 	if card.has("block"):
 		block += card["block"]
 	if card.has("energy"):
@@ -136,15 +145,28 @@ func play(hand_index: int, target: int = -1) -> bool:
 	return true
 
 
-## 基本行動「もがく」: STRUGGLE_COST のエネルギーで target の敵に STRUGGLE_DAMAGE を与える。
+## 基本行動「もがく」: STRUGGLE_COST のエネルギーで target の敵に struggle_damage() を与える。
 ## 契約を使わないので残り使用回数は減らない。使えなければ false
 func struggle(target: int) -> bool:
 	if outcome != Outcome.NONE or energy < STRUGGLE_COST or not is_alive(target):
 		return false
 	energy -= STRUGGLE_COST
-	_damage_enemy(target, STRUGGLE_DAMAGE)
+	_damage_enemy(target, struggle_damage())
 	_check_win()
 	return true
+
+
+## もがくのダメージ (STRUGGLE_DAMAGE に、発動中の加護のもがくの上乗せを足す)
+func struggle_damage() -> int:
+	return STRUGGLE_DAMAGE + power_total("struggle_bonus")
+
+
+## 発動中の加護の key の効果 (Cards.POWER_TURN_POINTS のキー) の合計
+func power_total(key: String) -> int:
+	var total: int = 0
+	for deck_index: int in powers:
+		total += run_state.card(deck_index).get(key, 0)
+	return total
 
 
 ## ターンを終える: 手札を捨て札へ、敵が予告した行動を実行、次の予告を選び、巡礼者の次のターンを始める。

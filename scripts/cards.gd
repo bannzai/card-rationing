@@ -3,15 +3,20 @@ extends RefCounted
 ## documents/DIRECTION.md「決めたこと」を参照。契約者ごとの初期デッキは scripts/contractors.gd が持つ。
 ## 1 枚のカードの定義は CARDS の 1 要素 (キーがカード ID) で、効果は次のキーの値で表す。
 ## damage (1 回のダメージ)・hits (damage を与える回数。省略は 1)・area (true なら生きている敵すべてに与える)・
-## block (防御)・draw (引く枚数)・energy (このターンに得るエネルギー)
+## block (防御)・draw (引く枚数)・energy (このターンに得るエネルギー)。
+## 加護 (Kind.POWER) のカードは使った時の効果を持たず、その戦闘の終わりまで続く効果を POWER_TURN_POINTS のキーの値で表す。
+## turn_block (毎ターンの始めの防御)・turn_draw (毎ターンの始めに多く引く枚数)・turn_energy (毎ターンの始めに
+## 多く得るエネルギー)・attack_bonus (攻撃カードの 1 回のダメージに足す値)・struggle_bonus (もがくのダメージに足す値)
 
-## カードの種別
-enum Kind { ATTACK, GUARD, SKILL }
+## カードの種別 (POWER は画面では「加護」と呼ぶ)
+enum Kind { ATTACK, GUARD, SKILL, POWER }
 ## 契約の相手の区分 (精霊は回数が多く、英霊は強く回数が少ない)
 enum Bond { SPIRIT, HERO }
 
 ## 契約の相手の区分の表示名
 const BOND_NAMES: Dictionary = {Bond.SPIRIT: "精霊", Bond.HERO: "英霊"}
+## 加護の呼び名 (カードの区分の表示と、戦闘画面の発動中の一覧の見出しに使う)
+const POWER_NAME: String = "加護"
 
 ## カード ID → 定義。max_uses が 1 回の巡礼 (ラン) で命令できる回数 (契約の回数)
 const CARDS: Dictionary = {
@@ -270,6 +275,60 @@ const CARDS: Dictionary = {
 		"draw": 3,
 		"energy": 2,
 	},
+	"lamp_ward":
+	{
+		"name": "灯守りの精",
+		"kind": Kind.POWER,
+		"bond": Bond.SPIRIT,
+		"cost": 1,
+		"max_uses": 3,
+		"turn_block": 3,
+	},
+	"guiding_light":
+	{
+		"name": "導きの灯",
+		"kind": Kind.POWER,
+		"bond": Bond.SPIRIT,
+		"cost": 1,
+		"max_uses": 3,
+		"turn_draw": 1,
+	},
+	"ember_heart":
+	{
+		"name": "熾りの精",
+		"kind": Kind.POWER,
+		"bond": Bond.SPIRIT,
+		"cost": 1,
+		"max_uses": 4,
+		"attack_bonus": 1,
+	},
+	"defiant_spark":
+	{
+		"name": "抗いの火",
+		"kind": Kind.POWER,
+		"bond": Bond.SPIRIT,
+		"cost": 1,
+		"max_uses": 3,
+		"struggle_bonus": 3,
+	},
+	"war_banner":
+	{
+		"name": "戦旗の英霊",
+		"kind": Kind.POWER,
+		"bond": Bond.HERO,
+		"cost": 1,
+		"max_uses": 1,
+		"attack_bonus": 3,
+	},
+	"lighthouse_keeper":
+	{
+		"name": "灯台守の英霊",
+		"kind": Kind.POWER,
+		"bond": Bond.HERO,
+		"cost": 0,
+		"max_uses": 1,
+		"turn_energy": 1,
+	},
 }
 
 ## 強さの計算で、引く 1 枚と得るエネルギー 1 を何点とみなすか (ダメージと防御は 1 につき 1 点)。
@@ -279,10 +338,27 @@ const DRAW_POINTS: float = 3.0
 const ENERGY_POINTS: float = 3.0
 ## 全体攻撃のダメージの倍率 (1 幕の戦闘の敵は 1〜2 体のため、1 体ぶんより大きく 2 体ぶんより小さくする)
 const AREA_RATE: float = 1.5
+## 加護の効果のキー → 値 1 が 1 ターンに生む点数。防御 1 は 1 点、引く 1 枚とエネルギー 1 は DRAW_POINTS と
+## ENERGY_POINTS、攻撃の上乗せ 1 は 1 ターンに使う攻撃カードを 2 枚 (エネルギー 3 を攻撃 2・防御 1 に使う配分) と
+## みなして 2 点、もがくの上乗せ 1 は 1 ターンに 1 回もがくとみなして 1 点
+const POWER_TURN_POINTS: Dictionary = {
+	"turn_block": 1.0,
+	"turn_draw": DRAW_POINTS,
+	"turn_energy": ENERGY_POINTS,
+	"attack_bonus": 2.0,
+	"struggle_bonus": 1.0,
+}
+## 1 ターンに敵に与えるダメージの見込み (攻撃カード 2 枚。基準の斬火 6 × 2)。加護が効くターンの数の見込みに使う
+const TURN_DAMAGE: int = 12
+## 強さの計算で、加護が効くとみなすターンの数。1 ターンに TURN_DAMAGE を与えるとみなすと、前半の敵 (体力 10〜22) は
+## 1〜2 ターン、強敵とボス (体力 48〜66) は 4〜6 ターンで倒れる。戦闘の最初のターンに使い、残りのターンに効くと
+## みなして 3 にした
+const POWER_TURNS: float = 3.0
 
 
 ## カードの強さ。効果の点数 ÷ (コスト + 1) で、最大使用回数は含めない (定義は documents/DIRECTION.md
-## 「決めたこと」)。分母の + 1 は、使うと手札 1 枚を消費するぶん
+## 「決めたこと」)。分母の + 1 は、使うと手札 1 枚を消費するぶん。加護の効果の点数は、1 ターンの点数
+## (power_turn_points()) × POWER_TURNS
 static func strength(card_id: String) -> float:
 	var card: Dictionary = CARDS[card_id]
 	var points: float = (
@@ -292,12 +368,25 @@ static func strength(card_id: String) -> float:
 	points += card.get("block", 0)
 	points += card.get("draw", 0) * DRAW_POINTS
 	points += card.get("energy", 0) * ENERGY_POINTS
+	points += power_turn_points(card_id) * POWER_TURNS
 	return points / (card["cost"] + 1)
 
 
-## カードの効果を画面に出す短い文 (例: 「攻撃 6」「攻撃 4×2」「全体攻撃 4」「防御 5」「2 枚引く」)
+## 加護のカードの効果が 1 ターンに生む点数 (POWER_TURN_POINTS。加護でなければ 0)
+static func power_turn_points(card_id: String) -> float:
+	var card: Dictionary = CARDS[card_id]
+	var points: float = 0.0
+	for key: String in POWER_TURN_POINTS:
+		points += card.get(key, 0) * POWER_TURN_POINTS[key]
+	return points
+
+
+## カードの効果を画面に出す短い文 (例: 「攻撃 6」「攻撃 4×2」「全体攻撃 4」「防御 5」「2 枚引く」。加護は
+## 「戦闘の間 毎ターン防御 3」)
 static func effect_text(card_id: String) -> String:
 	var card: Dictionary = CARDS[card_id]
+	if card["kind"] == Kind.POWER:
+		return "戦闘の間 " + power_text(card_id)
 	var parts: Array[String] = []
 	if card.has("damage"):
 		var hits: int = card.get("hits", 1)
@@ -313,6 +402,23 @@ static func effect_text(card_id: String) -> String:
 		parts.append("%d 枚引く" % card["draw"])
 	if card.has("energy"):
 		parts.append("エネルギー +%d" % card["energy"])
+	return " / ".join(parts)
+
+
+## 加護のカードの続く効果の短い文 (例: 「毎ターン防御 3」「攻撃のダメージ +1」。加護でなければ空)
+static func power_text(card_id: String) -> String:
+	var card: Dictionary = CARDS[card_id]
+	var parts: Array[String] = []
+	if card.has("turn_block"):
+		parts.append("毎ターン防御 %d" % card["turn_block"])
+	if card.has("turn_draw"):
+		parts.append("毎ターン %d 枚多く引く" % card["turn_draw"])
+	if card.has("turn_energy"):
+		parts.append("毎ターン エネルギー +%d" % card["turn_energy"])
+	if card.has("attack_bonus"):
+		parts.append("攻撃のダメージ +%d" % card["attack_bonus"])
+	if card.has("struggle_bonus"):
+		parts.append("もがくのダメージ +%d" % card["struggle_bonus"])
 	return " / ".join(parts)
 
 

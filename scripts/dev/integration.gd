@@ -6,8 +6,8 @@ extends "res://scripts/dev/integration_contractors.gd"
 ## (起動し直した時と同じく、保存データだけから戻す)。
 ## 場面ごとに鳴る BGM と効果音は、autoload Audio のプレイヤーが鳴っているかで確かめる (headless でも再生の状態は
 ## 進む)。効果音は直前の操作のものが鳴り終わっていないことがあるため、確かめる操作の前に _stop_se() で止める。
-## 定数・autoload の参照・操作の部品は scripts/dev/integration_base.gd に、契約者の選択と個性の検証は
-## scripts/dev/integration_contractors.gd に置く。
+## 定数・autoload の参照・操作の部品は scripts/dev/integration_base.gd に、護符の検証は scripts/dev/integration_relics.gd
+## に、契約者の選択と個性の検証は scripts/dev/integration_contractors.gd に置く。
 
 ## 戦闘の動きの終わりを実時間で待つ時の余裕 (秒)。headless の 1 フレームは数 ms (Makefile の SCRIPT_FRAME_LIMIT の
 ## 根拠) なので、動きの最後のフレームの後に queue_free が済むまでには数十 ms で足り、CI の runner の遅れを見込んで
@@ -62,6 +62,7 @@ func _run() -> void:
 	Art.motion_scale = 1.0
 	await _check_input_during_motion(main)
 	await _check_input_during_attack_motion(main)
+	await _check_unburnt_seal_motion(main)
 	Art.motion_scale = 0.0
 	await _check_battle_resume_keeps_uses(main)
 	await _check_exhausted_deck_battle_and_reward(main)
@@ -72,6 +73,8 @@ func _run() -> void:
 	await _check_deck_grid_follows_focus(main)
 	await _check_shop(main)
 	await _check_event(main)
+	await _check_shop_relic(main)
+	await _check_elite_relic(main)
 	await _check_blood_spring_sound(main)
 	await _check_deck_list(main)
 	await _check_save_and_continue(main)
@@ -508,14 +511,6 @@ func _ignores_mouse(node: Node) -> bool:
 		if not _ignores_mouse(child):
 			return false
 	return true
-
-
-## parent の子に、文が text のラベルがあるか
-func _has_label(parent: Node, text: String) -> bool:
-	for child: Node in parent.get_children():
-		if child is Label and (child as Label).text == text:
-			return true
-	return false
 
 
 ## 戦闘の途中で終了して「続きから」で再開しても、使ったカードの残り使用回数と受けた傷は戻らない

@@ -113,6 +113,12 @@ const DEFEAT_TIME: float = 0.4
 const WIN_DELAY: float = 1.0
 ## 敵の予告の切り替えと、ターンの始まりの手札のフェード
 const FADE_TIME: float = 0.2
+## 護符が働いた時: 護符の印 (scripts/relic_view.gd) が RELIC_FLASH_TIME で RELIC_SCALE に膨らんで RELIC_FLASH の色に
+## 光って戻り、印の下から護符の名前が浮く (数字と同じ float_text())。長さは封蝋の印が残り 1 回で膨らむ動き
+## (STRONG_TIME) と同じにし、カードを使う動きと並んでも見分けられるよう、印の大きさに対して大きく膨らませる
+const RELIC_FLASH_TIME: float = 0.3
+const RELIC_SCALE: float = 1.4
+const RELIC_FLASH: Color = Color(2.2, 1.8, 1.2)
 ## 攻撃カードが敵に当たる演出 (scripts/battle_ui.gd)。1 回目の当たりは入力の瞬間 (被弾の揺れと同じ時) に出し、
 ## 何で攻撃したかを形で見せる: 単体の攻撃 = 斬撃の軌跡、全体の攻撃 = 敵ごとに広がる波の輪。どちらも当たった所に
 ## 閃光と火の粉を添える。長さはどれも 1 つの出来事を目で追える 0.2〜0.35 秒 (上の HIT_TIME と同じ考え方) にした。

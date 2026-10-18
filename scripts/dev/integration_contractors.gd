@@ -1,4 +1,4 @@
-extends "res://scripts/dev/integration_base.gd"
+extends "res://scripts/dev/integration_relics.gd"
 ## scripts/dev/integration.gd の検証のうち、契約者の選択と個性の検証 (gdlint のファイルの行数の上限に収めるため、
 ## 検証の本体と分けた)。
 

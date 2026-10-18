@@ -3,12 +3,14 @@ extends RefCounted
 ## documents/DIRECTION.md「決めたこと」を参照。契約者ごとの初期デッキは scripts/contractors.gd が持つ。
 ## 1 枚のカードの定義は CARDS の 1 要素 (キーがカード ID) で、効果は次のキーの値で表す。
 ## damage (1 回のダメージ)・hits (damage を与える回数。省略は 1)・area (true なら生きている敵すべてに与える)・
-## block (防御)・draw (引く枚数)・energy (このターンに得るエネルギー)
+## block (防御)・draw (引く枚数)・energy (このターンに得るエネルギー)。英霊は tier (英霊の段) も持つ
 
 ## カードの種別
 enum Kind { ATTACK, GUARD, SKILL }
 ## 契約の相手の区分 (精霊は回数が多く、英霊は強く回数が少ない)
 enum Bond { SPIRIT, HERO }
+## 英霊の段 (強さで分けた格。上の段ほど強く回数が少なく、地図の先の階ほど報酬・商人・出来事に出やすい)
+enum Tier { LOWER, MIDDLE, UPPER }
 
 ## 契約の相手の区分の表示名
 const BOND_NAMES: Dictionary = {Bond.SPIRIT: "精霊", Bond.HERO: "英霊"}
@@ -86,17 +88,19 @@ const CARDS: Dictionary = {
 		"name": "雷槍の英霊",
 		"kind": Kind.ATTACK,
 		"bond": Bond.HERO,
-		"cost": 2,
-		"max_uses": 1,
-		"damage": 18,
+		"tier": Tier.LOWER,
+		"cost": 1,
+		"max_uses": 3,
+		"damage": 9,
 	},
 	"old_blade":
 	{
 		"name": "古剣の英霊",
 		"kind": Kind.ATTACK,
 		"bond": Bond.HERO,
+		"tier": Tier.MIDDLE,
 		"cost": 1,
-		"max_uses": 1,
+		"max_uses": 2,
 		"damage": 7,
 		"hits": 2,
 	},
@@ -105,9 +109,10 @@ const CARDS: Dictionary = {
 		"name": "焔王の英霊",
 		"kind": Kind.ATTACK,
 		"bond": Bond.HERO,
+		"tier": Tier.UPPER,
 		"cost": 3,
 		"max_uses": 1,
-		"damage": 16,
+		"damage": 20,
 		"area": true,
 	},
 	"archer":
@@ -115,6 +120,7 @@ const CARDS: Dictionary = {
 		"name": "射手の英霊",
 		"kind": Kind.ATTACK,
 		"bond": Bond.HERO,
+		"tier": Tier.MIDDLE,
 		"cost": 1,
 		"max_uses": 2,
 		"damage": 4,
@@ -171,17 +177,19 @@ const CARDS: Dictionary = {
 		"name": "盾の英霊",
 		"kind": Kind.GUARD,
 		"bond": Bond.HERO,
-		"cost": 1,
-		"max_uses": 1,
-		"block": 12,
+		"tier": Tier.LOWER,
+		"cost": 0,
+		"max_uses": 3,
+		"block": 5,
 	},
 	"castle_keeper":
 	{
 		"name": "城守の英霊",
 		"kind": Kind.GUARD,
 		"bond": Bond.HERO,
+		"tier": Tier.MIDDLE,
 		"cost": 2,
-		"max_uses": 1,
+		"max_uses": 2,
 		"block": 20,
 	},
 	"saint":
@@ -189,6 +197,7 @@ const CARDS: Dictionary = {
 		"name": "聖女の英霊",
 		"kind": Kind.GUARD,
 		"bond": Bond.HERO,
+		"tier": Tier.UPPER,
 		"cost": 1,
 		"max_uses": 1,
 		"block": 8,
@@ -245,6 +254,7 @@ const CARDS: Dictionary = {
 		"name": "賢者の英霊",
 		"kind": Kind.SKILL,
 		"bond": Bond.HERO,
+		"tier": Tier.UPPER,
 		"cost": 0,
 		"max_uses": 1,
 		"draw": 3,
@@ -255,8 +265,9 @@ const CARDS: Dictionary = {
 		"name": "古王の宣告",
 		"kind": Kind.SKILL,
 		"bond": Bond.HERO,
+		"tier": Tier.MIDDLE,
 		"cost": 0,
-		"max_uses": 1,
+		"max_uses": 2,
 		"draw": 1,
 		"energy": 2,
 	},
@@ -265,8 +276,9 @@ const CARDS: Dictionary = {
 		"name": "巫女の英霊",
 		"kind": Kind.SKILL,
 		"bond": Bond.HERO,
+		"tier": Tier.LOWER,
 		"cost": 1,
-		"max_uses": 2,
+		"max_uses": 3,
 		"draw": 3,
 		"energy": 2,
 	},
@@ -295,20 +307,24 @@ static func strength(card_id: String) -> float:
 	return points / (card["cost"] + 1)
 
 
-## カードの効果を画面に出す短い文 (例: 「攻撃 6」「攻撃 4×2」「全体攻撃 4」「防御 5」「2 枚引く」)
-static func effect_text(card_id: String) -> String:
+## カードの効果を画面に出す短い文 (例: 「攻撃 6」「攻撃 4×2」「全体攻撃 4」「防御 5」「2 枚引く」)。damage・block を
+## 0 以上で渡すと、定義の値の代わりにその値を書く (戦闘で護符を足した 1 回のダメージと防御を見せる)
+static func effect_text(card_id: String, damage: int = -1, block: int = -1) -> String:
 	var card: Dictionary = CARDS[card_id]
 	var parts: Array[String] = []
 	if card.has("damage"):
 		var hits: int = card.get("hits", 1)
 		parts.append(
 			(
-				("全体攻撃 %d" if card.get("area", false) else "攻撃 %d") % card["damage"]
+				(
+					("全体攻撃 %d" if card.get("area", false) else "攻撃 %d")
+					% (damage if damage >= 0 else card["damage"])
+				)
 				+ ("×%d" % hits if hits > 1 else "")
 			)
 		)
 	if card.has("block"):
-		parts.append("防御 %d" % card["block"])
+		parts.append("防御 %d" % (block if block >= 0 else card["block"]))
 	if card.has("draw"):
 		parts.append("%d 枚引く" % card["draw"])
 	if card.has("energy"):

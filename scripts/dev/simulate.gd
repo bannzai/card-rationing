@@ -89,6 +89,7 @@ func _run() -> void:
 ## "clears": 踏破した数,
 ## "clear_rate": 踏破率 (%), "average_floor": 平均到達階層, "average_exhausted": 契約を使い切った回数の平均,
 ## "average_unused_strong": ランの終わりに残り使用回数が残っていた強いカードの枚数の平均,
+## "average_relics": ランの終わりに持っていた護符の数の平均, "relic_runs": 護符を 1 つ以上持って終えたランの数,
 ## "attackless_battle_rate": 攻撃が尽きて始まった戦闘 (デッキの攻撃カードの残り使用回数の合計が 0) の、戦った
 ## 戦闘に占める割合 (%), "attackless_turn_rate": 手札に残り使用回数のある攻撃カードが無いまま始まったターンの、
 ## 戦ったターンに占める割合 (%), "struggle_rate": もがいた回数の、使ったカードともがいた回数の合計に占める割合 (%),
@@ -104,6 +105,8 @@ func _simulate(state: RunStateScript, strategy: int, contractor_id: String) -> D
 	var floors: int = 0
 	var exhausted: int = 0
 	var unused_strong: int = 0
+	var relics: int = 0
+	var relic_runs: int = 0
 	var counts: Dictionary = Bots.new_counts()
 	var attack_out_runs: int = 0
 	var attack_out_floors: int = 0
@@ -115,6 +118,8 @@ func _simulate(state: RunStateScript, strategy: int, contractor_id: String) -> D
 		floors += result["floor"]
 		exhausted += result["exhausted"]
 		unused_strong += result["unused_strong"]
+		relics += result["relics"]
+		relic_runs += 1 if result["relics"] > 0 else 0
 		for key: String in counts:
 			if key != "attack_out_floor":
 				counts[key] += result[key]
@@ -131,6 +136,8 @@ func _simulate(state: RunStateScript, strategy: int, contractor_id: String) -> D
 		"average_floor": snappedf(float(floors) / SEED_COUNT, 0.01),
 		"average_exhausted": snappedf(float(exhausted) / SEED_COUNT, 0.01),
 		"average_unused_strong": snappedf(float(unused_strong) / SEED_COUNT, 0.01),
+		"average_relics": snappedf(float(relics) / SEED_COUNT, 0.01),
+		"relic_runs": relic_runs,
 		"attackless_battle_rate": _percent(counts["attackless_battles"], counts["battles"]),
 		"attackless_turn_rate": _percent(counts["attackless_turns"], counts["turns"]),
 		"struggle_rate": _percent(counts["struggles"], moves),
@@ -145,7 +152,10 @@ func _simulate(state: RunStateScript, strategy: int, contractor_id: String) -> D
 	var label: String = "%s %s" % [Contractors.CONTRACTORS[contractor_id]["name"], stats["name"]]
 	print(
 		(
-			"simulate: %s 踏破率 %.1f%% (%d / %d) 平均到達階層 %.2f 使い切った契約 %.2f 残った強いカード %.2f"
+			(
+				"simulate: %s 踏破率 %.1f%% (%d / %d) 平均到達階層 %.2f 使い切った契約 %.2f 残った強いカード %.2f "
+				+ "護符 %.2f (持って終えたラン %d)"
+			)
 			% [
 				label,
 				stats["clear_rate"],
@@ -154,6 +164,8 @@ func _simulate(state: RunStateScript, strategy: int, contractor_id: String) -> D
 				stats["average_floor"],
 				stats["average_exhausted"],
 				stats["average_unused_strong"],
+				stats["average_relics"],
+				stats["relic_runs"],
 			]
 		)
 	)

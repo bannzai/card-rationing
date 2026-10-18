@@ -1,7 +1,9 @@
 extends Control
-## 戦闘に勝った後の報酬の画面。受け取った所持金と体力の回復 (と、契約者の個性で戻った回数) を見せ、カード 3 枚から
-## 1 枚と契約するか、取らずに地図へ戻る (所持金・体力・回数は戦闘を終えた時に scripts/run_flow.gd が反映済み)。
+## 戦闘に勝った後の報酬の画面。受け取った所持金と体力の回復 (強敵なら手に入れた護符も、契約者の個性で戻った回数も)
+## を見せ、カード 3 枚から 1 枚と契約するか、取らずに地図へ戻る (所持金・体力・護符・回数は戦闘を終えた時に
+## scripts/run_flow.gd が反映済み)。
 
+const ActMap := preload("res://scripts/act_map.gd")
 const AudioScript := preload("res://scripts/audio.gd")
 const Contractors := preload("res://scripts/contractors.gd")
 ## 契約者の個性で回数が戻った時に、回数の回復の効果音を鳴らすまでの秒数。勝利の効果音
@@ -18,6 +20,8 @@ var run_state: RunStateScript = null
 var offer_buttons: Dictionary = {}
 ## カードを取らずに地図へ戻るボタン
 var skip_button: Button = null
+## 強敵で手に入れた護符の名前と効果の文 (強敵でなければ null)
+var relic_label: Label = null
 
 
 ## 画面のノードを組み立てる
@@ -30,16 +34,19 @@ func _ready() -> void:
 		(
 			"所持金 +%d   体力 +%d (最大まで)\n%s"
 			% [
-				NodeRules.reward_gold(run_state.node_seed(), kind),
-				NodeRules.BATTLE_HEAL,
+				NodeRules.battle_gold(run_state, kind),
+				NodeRules.battle_heal(run_state),
 				UiKit.status_text(run_state),
 			]
 		)
 	)
+	var relic_id: String = NodeRules.elite_relic(run_state) if kind == ActMap.Kind.ELITE else ""
+	if not relic_id.is_empty():
+		relic_label = UiKit.add_note(layout, "護符を手に入れた %s" % UiKit.relic_text(relic_id))
 	_show_win_restore(layout)
 	UiKit.add_label(layout, "新しく契約するカードを 1 枚選ぶ (取らなくてもよい)")
 	var row: HBoxContainer = UiKit.add_card_row(layout)
-	for card_id: String in NodeRules.card_offers(run_state.node_seed()):
+	for card_id: String in NodeRules.offers_here(run_state):
 		offer_buttons[card_id] = UiKit.add_offer_card(row, card_id, "", take.bind(card_id))
 	skip_button = UiKit.add_button(layout, "取らずに地図へ戻る", skip)
 	# 戦闘の Enter (ターン終了) の続けて押しで、見ずにカードと契約しないよう、取らない方に置く

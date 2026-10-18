@@ -126,7 +126,7 @@ func _build_options() -> void:
 func _build_contracts() -> void:
 	UiKit.add_label(content, "契約する精霊・英霊を選ぶ")
 	var row: HBoxContainer = UiKit.add_card_row(content)
-	for card_id: String in NodeRules.card_offers(run_state.node_seed()):
+	for card_id: String in NodeRules.offers_here(run_state):
 		offer_buttons[card_id] = UiKit.add_offer_card(row, card_id, "", contract.bind(card_id))
 	# キーボードだけで選べるよう、最初の候補にフォーカスを置く
 	offer_buttons.values()[0].grab_focus()

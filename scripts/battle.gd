@@ -3,6 +3,8 @@ extends RefCounted
 ## 自動テストプレイが直接使う)。カードの残り使用回数は持たず、RunState (run_state) のものを使って減らす。
 ## 山札の混ぜ直しと敵の行動の選択の乱数はシード付きで、同じシードなら同じ進行になる。
 ## 山札・手札・捨て札の要素は run_state.deck の index (同じカードでも別の要素として扱う)。
+## 持っている護符 (scripts/relics.gd) のうち戦闘で効くもの (ダメージ・防御・最初のターンのエネルギー・残り使用回数が
+## 減らない) もここで効かせ、働いた護符を relic_triggers に残す (戦闘画面が発動を見せる)。
 
 ## 戦闘の結果
 enum Outcome { NONE, WIN, LOSE }
@@ -10,6 +12,7 @@ enum Outcome { NONE, WIN, LOSE }
 const Cards := preload("res://scripts/cards.gd")
 const Contractors := preload("res://scripts/contractors.gd")
 const Enemies := preload("res://scripts/enemies.gd")
+const Relics := preload("res://scripts/relics.gd")
 const RunStateScript := preload("res://scripts/run_state.gd")
 
 ## 毎ターンの開始で得るエネルギーと引く枚数の基準 (契約者の個性で足す前の値)。issue #6 の指定 (Slay the Spire 型の
@@ -42,13 +45,18 @@ var turn: int = 0
 var outcome: Outcome = Outcome.NONE
 ## 直前の敵の行動で、巡礼者の防御が受けたダメージの合計 (戦闘画面が数字を見せるためだけの値で、進行には使わない)
 var blocked_last_enemy_turn: int = 0
+## 直前の操作 (戦闘の開始・カードを使う) で働いた護符の ID (戦闘画面が発動を見せるためだけの値で、進行には使わない。
+## 戦闘画面は見せた後に空にする)
+var relic_triggers: Array[String] = []
 ## 直前に使ったカードの攻撃が、生きている敵に当たった 1 回ずつの結果 (当たった順)。各要素は {"target": enemies の
 ## index, "hit": 何回目の当たりか (0 始まり), "order": 全体攻撃で何体目の敵か (0 始まり), "absorbed": 敵の防御が
 ## 受けた量, "lost": 減った体力}。戦闘画面が当たりごとの演出を見せるためだけの値で、進行には使わない
 var last_play_hits: Array[Dictionary] = []
 
 
-## 戦闘を始める。state のデッキ全体 (契約切れのカードを含む) から山札を作り、最初のターンを始める
+## 戦闘を始める。state のデッキ全体 (契約切れのカードを含む) から山札を作り、最初のターンを始める。
+## 戦闘の始めに効く護符 (防御・最初のターンのエネルギー) は、最初のターンの開始の後に足す (ターンの開始で防御が
+## 0 に戻り、エネルギーが戻るため)
 func start(state: RunStateScript, enemy_ids: Array[String], seed_value: int) -> void:
 	run_state = state
 	rng.seed = seed_value
@@ -78,6 +86,13 @@ func start(state: RunStateScript, enemy_ids: Array[String], seed_value: int) -> 
 		enemy["intent"] = _choose_intent(enemy)
 		enemies.append(enemy)
 	start_turn()
+	relic_triggers = []
+	if run_state.relics.has("wax_ward"):
+		block += Relics.value(run_state.relics, "wax_ward", "block")
+		relic_triggers.append("wax_ward")
+	if run_state.relics.has("dawn_wick"):
+		energy += Relics.value(run_state.relics, "dawn_wick", "energy")
+		relic_triggers.append("dawn_wick")
 
 
 ## 巡礼者のターンの開始: エネルギーを energy_per_turn() に戻し、防御を消し、hand_size() 枚引く
@@ -122,7 +137,8 @@ func can_play(hand_index: int) -> bool:
 
 
 ## 手札の hand_index 番目のカードを使う。対象を取るカードは target (enemies の index) の敵を狙い、全体攻撃は
-## 生きている敵すべてを狙う。エネルギーを払い、残り使用回数を 1 減らし、効果を出して捨て札へ送る。使えなければ false
+## 生きている敵すべてを狙う。エネルギーを払い、残り使用回数を 1 減らし (焼けぬ封蝋が働いたら減らさない)、効果を
+## 出して捨て札へ送る。ダメージと防御は護符を足した値 (card_damage()・card_block())。使えなければ false
 func play(hand_index: int, target: int = -1) -> bool:
 	if not can_play(hand_index):
 		return false
@@ -131,7 +147,14 @@ func play(hand_index: int, target: int = -1) -> bool:
 	if Cards.needs_target(card_id) and not is_alive(target):
 		return false
 	var card: Dictionary = run_state.card(deck_index)
-	run_state.use_card(deck_index)
+	# 護符の効果は使う前の残り使用回数で決まる (最後の 1 回か・焼けぬ封蝋が効くか) ので、減らす前に読む
+	var damage: int = card_damage(deck_index)
+	var guard: int = card_block(deck_index)
+	relic_triggers = _play_triggers(deck_index)
+	if spares_use(deck_index):
+		relic_triggers.append("unburnt_seal")
+	else:
+		run_state.use_card(deck_index)
 	energy -= card["cost"]
 	hand.remove_at(hand_index)
 	discard_pile.append(deck_index)
@@ -145,7 +168,7 @@ func play(hand_index: int, target: int = -1) -> bool:
 				var enemy: Dictionary = enemies[targets[order]]
 				var hp_before: int = enemy["hp"]
 				var block_before: int = enemy["block"]
-				_damage_enemy(targets[order], card["damage"])
+				_damage_enemy(targets[order], damage)
 				if hp_before > 0:
 					last_play_hits.append(
 						{
@@ -157,7 +180,7 @@ func play(hand_index: int, target: int = -1) -> bool:
 						}
 					)
 	if card.has("block"):
-		block += card["block"]
+		block += guard
 	if card.has("energy"):
 		energy += card["energy"]
 	if card.has("draw"):
@@ -171,6 +194,7 @@ func play(hand_index: int, target: int = -1) -> bool:
 func struggle(target: int) -> bool:
 	if outcome != Outcome.NONE or energy < STRUGGLE_COST or not is_alive(target):
 		return false
+	relic_triggers = []
 	energy -= STRUGGLE_COST
 	_damage_enemy(target, STRUGGLE_DAMAGE)
 	_check_win()
@@ -185,6 +209,7 @@ func end_turn() -> void:
 	discard_pile.append_array(hand)
 	hand = []
 	blocked_last_enemy_turn = 0
+	relic_triggers = []
 	for enemy: Dictionary in enemies:
 		if enemy["hp"] <= 0:
 			continue
@@ -208,6 +233,43 @@ func alive_enemies() -> Array[int]:
 ## target が生きている敵を指しているか
 func is_alive(target: int) -> bool:
 	return target >= 0 and target < enemies.size() and enemies[target]["hp"] > 0
+
+
+## デッキの deck_index 番目のカードを今使う時に、焼けぬ封蝋で残り使用回数が減らないか。効くカードの時だけ判定を
+## 1 回引き (run_state.relic_rolls を進める)、持っていないか効かないカードなら引かずに false
+func spares_use(deck_index: int) -> bool:
+	if (
+		not run_state.relics.has("unburnt_seal")
+		or not Relics.can_spare(run_state.deck[deck_index]["id"], run_state.uses_left(deck_index))
+	):
+		return false
+	var spared: bool = Relics.roll_spare(run_state.map_seed, run_state.relic_rolls)
+	run_state.relic_rolls += 1
+	return spared
+
+
+## デッキの deck_index 番目のカードを今使った時の 1 回のダメージ (攻撃でなければ 0)。熾火の刃と、最後の 1 回
+## (残り 1 回) の時の最後の祈りの分を足す
+func card_damage(deck_index: int) -> int:
+	var card: Dictionary = run_state.card(deck_index)
+	if not card.has("damage"):
+		return 0
+	var damage: int = card["damage"] + Relics.value(run_state.relics, "ember_edge", "damage")
+	if run_state.uses_left(deck_index) == 1:
+		damage += Relics.value(run_state.relics, "last_rite", "damage")
+	return damage
+
+
+## デッキの deck_index 番目のカードを今使った時の防御 (防御のカードでなければ 0)。最後の 1 回の時の最後の祈りの
+## 分を足す
+func card_block(deck_index: int) -> int:
+	var card: Dictionary = run_state.card(deck_index)
+	if not card.has("block"):
+		return 0
+	var guard: int = card["block"]
+	if run_state.uses_left(deck_index) == 1:
+		guard += Relics.value(run_state.relics, "last_rite", "block")
+	return guard
 
 
 ## 手札に使えるカードがあるか (もがくとターン終了は常にできるので、無くても詰まない)
@@ -252,6 +314,19 @@ func _choose_intent(enemy: Dictionary) -> Dictionary:
 	else:
 		move_index = rng.randi_range(0, moves.size() - 1)
 	return moves[move_index].duplicate()
+
+
+## デッキの deck_index 番目のカードを今使う時に、ダメージ・防御に効く護符の ID (焼けぬ封蝋は判定を引くまで
+## 分からないので含めない)
+func _play_triggers(deck_index: int) -> Array[String]:
+	var card: Dictionary = run_state.card(deck_index)
+	var triggers: Array[String] = []
+	if card.has("damage") and run_state.relics.has("ember_edge"):
+		triggers.append("ember_edge")
+	var last_use: bool = run_state.uses_left(deck_index) == 1
+	if last_use and (card.has("damage") or card.has("block")) and run_state.relics.has("last_rite"):
+		triggers.append("last_rite")
+	return triggers
 
 
 ## 敵をすべて倒していたら勝利にする

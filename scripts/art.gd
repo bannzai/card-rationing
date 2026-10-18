@@ -108,12 +108,68 @@ const FLOAT_FONT_SIZE: int = 30
 const DAMAGE_COLOR: Color = Color(1.0, 0.38, 0.3)
 const BLOCKED_COLOR: Color = Color(0.62, 0.8, 1.0)
 ## 倒した敵が倒した時の見た目へ薄くなる長さと、最後の敵を倒してから報酬・結果の画面へ移るまでの待ち (倒す動きと
-## 決めの 1 枚が消えるまでが見えるよう、最も長いカードを使う動き (残り 1 回・契約切れになった時の合計 0.8 秒) を
-## 少し超える長さにした)
+## 決めの 1 枚が消えるまでが見えるよう、最も長い動きを少し超える長さにした。最も長いのは英霊の 3 回の攻撃 (射手の
+## 英霊) の最後の数字で、最後の当たり 0.38 秒 (HIT_INTERVAL × 2 + HERO_HITSTOP) から FLOAT_TIME の 0.98 秒。
+## カードを使う動きは残り 1 回・契約切れになった時の合計 0.8 秒)
 const DEFEAT_TIME: float = 0.4
-const WIN_DELAY: float = 0.9
+const WIN_DELAY: float = 1.0
 ## 敵の予告の切り替えと、ターンの始まりの手札のフェード
 const FADE_TIME: float = 0.2
+## 護符が働いた時: 護符の印 (scripts/relic_view.gd) が RELIC_FLASH_TIME で RELIC_SCALE に膨らんで RELIC_FLASH の色に
+## 光って戻り、印の下から護符の名前が浮く (数字と同じ float_text())。長さは封蝋の印が残り 1 回で膨らむ動き
+## (STRONG_TIME) と同じにし、カードを使う動きと並んでも見分けられるよう、印の大きさに対して大きく膨らませる
+const RELIC_FLASH_TIME: float = 0.3
+const RELIC_SCALE: float = 1.4
+const RELIC_FLASH: Color = Color(2.2, 1.8, 1.2)
+## 攻撃カードが敵に当たる演出 (scripts/battle_ui.gd)。1 回目の当たりは入力の瞬間 (被弾の揺れと同じ時) に出し、
+## 何で攻撃したかを形で見せる: 単体の攻撃 = 斬撃の軌跡、全体の攻撃 = 敵ごとに広がる波の輪。どちらも当たった所に
+## 閃光と火の粉を添える。長さはどれも 1 つの出来事を目で追える 0.2〜0.35 秒 (上の HIT_TIME と同じ考え方) にした。
+## 大きさは画面 1280 × 720 と敵の絵の大きさ (scripts/enemy_view.gd の RANK_SIZES。通常の敵は幅 236) に対して決めた。
+## 斬撃の軌跡: STRIKE_TIME の半分で伸び、残りで消える。長さは通常の敵の絵の幅 236 に収まって絵を横切る 200、
+## 太さは 30 fps の録画の 1 コマでも線に見え、敵の絵を隠さない 10
+const STRIKE_TIME: float = 0.2
+const STRIKE_LENGTH: float = 200.0
+const STRIKE_WIDTH: float = 10.0
+## 斬撃の傾き (ラジアン。約 35 度)。複数回の攻撃は 1 回ごとに向きを左右に入れ替え、別の当たりだと分かるようにする
+const STRIKE_ANGLE: float = 0.6
+## 全体の攻撃の波の輪: WAVE_TIME で半径 WAVE_RADIUS へ広がって消える。直径 260 で通常の敵の絵の幅 236 を囲み、
+## 斬撃 (STRIKE_TIME) より少し長くして、輪が広がるのを見せる。太さは斬撃と同じ
+const WAVE_TIME: float = 0.3
+const WAVE_RADIUS: float = 130.0
+const WAVE_WIDTH: float = STRIKE_WIDTH
+## 当たった所の閃光: IMPACT_TIME で半径 IMPACT_RADIUS へ広がって消える。直径 104 は通常の敵の絵の幅の半分弱で、
+## 当たった所だけを光らせ、敵の絵を覆い隠さない
+const IMPACT_TIME: float = 0.2
+const IMPACT_RADIUS: float = 52.0
+## 火の粉: SPARK_COUNT 粒が SPARK_TIME の間に、SPARK_SPEED の半分から SPARK_SPEED の速さで飛び散り、SPARK_GRAVITY で
+## 落ちる。粒の数は 1 粒ずつ見分けられる 14、速さは SPARK_TIME の間に 45〜90 飛んで閃光の縁 (IMPACT_RADIUS) の
+## あたりまで散る値、重さは同じ間に約 37 落ちて燃えさしが落ちて見える値。粒の大きさは体力の珠 (16) の 4 分の 1
+const SPARK_COUNT: int = 14
+const SPARK_TIME: float = 0.35
+const SPARK_SPEED: float = 260.0
+const SPARK_GRAVITY: float = 600.0
+const SPARK_SIZE: float = 4.0
+## 複数回の攻撃の当たりの間隔 (1 回ごとに揺れと数字が出て、回数を数えられる長さ。被弾の揺れ HIT_TIME より短く
+## して、続けて当たっている勢いを残す) と、全体の攻撃で次の敵に波が届くまでの間隔 (左の敵から順に届いて見える長さ)
+const HIT_INTERVAL: float = 0.15
+const AREA_INTERVAL: float = 0.12
+## 英霊の攻撃: 演出の大きさを HERO_SCALE 倍にし、当たった瞬間に画面全体を HERO_FLASH の色で光らせ (HERO_FLASH_TIME
+## で消える)、HERO_HITSTOP だけ間 (ヒットストップ) を置いてから、敵の揺れ・数字と画面の揺れ (HIT_TIME で
+## SCREEN_SHAKE の幅) を出す。HERO_SCALE は斬撃の長さ (200 × 1.7 = 340) がボスの絵の幅 330 を横切る倍率。
+## 間は 3 コマ弱 (30 fps) で、止まったと分かり、次の入力を待たせたと感じない長さにした。画面の光は揺れ (HIT_TIME)
+## と一緒に消える長さ。画面の揺れは、画面全体という敵より大きい物が揺れて見えるよう敵の揺れ (ENEMY_SHAKE) より
+## 少し大きく、手札と体力の文字が読めなくならない幅にした
+const HERO_SCALE: float = 1.7
+const HERO_HITSTOP: float = 0.08
+const HERO_FLASH_TIME: float = HIT_TIME
+const SCREEN_SHAKE: float = 12.0
+## 演出の色 (「蝋と灯火」の蝋燭の火と封蝋の赤): 斬撃の軌跡は封蝋の赤の尾から明るい火の先へ、閃光と火の粉と波の輪は
+## 蝋燭の火、英霊の画面の閃光は蝋燭の火を薄く。GL Compatibility では 1 を超えた分も明るくなる (上の SEAL_FLASH と
+## 同じ)。閃光の不透明度 0.85 は下の敵の絵が少し透けてどの敵に当たったか分かる値、画面の閃光の 0.3 は画面の文字
+## (手札・体力・予告) が光っている間も読める値
+const STRIKE_GLOW: Color = Color(1.6, 1.25, 0.8)
+const IMPACT_COLOR: Color = Color(1.4, 1.0, 0.6, 0.85)
+const HERO_FLASH: Color = Color(1.0, 0.74, 0.38, 0.3)
 
 ## 戦闘の動きの長さに掛ける倍率。0 なら動きを作らない (tween・使ったカードの複製・数字を作らず、勝った時の
 ## 画面の切り替えも待たない)。fps が固定でない検証 (integration・screenshot) が 0 にして、同じ瞬間を確かめ・撮る
@@ -186,7 +242,7 @@ static func motion_on() -> bool:
 
 ## 被弾の tween。前の動き previous を止め、HIT_TIME で shaken を位置 base から左右に distance の幅で 2 往復
 ## 揺らして (だんだん小さく) base に戻し、flashed を HIT_FLASH の赤から白に戻す (shaken に束ねるので、画面と
-## 一緒に消える)
+## 一緒に消える)。flashed が null なら揺らすだけ (英霊の攻撃の画面の揺れ)
 static func hit(
 	shaken: Control, flashed: CanvasItem, previous: Tween, base: Vector2, distance: float
 ) -> Tween:
@@ -207,7 +263,8 @@ static func _hit_step(
 	progress: float, shaken: Control, flashed: CanvasItem, base: Vector2, distance: float
 ) -> void:
 	shaken.position = base + Vector2(distance * sin(progress * TAU * 2.0) * (1.0 - progress), 0)
-	flashed.self_modulate = HIT_FLASH.lerp(Color.WHITE, progress)
+	if flashed != null:
+		flashed.self_modulate = HIT_FLASH.lerp(Color.WHITE, progress)
 
 
 ## parent の at (parent の座標) の上に text の数字を color で出し、FLOAT_RISE 上へ浮かせながら消す
@@ -225,6 +282,108 @@ static func float_text(parent: Control, at: Vector2, text: String, color: Color)
 		Tween.EASE_IN
 	)
 	tween.chain().tween_callback(label.queue_free)
+
+
+## 攻撃の hit 回目 (0 始まり) の当たりが、全体の攻撃の order 体目 (0 始まり) の敵に届くまでの、入力からの時間
+## (motion_scale を掛ける前の秒)。英霊の攻撃は、ここから HERO_HITSTOP の後に揺れと数字が出る
+static func attack_delay(hit: int, order: int) -> float:
+	return hit * HIT_INTERVAL + order * AREA_INTERVAL
+
+
+## parent の at (parent の座標) に、angle の傾きの斬撃の軌跡を size 倍の大きさで伸ばして消す
+static func strike(parent: Control, at: Vector2, angle: float, size: float) -> void:
+	var trail: Line2D = Line2D.new()
+	trail.width = STRIKE_WIDTH * size
+	trail.gradient = Gradient.new()
+	trail.gradient.colors = PackedColorArray([SEAL_RED, STRIKE_GLOW])
+	trail.begin_cap_mode = Line2D.LINE_CAP_ROUND
+	trail.end_cap_mode = Line2D.LINE_CAP_ROUND
+	trail.position = at
+	trail.rotation = angle
+	parent.add_child(trail)
+	var half: float = STRIKE_LENGTH * size / 2.0
+	var step: float = STRIKE_TIME * motion_scale / 2.0
+	var tween: Tween = trail.create_tween()
+	tween.tween_method(_trail_step.bind(trail, half), 0.0, 1.0, step)
+	tween.tween_property(trail, "modulate:a", 0.0, step)
+	tween.tween_callback(trail.queue_free)
+
+
+## strike() の軌跡 trail の伸びの進み progress (0〜1) の時点の形 (左端 -half から、右端 half へ伸びる)
+static func _trail_step(progress: float, trail: Line2D, half: float) -> void:
+	trail.points = PackedVector2Array([Vector2(-half, 0), Vector2(-half + 2.0 * half * progress, 0)])
+
+
+## parent の at に、size 倍の大きさの波の輪を広げながら消す (全体の攻撃)
+static func wave(parent: Control, at: Vector2, size: float) -> void:
+	var ring: Line2D = Line2D.new()
+	ring.width = WAVE_WIDTH * size
+	ring.default_color = CANDLE
+	ring.closed = true
+	ring.points = _circle(WAVE_RADIUS * size)
+	_spread_and_fade(parent, ring, at, WAVE_TIME)
+
+
+## parent の at に、size 倍の大きさの閃光を広げながら消す
+static func impact(parent: Control, at: Vector2, size: float) -> void:
+	var flash: Polygon2D = Polygon2D.new()
+	flash.color = IMPACT_COLOR
+	flash.polygon = _circle(IMPACT_RADIUS * size)
+	_spread_and_fade(parent, flash, at, IMPACT_TIME)
+
+
+## parent の at から、size 倍の数と勢いの火の粉を飛び散らせ、落としながら消す
+static func sparks(parent: Control, at: Vector2, size: float) -> void:
+	var particles: CPUParticles2D = CPUParticles2D.new()
+	particles.one_shot = true
+	particles.explosiveness = 1.0
+	particles.amount = roundi(SPARK_COUNT * size)
+	particles.lifetime = SPARK_TIME * motion_scale
+	particles.spread = 180.0
+	particles.initial_velocity_min = SPARK_SPEED * size / 2.0
+	particles.initial_velocity_max = SPARK_SPEED * size
+	particles.gravity = Vector2(0, SPARK_GRAVITY)
+	particles.scale_amount_min = SPARK_SIZE / 2.0
+	particles.scale_amount_max = SPARK_SIZE
+	particles.color_ramp = Gradient.new()
+	particles.color_ramp.colors = PackedColorArray([CANDLE, Color(SEAL_RED, 0.0)])
+	particles.position = at
+	parent.add_child(particles)
+	particles.emitting = true
+	var tween: Tween = particles.create_tween()
+	tween.tween_interval(SPARK_TIME * motion_scale)
+	tween.tween_callback(particles.queue_free)
+
+
+## parent の全面を HERO_FLASH の色で光らせて消す (英霊の攻撃)。マウスは通す
+static func screen_flash(parent: Control) -> void:
+	var flash: ColorRect = ColorRect.new()
+	flash.color = HERO_FLASH
+	flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	flash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	parent.add_child(flash)
+	var tween: Tween = flash.create_tween()
+	tween.tween_property(flash, "modulate:a", 0.0, HERO_FLASH_TIME * motion_scale)
+	tween.tween_callback(flash.queue_free)
+
+
+## node を parent の at に置き、duration の間に小さい大きさから広げながら消す
+static func _spread_and_fade(parent: Control, node: Node2D, at: Vector2, duration: float) -> void:
+	node.position = at
+	node.scale = Vector2.ONE * 0.3
+	parent.add_child(node)
+	var tween: Tween = node.create_tween().set_parallel()
+	tween.tween_property(node, "scale", Vector2.ONE, duration * motion_scale).set_ease(Tween.EASE_OUT)
+	tween.tween_property(node, "modulate:a", 0.0, duration * motion_scale).set_ease(Tween.EASE_IN)
+	tween.chain().tween_callback(node.queue_free)
+
+
+## 中心が原点で半径 radius の円の頂点 (波の輪と閃光の形。24 角形で円に見える)
+static func _circle(radius: float) -> PackedVector2Array:
+	var points: PackedVector2Array = PackedVector2Array()
+	for index: int in range(24):
+		points.append(Vector2.from_angle(TAU * index / 24.0) * radius)
+	return points
 
 
 ## node を、前のフェード previous を止めて透明から FADE_TIME で現す tween

@@ -6,6 +6,7 @@ extends RefCounted
 
 const Art := preload("res://scripts/art.gd")
 const CardView := preload("res://scripts/card_view.gd")
+const Relics := preload("res://scripts/relics.gd")
 const RunStateScript := preload("res://scripts/run_state.gd")
 
 ## 画面の見出しの文字の大きさ (戦闘画面の階の表示より一段大きくする)
@@ -129,6 +130,12 @@ static func add_button(parent: Control, text: String, callback: Callable) -> But
 ## 体力・所持金・デッキの枚数の 1 行
 static func status_text(state: RunStateScript) -> String:
 	return "体力 %d / %d   所持金 %d   契約 %d 枚" % [state.hp, state.max_hp, state.gold, state.deck.size()]
+
+
+## relic_id の護符の名前と効果の 1 行 (報酬・商人・戦闘画面の説明に使う)
+static func relic_text(relic_id: String) -> String:
+	var relic: Dictionary = Relics.RELICS[relic_id]
+	return "「%s」%s" % [relic["name"], relic["text"]]
 
 
 ## parent に、カードを横に並べる行を足す

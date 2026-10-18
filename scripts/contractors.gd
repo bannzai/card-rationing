@@ -30,7 +30,7 @@ const CONTRACTORS: Dictionary = {
 			"guard",
 			"guard",
 			"guard",
-			"spirit_arrow",
+			"ash_fang",
 			"breath",
 			"hero_strike",
 			"hero_wall",

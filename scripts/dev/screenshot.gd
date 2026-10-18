@@ -7,6 +7,7 @@ extends SceneTree
 const ActMap := preload("res://scripts/act_map.gd")
 const Art := preload("res://scripts/art.gd")
 const AudioScript := preload("res://scripts/audio.gd")
+const Battle := preload("res://scripts/battle.gd")
 const BattleUiScript := preload("res://scripts/battle_ui.gd")
 const BossTalkScript := preload("res://scripts/boss_talk.gd")
 const Cards := preload("res://scripts/cards.gd")
@@ -30,6 +31,16 @@ const MAP_SEED: int = 5
 const MAP_PROGRESS_ROW: int = 3
 ## 撮る出来事が出る地図を探すシードの数 (scripts/dev/integration_base.gd の EVENT_SEED_LIMIT と同じ数)
 const EVENT_SEED_LIMIT: int = 300
+## 通常の敵と強敵の全種を撮る戦闘の、敵 ID の並び (幕の前半・後半の組み合わせの候補にある並び。1 つの戦闘の
+## 敵は 2 体まで)
+const ENEMY_LINEUPS: Array[Array] = [
+	["wild_dog", "skeleton"],
+	["wisp", "moth"],
+	["wax_doll", "ash_hound"],
+	["fallen_guard"],
+	["candle_warden"],
+	["seal_knight"],
+]
 ## 撮影の間に使う保存先 (本番の保存データを触らない)
 const SCREENSHOT_SAVE_PATH: String = "user://screenshot_run.json"
 
@@ -85,6 +96,16 @@ func _capture_scenes() -> bool:
 	for contractor_id: String in Contractors.CONTRACTORS:
 		steps.append([_show_contractor_battle.bind(contractor_id), "battle-%s" % contractor_id])
 	steps.append([_show_wide_hand_drawn, "battle-wide-hand-drawn"])
+	# 敵の全種の絵 (名前・体力・予告と重ならないか、2 体で絵が重ならないかを見る)
+	for lineup: Array in ENEMY_LINEUPS:
+		var enemy_ids: Array[String] = []
+		enemy_ids.assign(lineup)
+		steps.append(
+			[
+				_show_enemy_battle.bind(enemy_ids),
+				"battle-enemies-%s" % "-".join(enemy_ids).replace("_", "-")
+			]
+		)
 	steps.append_array([
 		[_show_map, "map"],
 		[_show_deck_list, "deck-list"],
@@ -171,6 +192,22 @@ func _show_wide_hand_drawn() -> bool:
 	if battle_ui.battle.hand.size() != expected:
 		push_error("夜風の囁きで手札を %d 枚にできない (手札 %d 枚)" % [expected, battle_ui.battle.hand.size()])
 		return false
+	return true
+
+
+## 最初の契約者の段 0 の戦闘を、敵を enemy_ids に替えて始め直したところ
+func _show_enemy_battle(enemy_ids: Array[String]) -> bool:
+	if not _show_contractor_battle(Contractors.FIRST_CONTRACTOR):
+		return false
+	var battle_ui: BattleUiScript = main.screen as BattleUiScript
+	battle_ui.battle = Battle.new()
+	battle_ui.battle.start(run_state, enemy_ids, 1)
+	battle_ui.refresh()
+	for index: int in range(battle_ui.enemy_row.get_child_count()):
+		var view: Control = battle_ui.enemy_row.get_child(index)
+		if view.visible != (index < enemy_ids.size()):
+			push_error("戦闘の敵の数が %d 体にならない" % enemy_ids.size())
+			return false
 	return true
 
 

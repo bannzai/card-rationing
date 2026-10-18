@@ -1,7 +1,7 @@
 extends RefCounted
 ## 見た目「蝋と灯火」の素材 (絵・フォント・色) の置き場と、絵を並べる・戦闘の動きを付けるだけの小さな部品。方向の定義は
 ## documents/DIRECTION.md「デザインの方向」、素材の出典は assets/CREDITS.md。
-## カードの絵は種別ごと、敵の絵は格ごと、地図の印は節点の種類ごとに共有する (1 枚ごと・1 体ごとの絵は #13)。
+## カードの絵は種別ごと、地図の印は節点の種類ごとに共有し (1 枚ごとの絵は #13)、敵の絵は 1 体ごとに持つ。
 ## autoload のスクリプト (scripts/run_state.gd・scripts/settings.gd) とそこから読まれるスクリプトには
 ## preload させない (初回の import では autoload が絵の import より先に読まれ、ERROR になるため)。
 
@@ -50,11 +50,26 @@ const CARD_ART: Dictionary = {
 ## カードの種別 → 絵に掛ける色 (無い種別は絵の色のまま)。加護は防御の霧の精霊の絵を蝋燭の金色に染め、身を包む
 ## 光に見せて防御と見分ける (絵を足さずに済ませた理由は documents/DIRECTION.md「決めたこと」)
 const CARD_ART_TINT: Dictionary = {Cards.Kind.POWER: Color(1.35, 1.0, 0.5)}
+## 敵の格の絵 (ENEMY_ID_ART に絵の無い敵が使う)。通常の敵と強敵の絵は、影の野犬と燭台の守り手の絵を兼ねる
+const ENEMY_NORMAL_ART: Texture2D = preload("res://assets/art/enemy_normal.png")
+const ENEMY_ELITE_ART: Texture2D = preload("res://assets/art/enemy_elite.png")
 ## 敵の格 → 絵
 const ENEMY_ART: Dictionary = {
-	Enemies.Rank.NORMAL: preload("res://assets/art/enemy_normal.png"),
-	Enemies.Rank.ELITE: preload("res://assets/art/enemy_elite.png"),
+	Enemies.Rank.NORMAL: ENEMY_NORMAL_ART,
+	Enemies.Rank.ELITE: ENEMY_ELITE_ART,
 	Enemies.Rank.BOSS: preload("res://assets/art/enemy_boss.png"),
+}
+## 敵 ID (scripts/enemies.gd の ENEMIES のキー) → その敵の絵 (ボスは格の絵のまま)
+const ENEMY_ID_ART: Dictionary = {
+	"wild_dog": ENEMY_NORMAL_ART,
+	"skeleton": preload("res://assets/art/enemy_skeleton.png"),
+	"wisp": preload("res://assets/art/enemy_wisp.png"),
+	"moth": preload("res://assets/art/enemy_moth.png"),
+	"wax_doll": preload("res://assets/art/enemy_wax_doll.png"),
+	"ash_hound": preload("res://assets/art/enemy_ash_hound.png"),
+	"fallen_guard": preload("res://assets/art/enemy_fallen_guard.png"),
+	"candle_warden": ENEMY_ELITE_ART,
+	"seal_knight": preload("res://assets/art/enemy_seal_knight.png"),
 }
 ## 出来事 ID (scripts/events.gd の EVENTS のキー) → 出来事の画面の絵
 const EVENT_ART: Dictionary = {
@@ -191,6 +206,11 @@ const HERO_FLASH: Color = Color(1.0, 0.74, 0.38, 0.3)
 ## 戦闘の動きの長さに掛ける倍率。0 なら動きを作らない (tween・使ったカードの複製・数字を作らず、勝った時の
 ## 画面の切り替えも待たない)。fps が固定でない検証 (integration・screenshot) が 0 にして、同じ瞬間を確かめ・撮る
 static var motion_scale: float = 1.0
+
+
+## 敵 enemy_id の絵 (ENEMY_ID_ART に無ければ、その敵の格の絵)
+static func enemy_art(enemy_id: String) -> Texture2D:
+	return ENEMY_ID_ART.get(enemy_id, ENEMY_ART[Enemies.ENEMIES[enemy_id]["rank"]])
 
 
 ## 画面の全面に texture の絵を敷く (縦横比を保って画面を覆う)。マウスは通す

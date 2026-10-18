@@ -57,6 +57,7 @@ func _run() -> void:
 	await _check_hand_card_seals(main)
 	await _check_battle_sounds(main)
 	await _check_hand_fits_after_draw(main)
+	await _check_power_lasts(main)
 	Art.motion_scale = 1.0
 	await _check_input_during_motion(main)
 	Art.motion_scale = 0.0
@@ -279,6 +280,50 @@ func _check_hand_fits_after_draw(main: MainScript) -> void:
 	if battle_ui.battle.can_play(last) and battle_ui.battle.alive_enemies().size() == 1:
 		await _click(buttons[last])
 		_check(battle_ui.battle.hand.size() == 5, "右端のカードをクリックで使える")
+
+
+## 加護のカードを数字キーで使うと、手札から消えて発動中の加護の一覧に 1 行ずつ並び (マウスを乗せるとカードの名前が
+## 出る)、ターンを終えても一覧に残って次のターンの始めに効く (防御が付く)。手札に戻らない。発動中の加護が無い戦闘では
+## 一覧を隠す
+func _check_power_lasts(main: MainScript) -> void:
+	var battle_ui: BattleUiScript = main.screen as BattleUiScript
+	if battle_ui == null:
+		return
+	_set_deck(["lamp_ward", "ember_heart", "slash", "guard", "guard"])
+	_start_battle_with(battle_ui, ["wild_dog"], 1)
+	await _settle()
+	_check(not battle_ui.power_column.visible, "発動中の加護が無ければ一覧を隠す")
+	await _press_key(KEY_1 + _hand_index_of(battle_ui, "lamp_ward"))
+	await _press_key(KEY_1 + _hand_index_of(battle_ui, "ember_heart"))
+	_check(_hand_buttons(battle_ui).size() == 3, "使った加護は手札から消える")
+	_check(
+		battle_ui.power_column.visible and _visible_children(battle_ui.power_column) == 3,
+		"発動中の加護の一覧に、見出しと加護 2 種の行が出る"
+	)
+	var row: Label = battle_ui.power_column.get_child(1) as Label
+	_check(
+		(
+			row.text == Cards.power_text("lamp_ward")
+			and row.tooltip_text.contains(Cards.CARDS["lamp_ward"]["name"])
+		),
+		"一覧の行は続く効果を見せ、マウスを乗せるとカードの名前が出る"
+	)
+	for enemy: Dictionary in battle_ui.battle.enemies:
+		enemy["intent"] = {"move": Enemies.Move.GUARD, "value": 1}
+	await _press_key(KEY_ENTER)
+	_check(battle_ui.battle.turn == 2, "Enter でターン終了")
+	_check(
+		battle_ui.status_label.text.contains("防御 %d" % Cards.CARDS["lamp_ward"]["turn_block"]),
+		"次のターンの始めに加護の防御が付いて見える"
+	)
+	_check(_visible_children(battle_ui.power_column) == 3, "ターンを終えても発動中の加護は一覧に残る")
+	_check(
+		_hand_index_of(battle_ui, "lamp_ward") < 0 and _hand_index_of(battle_ui, "ember_heart") < 0,
+		"使った加護はこの戦闘の間は手札に戻らない"
+	)
+	_start_battle_with(battle_ui, ["wild_dog"], 2)
+	await _settle()
+	_check(not battle_ui.power_column.visible, "次の戦闘では発動中の加護の一覧が消える")
 
 
 ## 戦闘の動きの途中に続けて入力しても、戦闘の状態と表示が壊れない: カードを使う動きの最中に次のカードをキーで

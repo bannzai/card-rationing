@@ -13,8 +13,11 @@ const SCENES: Array[String] = [
 	"res://scenes/battle.tscn",
 	"res://scenes/boss_talk.tscn",
 ]
-## 1 幕の中身の量 (issue #9 の指定): カードの種類の数・敵の格ごとの種類の数・ボスの台詞の行数・初期デッキの枚数
-const CARD_COUNT_RANGE: Array[int] = [25, 30]
+## 1 幕の中身の量 (issue #9 の指定): カードの種類の数・敵の格ごとの種類の数・ボスの台詞の行数・初期デッキの枚数。
+## カードの種類の上限は、issue #9 の 25〜30 種の上限に、issue #45 で足す加護の 4〜6 種の上限を足した数
+const CARD_COUNT_RANGE: Array[int] = [25, 36]
+## 加護のカードの種類の数 (issue #45 の指定)
+const POWER_COUNT_RANGE: Array[int] = [4, 6]
 const RANK_COUNT_RANGES: Dictionary = {
 	Enemies.Rank.NORMAL: [6, 8], Enemies.Rank.ELITE: [2, 2], Enemies.Rank.BOSS: [1, 1]
 }
@@ -33,6 +36,11 @@ const CARD_VALUE_RANGES: Dictionary = {
 	"block": [1, 30],
 	"draw": [1, 3],
 	"energy": [1, 3],
+	"turn_block": [1, 10],
+	"turn_draw": [1, 2],
+	"turn_energy": [1, 2],
+	"attack_bonus": [1, 5],
+	"struggle_bonus": [1, 10],
 }
 ## 契約の相手の区分ごとの最大使用回数の範囲 (精霊は回数が多め、英霊は少ない)
 const BOND_USES_RANGES: Dictionary = {Cards.Bond.SPIRIT: [2, 6], Cards.Bond.HERO: [1, 2]}
@@ -66,6 +74,7 @@ func _initialize() -> void:
 	_check_corrupt_save()
 	_check_battle_turn()
 	_check_battle_effects()
+	_check_battle_powers()
 	_check_enemy_intent_order()
 	_check_battle_outcomes()
 	_check_battle_keeps_uses()
@@ -126,7 +135,7 @@ func _check_scenes_load() -> void:
 
 ## カードの定義: 種類の数・各値の範囲・区分ごとの最大使用回数・種別の割合・名前と効果の文、効果のキーと種別の対応
 func _check_cards() -> void:
-	_check(_in_range(Cards.CARDS.size(), CARD_COUNT_RANGE), "カードが 25〜30 種")
+	_check(_in_range(Cards.CARDS.size(), CARD_COUNT_RANGE), "カードが 25〜36 種")
 	var kind_counts: Dictionary = {}
 	for card_id: String in Cards.CARDS:
 		var card: Dictionary = Cards.CARDS[card_id]
@@ -138,10 +147,15 @@ func _check_cards() -> void:
 			"最大使用回数が区分の範囲内: %s" % card_id
 		)
 		_check(not card["name"].is_empty(), "名前がある: %s" % card_id)
-		_check(
-			card.has("damage") or card.has("block") or card.has("draw") or card.has("energy"),
-			"効果がある: %s" % card_id
+		var has_power: bool = Cards.power_turn_points(card_id) > 0.0
+		var has_immediate: bool = (
+			card.has("damage") or card.has("block") or card.has("draw") or card.has("energy")
 		)
+		_check(has_power or has_immediate, "効果がある: %s" % card_id)
+		# 加護だけが続く効果を持ち、加護は使った時の効果を持たない (battle.play() は種別で発動中の加護に入れる)
+		var power: bool = card["kind"] == Cards.Kind.POWER
+		_check(has_power == power, "続く効果を持つのは加護だけで、加護はすべて持つ: %s" % card_id)
+		_check(not (power and has_immediate), "加護は使った時の効果を持たない: %s" % card_id)
 		_check(not Cards.effect_text(card_id).is_empty(), "効果の文がある: %s" % card_id)
 		_check(
 			_is_short_copy(card["name"]) and _is_short_copy(Cards.effect_text(card_id)),
@@ -163,11 +177,26 @@ func _check_cards() -> void:
 			share >= KIND_SHARE_RANGE[0] and share <= KIND_SHARE_RANGE[1],
 			"種別 %d のカードの割合が 2〜5 割 (%.2f)" % [kind, share]
 		)
+	# 加護は割合でなく種類の数で絞る (攻撃・防御・技を 2 割以上に保ったまま足すため)
+	var power_count: int = kind_counts.get(Cards.Kind.POWER, 0)
+	_check(_in_range(power_count, POWER_COUNT_RANGE), "加護が 4〜6 種 (%d)" % power_count)
+	var power_bonds: Dictionary = {}
+	for card_id: String in Cards.CARDS:
+		if Cards.CARDS[card_id]["kind"] == Cards.Kind.POWER:
+			power_bonds[Cards.CARDS[card_id]["bond"]] = true
+	_check(power_bonds.size() == Cards.BOND_NAMES.size(), "加護に精霊と英霊の両方がある")
 	# 強さの定義 (documents/DIRECTION.md「決めたこと」) の基準のカードと、全体攻撃・引く・エネルギーの点数
 	_check(is_equal_approx(Cards.strength("slash"), 3.0), "斬火の強さが 3")
 	_check(is_equal_approx(Cards.strength("hero_strike"), 6.0), "雷槍の英霊の強さが 6")
 	_check(is_equal_approx(Cards.strength("ember_wave"), 3.0), "熾火の波 (全体攻撃 4) の強さが 3")
 	_check(is_equal_approx(Cards.strength("lantern_row"), 4.5), "灯の連なり (2 枚引く + エネルギー 1) の強さが 4.5")
+	# 加護は 1 ターンの点数 × 3 ターン: 毎ターン防御 3 は 9 点、攻撃の上乗せ 3 は攻撃 2 枚分で 18 点
+	_check(is_equal_approx(Cards.strength("lamp_ward"), 4.5), "灯守りの精 (毎ターン防御 3・コスト 1) の強さが 4.5")
+	_check(is_equal_approx(Cards.strength("war_banner"), 9.0), "戦旗の英霊 (攻撃の上乗せ 3・コスト 1) の強さが 9")
+	_check(Cards.power_text("slash").is_empty(), "加護でないカードの続く効果の文は空")
+	_check(
+		Cards.effect_text("lamp_ward") == "戦闘の間 毎ターン防御 3", "加護の効果の文は「戦闘の間」から始まる"
+	)
 
 
 ## 強さと最大使用回数の関係: 同じ種別の中で、強さが高いカードほど最大使用回数が多くならない (強さが同じなら
@@ -580,6 +609,82 @@ func _check_battle_effects() -> void:
 	state.free()
 
 
+## 加護: 使うと残り使用回数が 1 減り、捨て札へ行かず発動中の加護に入って、その戦闘の終わりまで効く (攻撃は 1 回ごとに
+## 上乗せ・毎ターンの始めの防御とエネルギーと引く枚数・もがくの上乗せ)。毎ターンの効果は使った次のターンから効く。
+## 次の戦闘では発動中の加護が消えて山札に戻り、使った回数は戻らない
+func _check_battle_powers() -> void:
+	var state: RunStateScript = RunStateScript.new()
+	state.new_run(["lamp_ward", "ember_heart", "slash", "twin_flame", "guard"])
+	var battle: BattleScript = BattleScript.new()
+	battle.start(state, ["skeleton"], 1)
+	_check(battle.play(_hand_index_of(battle, state, "lamp_ward")), "灯守りの精を使える")
+	_check(
+		(
+			battle.powers.size() == 1
+			and battle.powers[0] == 0
+			and battle.discard_pile.is_empty()
+			and battle.hand.size() == 4
+		),
+		"加護は捨て札へ行かず発動中の加護に入る"
+	)
+	_check(
+		state.uses_left(0) == Cards.CARDS["lamp_ward"]["max_uses"] - 1 and battle.energy == 2,
+		"加護もコストを払い残り使用回数が 1 減る"
+	)
+	_check(battle.block == 0, "毎ターンの防御は使ったターンには付かない")
+	_check(battle.play(_hand_index_of(battle, state, "ember_heart")), "熾りの精を使える")
+	_check(battle.power_total("attack_bonus") == 1, "攻撃の上乗せ 1 が発動している")
+	_check(battle.play(_hand_index_of(battle, state, "slash"), 0), "斬火を使える")
+	_check(battle.enemies[0]["hp"] == 15, "斬火 6 に上乗せ 1 で 7 ダメージ (22 → 15)")
+	battle.enemies[0]["intent"] = {"move": Enemies.Move.GUARD, "value": 0}
+	battle.end_turn()
+	_check(battle.block == 3 and battle.energy == 3, "次のターンの始めに防御 3 が付く (エネルギーは 3 のまま)")
+	_check(
+		battle.powers.size() == 2 and battle.hand.size() == 3 and battle.draw_pile.is_empty(),
+		"発動中の加護は山札・手札に戻らない (残りの 3 枚だけを引き直す)"
+	)
+	_check(battle.play(_hand_index_of(battle, state, "twin_flame"), 0), "双つ灯を使える")
+	_check(battle.enemies[0]["hp"] == 5, "双つ灯 4×2 の 1 回ごとに上乗せ 1 (15 → 5)")
+	_check(battle.struggle_damage() == BattleScript.STRUGGLE_DAMAGE, "もがくの上乗せが無ければもがくは 2")
+	# 毎ターンのエネルギー・引く枚数と、もがくの上乗せ。手札と山札の並びを決めて、加護 3 枚を最初の手札に置く
+	state.new_run(
+		[
+			"guiding_light",
+			"lighthouse_keeper",
+			"defiant_spark",
+			"guard",
+			"guard",
+			"guard",
+			"guard",
+			"guard",
+			"guard",
+			"guard",
+		]
+	)
+	battle.start(state, ["skeleton"], 1)
+	battle.hand = [0, 1, 2, 3, 4]
+	battle.draw_pile = [5, 6, 7, 8, 9]
+	battle.discard_pile = []
+	for card_id: String in ["guiding_light", "lighthouse_keeper", "defiant_spark"]:
+		_check(battle.play(_hand_index_of(battle, state, card_id)), "%s を使える" % card_id)
+	_check(battle.energy == 1, "コスト 1・0・1 の加護を使ってエネルギー 1")
+	_check(battle.struggle_damage() == 5 and battle.struggle(0), "もがくの上乗せ 3 でもがくは 5")
+	_check(battle.enemies[0]["hp"] == 17, "上乗せしたもがくで 22 → 17")
+	battle.enemies[0]["intent"] = {"move": Enemies.Move.GUARD, "value": 0}
+	battle.end_turn()
+	_check(battle.energy == 4, "次のターンの始めにエネルギーが 1 多い (4)")
+	_check(battle.hand.size() == 6, "次のターンの始めに 1 枚多く引く (6 枚)")
+	# 次の戦闘: 発動中の加護は消えて山札に戻り、使った回数は戻らない
+	battle.start(state, ["skeleton"], 2)
+	_check(
+		battle.powers.is_empty() and battle.hand.size() + battle.draw_pile.size() == state.deck.size(),
+		"次の戦闘では発動中の加護が消え、加護も山札に戻る"
+	)
+	_check(battle.energy == 3 and battle.block == 0, "次の戦闘の最初のターンは加護の効果が無い")
+	_check(state.uses_left(1) == 0, "次の戦闘でも加護に使った回数は戻らない (灯台守の英霊は契約切れのまま)")
+	state.free()
+
+
 ## 予告を順に繰り返す敵 (in_order) は、moves を先頭から順に予告し、最後の後は先頭に戻る
 func _check_enemy_intent_order() -> void:
 	var state: RunStateScript = RunStateScript.new()
@@ -721,6 +826,25 @@ func _check_strategy_bots() -> void:
 		_bot_move(Bots.Strategy.ADAPT, battle, state) == Bots.BattleMove.PLAY,
 		"状況で使い分けるは、強敵との戦闘では使う"
 	)
+	# 加護は戦闘の残りのターンの見込みで点数を付ける: 敵の体力 22 なら次のターンが残る見込みで使い、12 以下なら
+	# 今のターンで倒しきれる見込みで使わない (点数 0)
+	state.new_run(["lamp_ward"], BOT_SEED)
+	state.path = ActMap.route_to(state.rows, 0, state.rows[0][0]["column"])
+	battle.start(state, ["skeleton"], 1)
+	for strategy: int in Bots.Strategy.values():
+		_check(
+			_bot_move(strategy, battle, state) == Bots.BattleMove.PLAY,
+			"敵の体力が 22 なら加護を使う: %s" % Bots.STRATEGY_NAMES[strategy]
+		)
+	battle.enemies[0]["hp"] = Cards.TURN_DAMAGE
+	_check(
+		_bot_move(Bots.Strategy.SPEND, battle, state) == Bots.BattleMove.STRUGGLE,
+		"今のターンで倒しきれる見込みなら加護を使わない"
+	)
+	# 新しい契約で、加護は技と同じく攻撃・防御の後に取る (並びに無い種別を先に取らない)
+	state.new_run(["slash", "guard"], BOT_SEED)
+	var offers: Array[String] = ["lamp_ward", "war_banner", "slash"]
+	_check(Bots._choose_offer(state, offers) == "slash", "攻撃が足りなければ加護より攻撃を取る")
 	state.free()
 	_remove_user_file(SELFCHECK_SAVE_PATH)
 

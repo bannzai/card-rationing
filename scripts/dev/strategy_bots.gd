@@ -55,7 +55,7 @@ const KIND_PRIORITY: Array[int] = [
 	ActMap.Kind.ELITE,
 	ActMap.Kind.BOSS,
 ]
-## 「強いカード」とみなす強さ (Cards.strength()) の下限。基準の斬火 (3) の 2 倍で、英霊 10 種と灯の精が当たる
+## 「強いカード」とみなす強さ (Cards.strength()) の下限。基準の斬火 (3) の 2 倍で、英霊 12 種 (加護の英霊 2 種を含む) と灯の精が当たる
 const STRONG_STRENGTH: float = 6.0
 ## 1 回の戦闘のターンの上限 (判断の不具合で戦闘が終わらない時に止める)。決めた時のボス (体力 150) をもがくだけ
 ## (1 ターン 6 ダメージ) で倒す 25 ターンの 4 倍。issue #33 でボスの体力を下げた後も、余裕が増えるだけなので変えない
@@ -356,15 +356,18 @@ static func _spends_low_uses(strategy: int, battle: Battle, state: RunStateScrip
 
 ## デッキの deck_index 番目のカードを今使った時の効果の点数と、狙う敵。{"value": 点数, "target": 敵の index
 ## (対象を取らないカードは -1)}。点数は、敵の体力を減らす量 + 防ぐダメージ × GUARD_WEIGHT (倒した敵が予告していた
-## 攻撃を含む) + 引く枚数とエネルギーの点 (Cards.strength() と同じ点)。引く効果は、引いたカードを使う
-## エネルギーが残り、使う前の山札か捨て札にカードがある時だけ数える (どちらも空なら、使ったカード自身を引き直すだけ)
+## 攻撃を含む) + 引く枚数とエネルギーの点 (Cards.strength() と同じ点) + 加護の 1 ターンの点
+## (Cards.power_turn_points()) × 戦闘の残りのターンの見込み (_turns_left())。引く効果は、引いたカードを使う
+## エネルギーが残り、使う前の山札か捨て札にカードがある時だけ数える (どちらも空なら、使ったカード自身を引き直すだけ)。
+## 攻撃のダメージには発動中の加護の上乗せを含める
 static func _play_value(battle: Battle, state: RunStateScript, deck_index: int) -> Dictionary:
 	var card: Dictionary = state.card(deck_index)
 	var incoming: int = _incoming_damage(battle)
 	var value: float = 0.0
 	var target: int = -1
+	value += Cards.power_turn_points(state.deck[deck_index]["id"]) * _turns_left(battle)
 	if card.has("damage"):
-		var damage: int = card["damage"] * card.get("hits", 1)
+		var damage: int = (card["damage"] + battle.power_total("attack_bonus")) * card.get("hits", 1)
 		var best_hit: float = -1.0
 		for enemy_index: int in battle.alive_enemies():
 			var hit: float = _attack_value(battle.enemies[enemy_index], damage, incoming)
@@ -405,6 +408,16 @@ static func _is_better_play(play: Dictionary, best: Dictionary) -> bool:
 	return is_equal_approx(play["value"], best["value"]) and play["cost"] < best["cost"]
 
 
+## この戦闘で、今のターンの後に残るターンの数の見込み (生きている敵の体力と防御の合計を、1 ターンに与える
+## ダメージの見込み Cards.TURN_DAMAGE で倒すのにかかるターンの数 − 1。今のターンで倒しきれる見込みなら 0)。
+## 加護の毎ターンの効果は次のターンから効くので、今のターンは数えない
+static func _turns_left(battle: Battle) -> int:
+	var remaining: int = 0
+	for enemy_index: int in battle.alive_enemies():
+		remaining += battle.enemies[enemy_index]["hp"] + battle.enemies[enemy_index]["block"]
+	return maxi(0, ceili(float(remaining) / Cards.TURN_DAMAGE) - 1)
+
+
 ## このターンの終わりに受けるダメージ (生きている敵が予告している攻撃の合計から、今の防御を引いた量)
 static func _incoming_damage(battle: Battle) -> int:
 	var total: int = 0
@@ -431,13 +444,15 @@ static func _weakest_enemy(battle: Battle) -> int:
 
 
 ## offers (カード ID の並び) から新しく契約する 1 枚。デッキに足りない種別 (_kind_order() の先のもの) を先に取り、
-## 同じ種別の中では得る強さの合計が最も大きいもの
+## 同じ種別の中では得る強さの合計が最も大きいもの。加護は技と同じ順位に数え、技と得る強さの合計で比べる (どちらも
+## 敵を倒す・身を守る効果を直接は持たず、攻撃と防御を助ける側のため)
 static func _choose_offer(state: RunStateScript, offers: Array[String]) -> String:
 	var order: Array[int] = _kind_order(state)
 	var best_id: String = ""
 	var best_rank: int = order.size()
 	for card_id: String in offers:
-		var rank: int = order.find(Cards.CARDS[card_id]["kind"])
+		var kind: int = Cards.CARDS[card_id]["kind"]
+		var rank: int = order.find(Cards.Kind.SKILL if kind == Cards.Kind.POWER else kind)
 		var better_in_kind: bool = rank == best_rank and _contract_gain(card_id) > _contract_gain(best_id)
 		if rank < best_rank or better_in_kind:
 			best_rank = rank
@@ -446,9 +461,12 @@ static func _choose_offer(state: RunStateScript, offers: Array[String]) -> Strin
 
 
 ## 新しく契約するカードの種別の優先順。デッキの攻撃の残り使用回数が、防御の ATTACK_USES_PER_GUARD_USE 倍を
-## 下回る間は攻撃 → 防御、そうでなければ防御 → 攻撃。技は最後 (敵を倒すのも身を守るのも攻撃と防御のため)
+## 下回る間は攻撃 → 防御、そうでなければ防御 → 攻撃。技は最後 (敵を倒すのも身を守るのも攻撃と防御のため)。
+## 加護の順位は _choose_offer() が技と同じにする
 static func _kind_order(state: RunStateScript) -> Array[int]:
-	var uses: Dictionary = {Cards.Kind.ATTACK: 0, Cards.Kind.GUARD: 0, Cards.Kind.SKILL: 0}
+	var uses: Dictionary = {
+		Cards.Kind.ATTACK: 0, Cards.Kind.GUARD: 0, Cards.Kind.SKILL: 0, Cards.Kind.POWER: 0
+	}
 	for index: int in range(state.deck.size()):
 		uses[state.card(index)["kind"]] += state.uses_left(index)
 	var attack_first: Array[int] = [Cards.Kind.ATTACK, Cards.Kind.GUARD, Cards.Kind.SKILL]

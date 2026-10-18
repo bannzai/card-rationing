@@ -343,15 +343,17 @@ func _animate_card(card_id: String, uses_before: int, uses: int, from: Rect2, to
 	ghost.position = from.position - effects_layer.global_position
 	ghost.size = from.size
 	ghost.pivot_offset = from.size / 2.0
-	var seal: CanvasItem = ghost.seal_row.get_child(uses)
 	var scale_of: float = Art.motion_scale
 	var tween: Tween = ghost.create_tween()
 	tween.tween_property(
 		ghost, "position:y", ghost.position.y - Art.CARD_LIFT, Art.CARD_LIFT_TIME * scale_of
 	)
-	tween.tween_property(seal, "modulate", Art.SEAL_FLASH, Art.SEAL_FLASH_TIME * scale_of)
-	tween.tween_callback(_burn_seal.bind(ghost, seal, card_id, uses))
-	if uses <= 1:
+	# 焼けぬ封蝋で残りが減らなかった時は、焼ける印が無いので印を光らせない (発動は護符の印が見せる)
+	if uses < uses_before:
+		var seal: CanvasItem = ghost.seal_row.get_child(uses)
+		tween.tween_property(seal, "modulate", Art.SEAL_FLASH, Art.SEAL_FLASH_TIME * scale_of)
+		tween.tween_callback(_burn_seal.bind(ghost, seal, card_id, uses))
+	if uses < uses_before and uses <= 1:
 		var half: float = Art.STRONG_TIME * scale_of / 2.0
 		tween.tween_property(ghost, "scale", Vector2.ONE * Art.STRONG_SCALE, half)
 		tween.parallel().tween_property(ghost, "modulate", Art.STRONG_FLASH, half)

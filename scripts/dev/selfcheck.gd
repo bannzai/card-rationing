@@ -6,6 +6,7 @@ extends "res://scripts/dev/selfcheck_run.gd"
 const Art := preload("res://scripts/art.gd")
 const BattleScript := preload("res://scripts/battle.gd")
 const Bots := preload("res://scripts/dev/strategy_bots.gd")
+const Relics := preload("res://scripts/relics.gd")
 
 ## 起動検証 (main_scene の --quit) ではロードされない遷移先も含めた全シーン
 const SCENES: Array[String] = [
@@ -45,6 +46,13 @@ const MOVE_HITS_RANGE: Array[int] = [1, 5]
 const SHORT_COPY_PUNCTUATION: Array[String] = ["、", "。", "，", "．"]
 ## 戦略 bot の検証で遊ばせる地図のシード (値に意味は無く、検証のたびに同じ地図になるよう固定する)
 const BOT_SEED: int = 7
+## 護符を手に入れるランを探すシードの数 (強敵か商人で護符を得るランは多いので、数個で見つかる。見つからなければ失敗)
+const BOT_RELIC_SEED_LIMIT: int = 30
+## 護符の種類の数 (issue #43 の指定)
+const RELIC_COUNT_RANGE: Array[int] = [6, 10]
+## 焼けぬ封蝋の判定を引く回数と、減らない割合の許す範囲 (確率 1/2 の 1000 回で、外れる見込みが十分小さい幅)
+const SPARE_ROLLS: int = 1000
+const SPARE_RATE_RANGE: Array[float] = [0.4, 0.6]
 ## 起動時に表示するシーン
 const MAIN_SCENE_PATH: String = "res://scenes/main.tscn"
 ## ADR 0001 で決めたレンダラ (CI の Xvfb + Mesa llvmpipe で描画できるもの)
@@ -83,6 +91,10 @@ func _initialize() -> void:
 	_check_audio()
 	_check_credits()
 	_check_strategy_bots()
+	_check_relic_definitions()
+	_check_relic_battle_effects()
+	_check_unburnt_seal()
+	_check_relic_sources()
 	# Makefile の WARNING / ERROR 検査が行頭の接頭辞だけを見ることの回帰検査 (この行で落ちてはいけない)
 	print("selfcheck note: a normal line may mention error and warning words")
 	_finish()
@@ -343,6 +355,9 @@ func _check_save_and_load() -> void:
 	state.phase = RunStateScript.Phase.BATTLE
 	state.gold = 12
 	state.battles_won = 2
+	state.add_relic("unburnt_seal")
+	state.add_relic("ember_edge")
+	state.relic_rolls = 5
 	_check(state.save_to(SELFCHECK_SAVE_PATH) == OK, "保存できる")
 	_check(not FileAccess.file_exists(SELFCHECK_SAVE_PATH + ".tmp"), "保存の後に書きかけのファイルが残らない")
 	_check(state.save_to(SELFCHECK_SAVE_PATH) == OK, "既にある保存データを置き換えて保存できる")
@@ -356,6 +371,10 @@ func _check_save_and_load() -> void:
 	_check(other.path == state.path and other.phase == state.phase, "往復で通った道と局面が保たれる")
 	_check(other.exhausted_count == 1 and other.battles_won == 2, "往復でランの結果の数が保たれる")
 	_check(other.character_id == Contractors.FIRST_CONTRACTOR, "往復で契約者が保たれる")
+	_check(
+		other.relics == state.relics and other.relic_rolls == 5,
+		"往復で護符 (手に入れた順) と焼けぬ封蝋の判定の通し番号が保たれる"
+	)
 	_remove_user_file(SELFCHECK_SAVE_PATH)
 	state.free()
 	other.free()
@@ -372,6 +391,8 @@ func _check_corrupt_save() -> void:
 		"hp": 1,
 		"max_hp": 1,
 		"gold": 0,
+		"relics": [],
+		"relic_rolls": 0,
 		"act": 1,
 		"map_seed": 0,
 		"path": [],
@@ -421,6 +442,12 @@ func _check_corrupt_save() -> void:
 		{"deck": [{"id": "slash", "uses_left": 99}]},
 		{"deck": [{"id": "slash", "uses_left": -1}]},
 		{"deck": [{"id": "slash"}]},
+		{"relics": "x"},
+		{"relics": [1]},
+		{"relics": ["nope"]},
+		{"relics": ["ember_edge", "ember_edge"]},
+		{"relic_rolls": -1},
+		{"relic_rolls": 0.5},
 	]
 	var texts: Array[String] = ["{not json", '{"version": 1, "deck": "x"}']
 	for defect: Dictionary in broken:
@@ -721,6 +748,183 @@ func _check_strategy_bots() -> void:
 		_bot_move(Bots.Strategy.ADAPT, battle, state) == Bots.BattleMove.PLAY,
 		"状況で使い分けるは、強敵との戦闘では使う"
 	)
+	# 護符を手に入れるランでも、同じシードなら同じ結果 (焼けぬ封蝋の判定もシードから決まる)
+	var relic_seed: int = -1
+	for seed_value: int in range(1, BOT_RELIC_SEED_LIMIT + 1):
+		if Bots.play_run(Bots.Strategy.SPEND, state, seed_value)["relics"] > 0:
+			relic_seed = seed_value
+			break
+	_check(relic_seed > 0, "護符を手に入れるランがある (シード 1〜%d)" % BOT_RELIC_SEED_LIMIT)
+	if relic_seed > 0:
+		var with_relic: Dictionary = Bots.play_run(Bots.Strategy.SPEND, state, relic_seed)
+		_check(
+			with_relic == Bots.play_run(Bots.Strategy.SPEND, state, relic_seed),
+			"護符を手に入れるランも同じシードなら同じ結果 (シード %d)" % relic_seed
+		)
+	state.free()
+	_remove_user_file(SELFCHECK_SAVE_PATH)
+
+
+## 護符の定義 (scripts/relics.gd): 6〜10 種で、bannzai が挙げた 2 つ (攻撃 +1・1/2 で減らない) を含み、名前・印・
+## 効果の文がある
+func _check_relic_definitions() -> void:
+	_check(_in_range(Relics.RELICS.size(), RELIC_COUNT_RANGE), "護符が 6〜10 種")
+	_check(
+		Relics.RELICS.has("ember_edge") and Relics.RELICS.has("unburnt_seal"),
+		"攻撃 +1 と 1/2 で減らない護符がある"
+	)
+	var glyphs: Dictionary = {}
+	for relic_id: String in Relics.RELICS:
+		var relic: Dictionary = Relics.RELICS[relic_id]
+		_check(not relic["name"].is_empty() and _is_short_copy(relic["name"]), "護符の名前: %s" % relic_id)
+		_check(not relic["text"].is_empty() and _is_short_copy(relic["text"]), "護符の効果の文: %s" % relic_id)
+		_check(
+			relic["glyph"].length() == 1 and not glyphs.has(relic["glyph"]),
+			"護符の印は 1 字で重ならない: %s" % relic_id
+		)
+		glyphs[relic["glyph"]] = true
+	var all_ids: Array[String] = []
+	all_ids.assign(Relics.RELICS.keys())
+	_check(Relics.pick_unowned(all_ids, 1).is_empty(), "すべて持っていれば手に入る護符は無い")
+	var owned: Array[String] = ["ember_edge"]
+	var picked: String = Relics.pick_unowned(owned, 3)
+	_check(picked == Relics.pick_unowned(owned, 3), "同じシードなら同じ護符を選ぶ")
+	_check(Relics.RELICS.has(picked) and picked != "ember_edge", "持っていない護符から選ぶ")
+
+
+## 戦闘で効く護符: 熾火の刃 (攻撃のダメージ 1 回ごとに +1)、最後の祈り (残り 1 回のカードのダメージと防御 +3)、
+## 蝋の盾 (戦闘の始めの防御)、夜明けの灯芯 (最初のターンだけエネルギー +1)。働いた護符が relic_triggers に残る
+func _check_relic_battle_effects() -> void:
+	var state: RunStateScript = RunStateScript.new()
+	state.new_run(["slash", "twin_flame", "guard"])
+	state.add_relic("ember_edge")
+	var battle: BattleScript = BattleScript.new()
+	battle.start(state, ["skeleton"], 1)
+	var slash_deck: int = 0
+	_check(battle.card_damage(slash_deck) == Cards.CARDS["slash"]["damage"] + 1, "熾火の刃で斬火のダメージ +1")
+	_check(battle.card_block(2) == Cards.CARDS["guard"]["block"], "熾火の刃は防御を変えない")
+	var hp_before: int = battle.enemies[0]["hp"]
+	_check(battle.play(_hand_index_of(battle, state, "twin_flame"), 0), "双つ灯を使える")
+	_check(
+		battle.enemies[0]["hp"] == hp_before - (Cards.CARDS["twin_flame"]["damage"] + 1) * 2,
+		"熾火の刃は複数回の攻撃の 1 回ごとに +1"
+	)
+	_check(battle.relic_triggers == ["ember_edge"], "攻撃のカードで熾火の刃が働く")
+	_check(battle.play(_hand_index_of(battle, state, "guard")), "守りの風を使える")
+	_check(battle.relic_triggers.is_empty(), "防御のカードでは熾火の刃は働かない")
+	# 最後の祈り: 残り 1 回のカードだけ強くなり、使った後 (契約切れ) は元に戻る
+	state.new_run(["slash", "guard"])
+	state.add_relic("last_rite")
+	while state.uses_left(0) > 1:
+		state.use_card(0)
+	battle.start(state, ["skeleton"], 1)
+	_check(battle.card_damage(0) == Cards.CARDS["slash"]["damage"] + 3, "最後の 1 回の斬火はダメージ +3")
+	_check(battle.card_block(1) == Cards.CARDS["guard"]["block"], "残りが 2 回以上なら最後の祈りは効かない")
+	state.deck[1]["uses_left"] = 1
+	_check(battle.card_block(1) == Cards.CARDS["guard"]["block"] + 3, "最後の 1 回の守りの風は防御 +3")
+	_check(battle.play(_hand_index_of(battle, state, "slash"), 0), "最後の 1 回の斬火を使える")
+	_check(battle.relic_triggers == ["last_rite"] and state.uses_left(0) == 0, "最後の祈りが働き、契約切れになる")
+	# 蝋の盾と夜明けの灯芯: 戦闘の始めの防御と最初のターンのエネルギー。次のターンには残らない
+	state.new_run(["guard"])
+	state.add_relic("wax_ward")
+	state.add_relic("dawn_wick")
+	battle.start(state, ["skeleton"], 1)
+	_check(
+		battle.block == 6 and battle.energy == BattleScript.ENERGY_PER_TURN + 1,
+		"戦闘の始めに防御 6・エネルギー +1"
+	)
+	_check(battle.relic_triggers == ["wax_ward", "dawn_wick"], "戦闘の始めに蝋の盾と夜明けの灯芯が働く")
+	battle.enemies[0]["intent"] = {"move": Enemies.Move.GUARD, "value": 1}
+	battle.end_turn()
+	_check(battle.block == 0 and battle.energy == BattleScript.ENERGY_PER_TURN, "2 ターン目は防御 0・エネルギー 3")
+	_check(battle.relic_triggers.is_empty(), "ターンを終えると働いた護符は空になる")
+	state.free()
+
+
+## 焼けぬ封蝋: 判定は地図のシードと通し番号だけで決まり、1000 回で 4〜6 割が減らない。精霊のカードを残り 2 回
+## 以上で使った時だけ判定を引き (通し番号が進む)、英霊と最後の 1 回は必ず減る。持っていなければ判定を引かない
+func _check_unburnt_seal() -> void:
+	var spared: int = 0
+	var differs: bool = false
+	for roll_index: int in range(SPARE_ROLLS):
+		var result: bool = Relics.roll_spare(BOT_SEED, roll_index)
+		_check(result == Relics.roll_spare(BOT_SEED, roll_index), "同じシードと通し番号なら同じ判定 (%d)" % roll_index)
+		spared += 1 if result else 0
+		differs = differs or result != Relics.roll_spare(BOT_SEED + 1, roll_index)
+	_check(
+		_in_range(float(spared) / SPARE_ROLLS, SPARE_RATE_RANGE),
+		"1000 回で 4〜6 割が減らない (%d 回)" % spared
+	)
+	_check(differs, "地図のシードが違えば判定の並びも違う")
+	var state: RunStateScript = RunStateScript.new()
+	state.new_run(["slash", "hero_strike"], BOT_SEED)
+	_check(not state.spares_use(0) and state.relic_rolls == 0, "護符を持っていなければ判定を引かない")
+	state.add_relic("unburnt_seal")
+	_check(not state.spares_use(1) and state.relic_rolls == 0, "英霊には効かず判定を引かない")
+	var expected: bool = Relics.roll_spare(BOT_SEED, 0)
+	_check(state.spares_use(0) == expected and state.relic_rolls == 1, "精霊は判定を引き、結果はシードと通し番号のとおり")
+	state.deck[0]["uses_left"] = 1
+	_check(not state.spares_use(0) and state.relic_rolls == 1, "最後の 1 回には効かず判定を引かない")
+	# 戦闘で使うと、判定が減らないと出た時だけ残りが減らず、焼けぬ封蝋が働いたと残る
+	state.new_run(["slash"], BOT_SEED)
+	state.add_relic("unburnt_seal")
+	var battle: BattleScript = BattleScript.new()
+	for turn: int in range(Cards.CARDS["slash"]["max_uses"]):
+		battle.start(state, ["skeleton"], turn)
+		var uses_before: int = state.uses_left(0)
+		var will_spare: bool = uses_before >= 2 and Relics.roll_spare(BOT_SEED, state.relic_rolls)
+		battle.play(0, 0)
+		_check(
+			state.uses_left(0) == uses_before - (0 if will_spare else 1),
+			"減らないのは判定が出た時だけ (%d 回目)" % turn
+		)
+		_check(battle.relic_triggers.has("unburnt_seal") == will_spare, "減らなかった時だけ焼けぬ封蝋が働いたと残る")
+	state.free()
+
+
+## 護符の手に入る経路と、戦闘の外で効く護符: 強敵に勝つと持っていない護符を 1 つ得る (通常の戦闘では得ない)、
+## 巡礼の数珠と旅の銭袋で勝った時の体力と所持金が増える、商人で護符を 1 訪問に 1 つ買え、繕いの帳面で回数を戻す
+## 値段が下がる
+func _check_relic_sources() -> void:
+	_remove_user_file(SELFCHECK_SAVE_PATH)
+	var state: RunStateScript = RunStateScript.new()
+	state.save_path = SELFCHECK_SAVE_PATH
+	state.new_run([], BOT_SEED)
+	var battle_at: Vector2i = Vector2i(0, state.rows[0][0]["column"])
+	state.path = ActMap.route_to(state.rows, battle_at.x, battle_at.y)
+	state.phase = RunStateScript.Phase.BATTLE
+	RunFlow.finish_battle(state, true)
+	_check(state.relics.is_empty(), "通常の戦闘では護符を得ない")
+	var elite: Vector2i = ActMap.find_kind(state.rows, ActMap.Kind.ELITE)
+	state.path = ActMap.route_to(state.rows, elite.x, elite.y)
+	state.phase = RunStateScript.Phase.BATTLE
+	state.add_relic("pilgrim_beads")
+	state.add_relic("coin_pouch")
+	state.hp = 10
+	var gold_before: int = state.gold
+	var relic_seed: int = state.node_seed() + NodeRules.RELIC_SEED_OFFSET
+	var expected: String = Relics.pick_unowned(state.relics, relic_seed)
+	RunFlow.finish_battle(state, true)
+	_check(state.relics.size() == 3 and state.relics.back() == expected, "強敵に勝つと持っていない護符を 1 つ得る")
+	_check(NodeRules.elite_relic(state) == expected, "報酬の画面に見せる護符は強敵で得た護符")
+	_check(state.hp == 10 + NodeRules.BATTLE_HEAL + 4, "巡礼の数珠で勝った時の体力の回復 +4")
+	_check(
+		state.gold == gold_before + NodeRules.reward_gold(state.node_seed(), ActMap.Kind.ELITE) + 8,
+		"旅の銭袋で勝った時の所持金 +8"
+	)
+	state.visit = {}
+	state.gold = NodeRules.RELIC_PRICE * 2
+	var offered: String = NodeRules.shop_relic(state)
+	_check(not state.relics.has(offered), "商人には持っていない護符が並ぶ")
+	_check(NodeRules.buy_relic(state) and state.relics.has(offered), "商人で護符を買える")
+	_check(state.gold == NodeRules.RELIC_PRICE, "護符の値段の分だけ所持金が減る")
+	_check(
+		NodeRules.shop_relic(state) == offered and not NodeRules.buy_relic(state),
+		"買った後は同じ護符が売り切れで、2 つ目は買えない"
+	)
+	_check(NodeRules.restore_price(state) == NodeRules.RESTORE_PRICE, "繕いの帳面が無ければ回数を戻す値段は元のまま")
+	state.add_relic("mended_ledger")
+	_check(NodeRules.restore_price(state) == 20, "繕いの帳面で回数を戻す値段が 20")
 	state.free()
 	_remove_user_file(SELFCHECK_SAVE_PATH)
 

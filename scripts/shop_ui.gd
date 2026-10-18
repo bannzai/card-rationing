@@ -1,5 +1,5 @@
 extends Control
-## 商人の画面。所持金を払って、カードを買う・1 枚の残り使用回数を最大まで戻す・1 枚を外す。済ませたら
+## 商人の画面。所持金を払って、カードを買う・護符を買う・1 枚の残り使用回数を最大まで戻す・1 枚を外す。済ませたら
 ## 「立ち去る」で地図へ戻る。処理と値段は scripts/node_rules.gd、選んでいる途中の画面 (戻す・外すカードを
 ## 選んでいるか) だけをここに持つ。
 
@@ -21,8 +21,9 @@ var mode: Mode = Mode.GOODS
 ## 今の段階の画面の中身 (段階が変わるたびや買うたびに作り直す)
 var content: VBoxContainer = null
 var status_label: Label = null
-## 品物の段階のボタン: カード ID → 買うボタン、戻す・外す・立ち去るボタン
+## 品物の段階のボタン: カード ID → 買うボタン、護符 (並ぶ護符が無ければ null)・戻す・外す・立ち去るボタン
 var card_buttons: Dictionary = {}
+var relic_button: Button = null
 var restore_button: Button = null
 var remove_button: Button = null
 var leave_button: Button = null
@@ -50,13 +51,15 @@ func show_mode(next_mode: Mode) -> void:
 	status_label.text = UiKit.status_text(run_state)
 	UiKit.clear_children(content)
 	card_buttons = {}
+	relic_button = null
 	deck_grid = null
 	match mode:
 		Mode.GOODS:
 			_build_goods()
 		Mode.RESTORE:
 			UiKit.add_label(
-				content, "残り使用回数を最大まで戻すカードを選ぶ (値段 %d)" % NodeRules.RESTORE_PRICE
+				content,
+				"残り使用回数を最大まで戻すカードを選ぶ (値段 %d)" % NodeRules.restore_price(run_state)
 			)
 			deck_grid = UiKit.add_deck_grid(
 				content,
@@ -85,6 +88,12 @@ func buy(card_id: String) -> void:
 		show_mode(Mode.GOODS)
 
 
+## 並んだ護符を買う
+func buy_relic() -> void:
+	if NodeRules.buy_relic(run_state):
+		show_mode(Mode.GOODS)
+
+
 ## デッキの index 番目のカードの残り使用回数を戻す (回数の回復の効果音を鳴らす)
 func restore(index: int) -> void:
 	if NodeRules.buy_restore(run_state, index):
@@ -103,7 +112,7 @@ func leave() -> void:
 	RunFlow.leave_node(run_state)
 
 
-## 売り物のカード 3 枚と、戻す・外す・立ち去るボタン。買えないもの (売り切れ・所持金が足りない・この訪問で
+## 売り物のカード 3 枚と、護符・戻す・外す・立ち去るボタン。買えないもの (売り切れ・所持金が足りない・この訪問で
 ## 済ませた) は押せない
 func _build_goods() -> void:
 	var row: HBoxContainer = UiKit.add_card_row(content)
@@ -114,15 +123,24 @@ func _build_goods() -> void:
 		var button: Button = UiKit.add_offer_card(row, card_id, note, buy.bind(card_id))
 		button.disabled = sold.has(card_id) or run_state.gold < price
 		card_buttons[card_id] = button
+	var relic_id: String = NodeRules.shop_relic(run_state)
+	if not relic_id.is_empty():
+		var relic_sold: bool = run_state.visit.has("relic_sold")
+		var price_note: String = "売り切れ" if relic_sold else "値段 %d" % NodeRules.RELIC_PRICE
+		relic_button = UiKit.add_button(
+			content, "護符%s (%s)" % [UiKit.relic_text(relic_id), price_note], buy_relic
+		)
+		relic_button.disabled = relic_sold or run_state.gold < NodeRules.RELIC_PRICE
+	var restore_price: int = NodeRules.restore_price(run_state)
 	restore_button = UiKit.add_button(
 		content,
-		"1 枚の残り使用回数を最大まで戻す (値段 %d)" % NodeRules.RESTORE_PRICE,
+		"1 枚の残り使用回数を最大まで戻す (値段 %d)" % restore_price,
 		show_mode.bind(Mode.RESTORE)
 	)
 	# 戻せるカード (残りの減ったカード) が無ければ押せない (契約の祠の更新と同じ)
 	restore_button.disabled = (
 		run_state.visit.has("restored")
-		or run_state.gold < NodeRules.RESTORE_PRICE
+		or run_state.gold < restore_price
 		or not range(run_state.deck.size()).any(
 			func(index: int) -> bool: return NodeRules.can_restore(run_state, index)
 		)

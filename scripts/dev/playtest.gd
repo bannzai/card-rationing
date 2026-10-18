@@ -19,7 +19,6 @@ const EventUiScript := preload("res://scripts/event_ui.gd")
 const HeadlessCheck := preload("res://scripts/dev/headless_check.gd")
 const MainScript := preload("res://scripts/main.gd")
 const MapUiScript := preload("res://scripts/map_ui.gd")
-const NodeRules := preload("res://scripts/node_rules.gd")
 const ResultUiScript := preload("res://scripts/result_ui.gd")
 const RewardUiScript := preload("res://scripts/reward_ui.gd")
 const RunStateScript := preload("res://scripts/run_state.gd")
@@ -236,10 +235,12 @@ func _visit_shop() -> bool:
 	var shop: ShopUiScript = main.screen as ShopUiScript
 	if shop == null:
 		return _fail("商人の画面が出ない")
-	for _purchase: int in range(NodeRules.OFFER_COUNT + 1):
+	for _purchase: int in range(Bots.SHOP_PURCHASE_LIMIT):
 		var purchase: Dictionary = Bots.next_purchase(run_state)
 		var card_id: String = purchase["card_id"]
-		if not card_id.is_empty():
+		if purchase["relic"]:
+			shop.buy_relic()
+		elif not card_id.is_empty():
 			shop.buy(card_id)
 		elif purchase["restore_index"] >= 0:
 			shop.restore(purchase["restore_index"])

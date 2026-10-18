@@ -60,6 +60,8 @@ const STRONG_STRENGTH: float = 6.0
 ## 1 回の戦闘のターンの上限 (判断の不具合で戦闘が終わらない時に止める)。決めた時のボス (体力 150) をもがくだけ
 ## (1 ターン 6 ダメージ) で倒す 25 ターンの 4 倍。issue #33 でボスの体力を下げた後も、余裕が増えるだけなので変えない
 const TURN_LIMIT: int = 100
+## 商人の 1 回の訪問で買える品の数の上限 (並んだカード・護符 1 つ・回数を戻す 1 回)。買う手を繰り返す回数の上限に使う
+const SHOP_PURCHASE_LIMIT: int = NodeRules.OFFER_COUNT + 2
 
 
 ## 戦闘で次に取る 1 手。{"move": BattleMove, "hand_index": 使う手札の index, "target": 狙う敵の index}
@@ -96,7 +98,7 @@ static func choose_column(state: RunStateScript) -> int:
 	for column: int in ActMap.next_columns(state.rows, state.path):
 		var kind: int = ActMap.node_at(state.rows, state.path.size(), column)["kind"]
 		var rank: float = KIND_PRIORITY.find(kind)
-		if kind == ActMap.Kind.SHOP and state.gold < NodeRules.RESTORE_PRICE:
+		if kind == ActMap.Kind.SHOP and state.gold < NodeRules.restore_price(state):
 			rank = KIND_PRIORITY.find(ActMap.Kind.BATTLE) + 0.5
 		if rank < best_rank:
 			best_rank = rank
@@ -120,11 +122,18 @@ static func choose_shrine(state: RunStateScript) -> Dictionary:
 	return {"renew_index": -1, "card_id": card_id}
 
 
-## 商人で次に買うもの。{"card_id": 買うカード (空文字なら買わない), "restore_index": 残り使用回数を戻す
-## デッキの index (-1 なら戻さない)}。買えるもののうち、所持金 1 あたりに得る強さの合計が最も大きいものを選び、
-## 買えるものが無ければどちらも無しを返す (立ち去る)。外すは選ばない (回数の合計が減るため)
+## 商人で次に買うもの。{"relic": 護符を買うか, "card_id": 買うカード (空文字なら買わない), "restore_index": 残り
+## 使用回数を戻すデッキの index (-1 なら戻さない)}。並んだ護符が買えれば先に買う (ランの残りずっと効くため)。
+## ほかは買えるもののうち、所持金 1 あたりに得る強さの合計が最も大きいものを選び、買えるものが無ければすべて無しを
+## 返す (立ち去る)。外すは選ばない (回数の合計が減るため)
 static func next_purchase(state: RunStateScript) -> Dictionary:
-	var best: Dictionary = {"card_id": "", "restore_index": -1}
+	var best: Dictionary = {"relic": false, "card_id": "", "restore_index": -1}
+	var relic_open: bool = (
+		not NodeRules.shop_relic(state).is_empty() and not state.visit.has("relic_sold")
+	)
+	if relic_open and state.gold >= NodeRules.RELIC_PRICE:
+		best["relic"] = true
+		return best
 	var best_rate: float = 0.0
 	var sold: Array = state.visit.get("sold", [])
 	for card_id: String in NodeRules.card_offers(state.node_seed()):
@@ -134,15 +143,17 @@ static func next_purchase(state: RunStateScript) -> Dictionary:
 		var card_rate: float = _contract_gain(card_id) / price
 		if card_rate > best_rate:
 			best_rate = card_rate
-			best = {"card_id": card_id, "restore_index": -1}
+			best["card_id"] = card_id
 	var restore_index: int = _best_restore(state)
+	var restore_price: int = NodeRules.restore_price(state)
 	if (
 		restore_index >= 0
 		and not state.visit.has("restored")
-		and state.gold >= NodeRules.RESTORE_PRICE
-		and _restore_gain(state, restore_index) / NodeRules.RESTORE_PRICE > best_rate
+		and state.gold >= restore_price
+		and _restore_gain(state, restore_index) / restore_price > best_rate
 	):
-		best = {"card_id": "", "restore_index": restore_index}
+		best["card_id"] = ""
+		best["restore_index"] = restore_index
 	return best
 
 
@@ -275,7 +286,7 @@ static func is_run_over(state: RunStateScript) -> bool:
 
 
 ## 今のランの結果。{"cleared": 踏破したか, "floor": 到達した階層, "exhausted": 契約を使い切った回数,
-## "unused_strong": 残り使用回数が 1 以上残っている強いカードの枚数}
+## "unused_strong": 残り使用回数が 1 以上残っている強いカードの枚数, "relics": 持っていた護符の数}
 static func run_result(state: RunStateScript) -> Dictionary:
 	var unused_strong: int = 0
 	for index: int in range(state.deck.size()):
@@ -286,6 +297,7 @@ static func run_result(state: RunStateScript) -> Dictionary:
 		"floor": state.path.size(),
 		"exhausted": state.exhausted_count,
 		"unused_strong": unused_strong,
+		"relics": state.relics.size(),
 	}
 
 
@@ -324,12 +336,14 @@ static func _advance(strategy: int, state: RunStateScript, counts: Dictionary) -
 			RunFlow.leave_node(state)
 
 
-## 商人で、買うものが無くなるまで買う。1 回の訪問で買えるのは、並んだカードと回数を戻す 1 回まで
+## 商人で、買うものが無くなるまで買う。1 回の訪問で買えるのは、並んだカード・護符と回数を戻す 1 回まで
 static func _shop(state: RunStateScript) -> void:
-	for _purchase: int in range(NodeRules.OFFER_COUNT + 1):
+	for _purchase: int in range(SHOP_PURCHASE_LIMIT):
 		var purchase: Dictionary = next_purchase(state)
 		var card_id: String = purchase["card_id"]
-		if not card_id.is_empty():
+		if purchase["relic"]:
+			NodeRules.buy_relic(state)
+		elif not card_id.is_empty():
 			NodeRules.buy_card(state, card_id)
 		elif purchase["restore_index"] >= 0:
 			NodeRules.buy_restore(state, purchase["restore_index"])
@@ -356,7 +370,7 @@ static func _spends_low_uses(strategy: int, battle: Battle, state: RunStateScrip
 
 ## デッキの deck_index 番目のカードを今使った時の効果の点数と、狙う敵。{"value": 点数, "target": 敵の index
 ## (対象を取らないカードは -1)}。点数は、敵の体力を減らす量 + 防ぐダメージ × GUARD_WEIGHT (倒した敵が予告していた
-## 攻撃を含む) + 引く枚数とエネルギーの点 (Cards.strength() と同じ点)。引く効果は、引いたカードを使う
+## 攻撃を含む) + 引く枚数とエネルギーの点 (Cards.strength() と同じ点)。ダメージと防御は護符を足した値。引く効果は、引いたカードを使う
 ## エネルギーが残り、使う前の山札か捨て札にカードがある時だけ数える (どちらも空なら、使ったカード自身を引き直すだけ)
 static func _play_value(battle: Battle, state: RunStateScript, deck_index: int) -> Dictionary:
 	var card: Dictionary = state.card(deck_index)
@@ -364,7 +378,7 @@ static func _play_value(battle: Battle, state: RunStateScript, deck_index: int) 
 	var value: float = 0.0
 	var target: int = -1
 	if card.has("damage"):
-		var damage: int = card["damage"] * card.get("hits", 1)
+		var damage: int = battle.card_damage(deck_index) * card.get("hits", 1)
 		var best_hit: float = -1.0
 		for enemy_index: int in battle.alive_enemies():
 			var hit: float = _attack_value(battle.enemies[enemy_index], damage, incoming)
@@ -376,7 +390,7 @@ static func _play_value(battle: Battle, state: RunStateScript, deck_index: int) 
 		if target >= 0:
 			value += best_hit
 	if card.has("block"):
-		value += mini(card["block"], incoming) * GUARD_WEIGHT
+		value += mini(battle.card_block(deck_index), incoming) * GUARD_WEIGHT
 	var energy_after: int = battle.energy - card["cost"] + card.get("energy", 0)
 	var can_draw: bool = not (battle.draw_pile.is_empty() and battle.discard_pile.is_empty())
 	if card.has("draw") and energy_after > 0 and can_draw:

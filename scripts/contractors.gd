@@ -18,7 +18,7 @@ const CONTRACTORS: Dictionary = {
 			"消えかけた祠の灯を継ぐために巡礼に出た灯守りの娘。"
 			+ "幼いころ誰かに結ばされた印で、小さな精霊と二柱の英霊を呼ぶ。"
 		),
-		"max_hp": 40,
+		"max_hp": 44,
 		"trait_name": "灯守り",
 		"win_restore": 1,
 		"starter_deck":
@@ -26,7 +26,7 @@ const CONTRACTORS: Dictionary = {
 			"slash",
 			"slash",
 			"slash",
-			"slash",
+			"ash_fang",
 			"guard",
 			"guard",
 			"guard",

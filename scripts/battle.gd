@@ -8,11 +8,12 @@ extends RefCounted
 enum Outcome { NONE, WIN, LOSE }
 
 const Cards := preload("res://scripts/cards.gd")
+const Contractors := preload("res://scripts/contractors.gd")
 const Enemies := preload("res://scripts/enemies.gd")
 const RunStateScript := preload("res://scripts/run_state.gd")
 
-## 毎ターンの開始で得るエネルギーと引く枚数。issue #6 の指定 (Slay the Spire 型の定番の値で、手札 5 枚に
-## 対してコスト 1 のカードを 3 枚使える比率)。数値は自動テストプレイ (#10) の結果で見直す
+## 毎ターンの開始で得るエネルギーと引く枚数の基準 (契約者の個性で足す前の値)。issue #6 の指定 (Slay the Spire 型の
+## 定番の値で、手札 5 枚に対してコスト 1 のカードを 3 枚使える比率)。数値は自動テストプレイ (#10) の結果で見直す
 const ENERGY_PER_TURN: int = 3
 const HAND_SIZE: int = 5
 ## 常に使える基本行動「もがく」のコストとダメージ (使えるカードが無くても詰まないための行動。
@@ -74,12 +75,22 @@ func start(state: RunStateScript, enemy_ids: Array[String], seed_value: int) -> 
 	start_turn()
 
 
-## 巡礼者のターンの開始: エネルギーを戻し、防御を消し、HAND_SIZE 枚引く
+## 巡礼者のターンの開始: エネルギーを energy_per_turn() に戻し、防御を消し、hand_size() 枚引く
 func start_turn() -> void:
 	turn += 1
-	energy = ENERGY_PER_TURN
+	energy = energy_per_turn()
 	block = 0
-	draw(HAND_SIZE)
+	draw(hand_size())
+
+
+## 毎ターンの開始で得るエネルギー (基準に契約者の個性 energy_bonus を足す)
+func energy_per_turn() -> int:
+	return ENERGY_PER_TURN + Contractors.trait_value(run_state.character_id, "energy_bonus")
+
+
+## 毎ターンの開始で引く枚数 (基準に契約者の個性 hand_bonus を足す)
+func hand_size() -> int:
+	return HAND_SIZE + Contractors.trait_value(run_state.character_id, "hand_bonus")
 
 
 ## count 枚引く。山札が尽きたら捨て札を混ぜ直す。両方空なら引ける分だけで止める。引いた枚数を返す

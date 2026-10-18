@@ -37,9 +37,18 @@
 
 ### `art/pilgrim.png`
 
-- 用途: 巡礼者 (プレイヤー) の立ち絵 (戦闘・契約者の選択)
+- 用途: 契約者「灯持ちのユラ」の立ち絵 (戦闘・契約者の選択)
 - 改変: 透過の余白を除き、高さ 560 に縮小した
 - プロンプト: Game character sprite for a 2D deck-building roguelike, hand-painted dark fantasy illustration with visible brush strokes and paper grain: a hooded pilgrim, full body from head to feet, standing in three-quarter view facing right, holding a tall wooden staff hung with wax-sealed contract scrolls and a small candle lantern, worn brown and grey travel robes with a dark red sash, face in shadow under the hood. Lit by warm candle orange from the right with deep indigo shadows. Fully transparent background (PNG with alpha channel), nothing else in the image, no ground, no cast shadow. No legible text or numbers, no metal or chrome or neon gloss, no 3D render, no anime style.
+
+### `art/pilgrim_shion.png`・`art/pilgrim_kagari.png`
+
+- 用途: 契約者の立ち絵 (戦闘・契約者の選択)。`pilgrim_shion.png` は「綴り手のシオン」、`pilgrim_kagari.png` は「熾火のカガリ」
+- 生成: 2026-10-19 に OpenAI Codex CLI v0.162.1 の組み込み画像生成 (モデルは gpt-6-astra) で、game-art-reference skill の `generate-reference.sh` (`--generator imagegen --aspect-ratio 2:3 --quality medium`。参考画像は渡していない) から生成した。利用規約上の帰属は上の「生成した絵」と同じ
+- 改変: ImageMagick 7 で透過の余白を除き、高さ 560 に縮小した (`art/pilgrim.png` と同じ)
+- プロンプト: `art/pilgrim.png` のプロンプトの人物の描写 (「a hooded pilgrim」から「face in shadow under the hood.」まで) だけを次に置き換えた
+  - `pilgrim_shion.png`: a slender hooded scribe, full body from head to feet, standing in three-quarter view facing right, holding open a thick leather-bound book of contracts with loose pages and red wax-sealed ribbons spilling out, a quill and a small ink pot hung at the belt, layered dark indigo and grey travel robes with a dark red sash, face in shadow under the hood.
+  - `pilgrim_kagari.png`: a sturdy hooded fire-tender, full body from head to feet, standing in three-quarter view facing right, carrying a clay brazier of glowing embers hung from a wooden yoke over one shoulder, a short travel cloak with singed edges, cloth-wrapped forearms, worn brown robes with a dark red sash, face in shadow under the hood.
 
 ### `art/enemy_normal.png`
 

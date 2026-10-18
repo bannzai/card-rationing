@@ -67,7 +67,6 @@ func _ready() -> void:
 	if run_state == null or audio == null:
 		push_error("autoload RunState か Audio が無い")
 	($Background as TextureRect).texture = Art.BATTLE_BG
-	pilgrim.texture = Art.PILGRIM
 	pilgrim_base = pilgrim.position
 	message_label.add_theme_color_override("font_color", Art.CANDLE)
 	struggle_button.pressed.connect(request_struggle)
@@ -94,8 +93,9 @@ func _unhandled_key_input(event: InputEvent) -> void:
 		cancel_target()
 
 
-## 今いる節点の敵と seed_value で戦闘を始める
+## 今いる節点の敵と seed_value で戦闘を始める (巡礼者の絵は巡礼に出ている契約者の立ち絵)
 func start_battle(seed_value: int) -> void:
+	pilgrim.texture = Art.PORTRAITS[run_state.character_id]
 	battle = Battle.new()
 	battle.start(run_state, RunFlow.encounter(run_state), seed_value)
 	pending_hand_index = -1
@@ -182,9 +182,9 @@ func refresh() -> void:
 		"第 %d 幕 %d 階 %s"
 		% [run_state.act, maxi(1, run_state.path.size()), ActMap.KIND_NAMES[kind]]
 	)
-	# カードの効果でエネルギーが 1 ターンの分を超えたら、蝋燭を増やして見せる (増えた分は蝋燭を縮め、手札の
-	# 行にはみ出さないようにする)
-	var candles: int = maxi(battle.energy, Battle.ENERGY_PER_TURN)
+	# カードの効果でエネルギーが 1 ターンの分 (契約者の個性で増えた分を含む) を超えたら、蝋燭を増やして見せる
+	# (基準の本数を超えた分は蝋燭を縮め、手札の行にはみ出さないようにする)
+	var candles: int = maxi(battle.energy, battle.energy_per_turn())
 	Art.set_icons(
 		energy_row,
 		Art.CANDLE_LIT,
@@ -193,7 +193,7 @@ func refresh() -> void:
 		candles,
 		CANDLE_SIZE * minf(1.0, float(Battle.ENERGY_PER_TURN) / candles)
 	)
-	energy_label.text = "エネルギー %d / %d" % [battle.energy, Battle.ENERGY_PER_TURN]
+	energy_label.text = "エネルギー %d / %d" % [battle.energy, battle.energy_per_turn()]
 	Art.set_icons(
 		health_row,
 		Art.BEAD,

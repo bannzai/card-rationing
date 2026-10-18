@@ -16,8 +16,12 @@ const FONT: Font = preload("res://assets/fonts/ShipporiMincho-SemiBold.ttf")
 const BATTLE_BG: Texture2D = preload("res://assets/art/battle_bg.jpg")
 const BACKDROP: Texture2D = preload("res://assets/art/backdrop.jpg")
 const TITLE: Texture2D = preload("res://assets/art/title.jpg")
-## 巡礼者 (プレイヤー) の立ち絵
-const PILGRIM: Texture2D = preload("res://assets/art/pilgrim.png")
+## 契約者 ID (scripts/contractors.gd の CONTRACTORS のキー) → 巡礼者 (プレイヤー) の立ち絵 (戦闘・契約者の選択)
+const PORTRAITS: Dictionary = {
+	"yura": preload("res://assets/art/pilgrim.png"),
+	"shion": preload("res://assets/art/pilgrim_shion.png"),
+	"kagari": preload("res://assets/art/pilgrim_kagari.png"),
+}
 ## カードの枠 (内側は白紙の羊皮紙) と、契約切れのカードから色を抜くシェーダー
 const CARD_FRAME: Texture2D = preload("res://assets/art/card_frame.png")
 const ASHEN_SHADER: Shader = preload("res://assets/shaders/ashen.gdshader")

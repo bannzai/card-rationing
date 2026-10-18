@@ -348,9 +348,10 @@ func _check_events() -> void:
 		for option: Dictionary in event["options"]:
 			effects[option["effect"]] = true
 			_check(not option["label"].is_empty(), "選択肢の文: %s" % event_id)
-	_check(Events.EVENTS.size() >= 2 and Events.EVENTS.size() <= 3, "出来事は 2〜3 種")
+	_check(Events.EVENTS.size() >= 2 and Events.EVENTS.size() <= 4, "出来事は 2〜4 種")
 	_check(effects.has(Events.Effect.SWAP), "デッキの入れ替えの出来事がある")
 	_check(effects.has(Events.Effect.BLOOD_RESTORE), "代償と引き換えの回復の出来事がある")
+	_check(effects.has(Events.Effect.RAISE_HERO), "最大使用回数を増やす出来事がある")
 	var first_event: String = Events.event_for(9)
 	var second_event: String = Events.event_for(9)
 	_check(first_event == second_event, "同じシードなら同じ出来事")

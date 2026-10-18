@@ -467,7 +467,7 @@ static func _contract_gain(card_id: String) -> float:
 
 ## デッキの index 番目のカードの残り使用回数を最大まで戻して取り戻す強さの合計 (強さ × 減っている回数)
 static func _restore_gain(state: RunStateScript, index: int) -> float:
-	var missing: int = state.card(index)["max_uses"] - state.uses_left(index)
+	var missing: int = state.max_uses(index) - state.uses_left(index)
 	return Cards.strength(state.deck[index]["id"]) * missing
 
 
@@ -484,11 +484,21 @@ static func _best_restore(state: RunStateScript) -> int:
 
 
 ## 出来事の effect の選択肢で選ぶデッキの index の並び。契約の入れ替えは残りの強さの合計 (強さ × 残り使用回数)
-## が小さい順に手放す枚数、体力と引き換えの回復は取り戻す強さの合計が最も大きい 1 枚、ほかは空
+## が小さい順に手放す枚数、体力と引き換えの回復は取り戻す強さの合計が最も大きい 1 枚、最大使用回数を増やす
+## 選択肢は増やせるカードのうち強さが最も大きい 1 枚 (同じ強さはデッキの前のもの)、ほかは空
 static func _event_picks(state: RunStateScript, effect: int) -> Array[int]:
 	var picks: Array[int] = []
 	if effect == Events.Effect.BLOOD_RESTORE and _best_restore(state) >= 0:
 		picks.append(_best_restore(state))
+	if Events.RAISE_BONDS.has(effect):
+		var strongest: int = -1
+		for index: int in range(state.deck.size()):
+			if not Events.can_pick(state, effect, index):
+				continue
+			if strongest < 0 or _card_strength(state, index) > _card_strength(state, strongest):
+				strongest = index
+		if strongest >= 0:
+			picks.append(strongest)
 	if effect == Events.Effect.SWAP:
 		for _pick: int in range(mini(Events.SWAP_PICKS, state.deck.size())):
 			var lowest: int = -1
@@ -503,8 +513,11 @@ static func _event_picks(state: RunStateScript, effect: int) -> Array[int]:
 
 
 ## 出来事の effect の選択肢を picks で選びたいか。契約の入れ替えは、得る英霊の強さの合計が、手放すカードの
-## 残りの強さの合計より大きい時だけ。体力と引き換えの回復は、払った後の体力が最大の HEAVY_HP_RATE を超える時だけ
+## 残りの強さの合計より大きい時だけ。体力と引き換えの回復と英霊の最大使用回数を増やすのは、払った後の体力が最大の
+## HEAVY_HP_RATE を超える時だけ。精霊の最大使用回数を増やすのは、所持金が足りればいつでも (Events.can_choose() が見る)
 static func _wants_event_option(state: RunStateScript, effect: int, picks: Array[int]) -> bool:
+	if effect == Events.Effect.RAISE_HERO:
+		return state.hp - Events.RAISE_HERO_PRICE > state.max_hp * HEAVY_HP_RATE
 	if effect == Events.Effect.SWAP:
 		var released: float = 0.0
 		for index: int in picks:
@@ -518,4 +531,9 @@ static func _wants_event_option(state: RunStateScript, effect: int, picks: Array
 
 ## デッキの index 番目のカードの残りの強さの合計 (強さ × 残り使用回数)
 static func _remaining_strength(state: RunStateScript, index: int) -> float:
-	return Cards.strength(state.deck[index]["id"]) * state.uses_left(index)
+	return _card_strength(state, index) * state.uses_left(index)
+
+
+## デッキの index 番目のカードの強さ
+static func _card_strength(state: RunStateScript, index: int) -> float:
+	return Cards.strength(state.deck[index]["id"])

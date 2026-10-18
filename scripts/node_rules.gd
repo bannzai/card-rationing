@@ -25,7 +25,8 @@ const OFFER_SEED_OFFSET: int = 1
 ## 品揃えを変える階の帯 (1 幕の地図の段を前半・中盤・後半に等分する) の数
 const OFFER_BANDS: int = 3
 ## 品揃えに並ぶ確率の重み。精霊はどの帯でも SPIRIT_OFFER_WEIGHT、英霊は帯 (前半・中盤・後半の順) ごとの段の
-## 重み。どの帯も英霊の重みの合計を 10 (精霊 1 枚の 10 倍) にして、英霊が並ぶ割合を帯で変えない
+## 重み。どの帯も英霊の重みの合計を 10 (精霊 1 枚の 10 倍) にして、品揃えの 1 枚目が英霊になる確率を
+## 帯で変えない (引いたカードを戻さないので、2 枚目以降は帯でわずかに変わる)
 const SPIRIT_OFFER_WEIGHT: int = 1
 const HERO_OFFER_WEIGHTS: Array[Dictionary] = [
 	{Cards.Tier.LOWER: 2, Cards.Tier.MIDDLE: 1, Cards.Tier.UPPER: 0},

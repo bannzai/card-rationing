@@ -70,7 +70,7 @@ const CONTRACTORS: Dictionary = {
 			"祠の火を絶やさぬよう熾火を担いで歩く火守り。"
 			+ "火の気で精霊を急き立てて多く命じるが、そのぶん契約も早く尽きる。"
 		),
-		"max_hp": 34,
+		"max_hp": 26,
 		"trait_name": "熾火",
 		"energy_bonus": 1,
 		"starter_deck":

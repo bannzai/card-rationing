@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>ボス戦前の会話</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 1280px; height: 720px; box-sizing: border-box; overflow: hidden; position: relative; font-family: 'Zen Kaku Gothic New', sans-serif; color: #e9e6de; background: #0b0e13; display: flex; flex-direction: column">
+
+  <div style="height: 480px; flex: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px; padding-top: 24px; box-sizing: border-box">
+    <svg width="300" height="300" viewBox="0 0 320 320" fill="none" stroke="#d4553a" stroke-width="2" aria-hidden="true">
+      <circle cx="160" cy="160" r="150"></circle>
+      <circle cx="160" cy="160" r="128" stroke-dasharray="2 10"></circle>
+      <polygon points="160,10 310,160 160,310 10,160"></polygon>
+      <circle cx="160" cy="160" r="106"></circle>
+      <polygon points="160,54 266,160 160,266 54,160"></polygon>
+      <circle cx="160" cy="160" r="44"></circle>
+      <polygon points="160,136 184,160 160,184 136,160" fill="#d4553a"></polygon>
+      <circle cx="160" cy="10" r="6" fill="#0b0e13"></circle>
+      <circle cx="310" cy="160" r="6" fill="#0b0e13"></circle>
+      <circle cx="160" cy="310" r="6" fill="#0b0e13"></circle>
+      <circle cx="10" cy="160" r="6" fill="#0b0e13"></circle>
+    </svg>
+    <div style="font-family: 'Shippori Mincho', serif; font-weight: 700; font-size: 28px; line-height: 1.3; letter-spacing: 0.12em; color: #e9e6de">灰冠の番人</div>
+  </div>
+
+  <div style="flex: 1; display: flex; flex-direction: column; gap: 10px; padding: 0 64px 36px; box-sizing: border-box; min-height: 0">
+    <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; line-height: 1.4; color: #a7adb6">
+      <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+        <polygon points="6,1 11,6 6,11 1,6" fill="#d4553a"></polygon>
+      </svg>
+      <span>残りの契約</span>
+      <span>合計 <span style="font-weight: 700; color: #e9e6de">46</span> 回</span>
+    </div>
+
+    <div style="flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr auto; gap: 24px; background: #1a2029; border: 1px solid #2c3542; border-radius: 8px; padding: 24px; box-sizing: border-box">
+      <div style="display: flex; flex-direction: column; gap: 12px; min-width: 0">
+        <div style="display: flex; align-items: center; gap: 10px; font-family: 'Shippori Mincho', serif; font-weight: 700; font-size: 16px; line-height: 1.4; letter-spacing: 0.08em; color: #a7adb6">
+          <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+            <polygon points="5,0.5 9.5,5 5,9.5 0.5,5" fill="#d4553a"></polygon>
+          </svg>
+          <span>灰冠の番人</span>
+        </div>
+        <p style="margin: 0; font-family: 'Shippori Mincho', serif; font-weight: 600; font-size: 22px; line-height: 1.7; color: #e9e6de">その印、あの方に結ばされたものだな。残った契約で、ここを越えられると思うか。</p>
+      </div>
+      <div style="display: flex; align-items: flex-end">
+        <button type="button" style="display: inline-flex; align-items: center; gap: 10px; height: 48px; padding: 0 28px; box-sizing: border-box; background: transparent; border: 2px solid #d4553a; border-radius: 6px; color: #e9e6de; font-family: 'Zen Kaku Gothic New', sans-serif; font-weight: 700; font-size: 18px; letter-spacing: 0.1em; cursor: pointer">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d4553a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="14.5 17.5 3 6 3 3 6 3 17.5 14.5"></polyline>
+            <line x1="13" y1="19" x2="19" y2="13"></line>
+            <line x1="16" y1="16" x2="20" y2="20"></line>
+            <line x1="19" y1="21" x2="21" y2="19"></line>
+            <polyline points="14.5 6.5 18 3 21 3 21 6 17.5 9.5"></polyline>
+            <line x1="5" y1="14" x2="9" y2="18"></line>
+            <line x1="7" y1="17" x2="4" y2="20"></line>
+            <line x1="3" y1="19" x2="5" y2="21"></line>
+          </svg>
+          <span>戦う</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":720}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

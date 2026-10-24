@@ -53,6 +53,9 @@ func _check_candle_peddler() -> void:
 		state.use_card(0)
 	var uses_before: int = state.uses_left(0)
 	_check(not Events.choose(state, 0, second), "灯売りの行商で減っていないカードは選べない")
+	while state.use_card(1):
+		pass
+	_check(not Events.choose(state, 0, second), "灯売りの行商で契約切れのカードは選べない")
 	_check(Events.choose(state, 0, first), "所持金を払って残り使用回数を戻せる")
 	_check(state.uses_left(0) == uses_before + Events.CANDLE_USES, "灯売りの行商で残りが決まった回数だけ戻る")
 	_check(state.gold == 0, "灯売りの行商で所持金を払う")
@@ -84,6 +87,10 @@ func _check_ash_furnace() -> void:
 	var burn: Array[int] = [0, 1, 2]
 	_check(not Events.choose(state, 0, overlapping), "灰の炉で手放すカードと戻すカードは重ねられない")
 	_check(not Events.choose(state, 0, full_restore), "灰の炉で減っていないカードは戻せない")
+	while state.use_card(3):
+		pass
+	var expired_restore: Array[int] = [0, 1, 3]
+	_check(not Events.choose(state, 0, expired_restore), "灰の炉で契約切れのカードは戻せない")
 	_check(Events.choose(state, 0, burn), "1 枚を炉にくべて 2 枚を戻せる")
 	ids.clear()
 	for entry: Dictionary in state.deck:

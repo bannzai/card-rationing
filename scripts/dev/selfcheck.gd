@@ -101,6 +101,7 @@ func _initialize() -> void:
 	_check_shadow_pawn()
 	_check_raised_max_uses()
 	_check_raised_max_uses_save()
+	_check_expired_not_raised()
 	_check_deck_sort()
 	_check_settings()
 	_check_bead_count()

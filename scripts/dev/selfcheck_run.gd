@@ -277,6 +277,10 @@ func _check_shrine() -> void:
 	var state: RunStateScript = _state_at(ActMap.Kind.SHRINE, 11)
 	var gold_before: int = state.gold
 	_check(not NodeRules.shrine_renew(state, 0), "減っていないカードは更新しない")
+	while state.use_card(1):
+		pass
+	_check(not NodeRules.shrine_renew(state, 1), "契約切れのカードは更新できない")
+	_check(not state.visit.has("shrine_done"), "更新できなかった時は祠の 1 回を使わない")
 	state.use_card(0)
 	state.use_card(0)
 	_check(NodeRules.shrine_renew(state, 0), "減ったカードの契約を更新できる")
@@ -324,6 +328,11 @@ func _check_shop() -> void:
 		_check(not NodeRules.buy_card(state, outsider), "並んでいないカードは買えない")
 	var gold_before: int = state.gold
 	_check(not NodeRules.buy_restore(state, 0), "減っていないカードの回数は戻さない")
+	var expired: int = state.deck.size() - 1
+	while state.use_card(expired):
+		pass
+	_check(not NodeRules.buy_restore(state, expired), "契約切れのカードの回数は戻さない")
+	_check(state.gold == gold_before, "戻せなかった時は所持金が減らない")
 	state.use_card(0)
 	_check(NodeRules.buy_restore(state, 0), "減ったカードの回数を戻せる")
 	_check(state.uses_left(0) == state.card(0)["max_uses"], "戻すと最大になる")
@@ -383,7 +392,10 @@ func _check_events() -> void:
 	state.free()
 	state = _state_at_event("blood_spring")
 	_check(not Events.choose(state, 0, one), "減っていないカードの回数は戻さない")
-	state.use_card(0)
+	while state.use_card(0):
+		pass
+	_check(not Events.choose(state, 0, one), "血の泉で契約切れのカードの回数は戻さない")
+	state.restore_uses(0, 1)
 	_check(Events.choose(state, 0, one), "体力を払って回数を戻せる")
 	_check(state.hp == state.max_hp - Events.BLOOD_PRICE, "体力を払う")
 	_check(state.uses_left(0) == state.card(0)["max_uses"], "回数が最大に戻る")
@@ -625,6 +637,16 @@ func _check_raised_max_uses_save() -> void:
 		_check(other.from_dict(data) == case[1], "保存データのデッキの要素: %s" % case[2])
 	state.free()
 	other.free()
+
+
+## 蝋の祭壇でも契約切れのカードは選べない (最大と一緒に残りも増えるので、契約切れから戻す経路になるため)
+func _check_expired_not_raised() -> void:
+	var hero: Array[int] = [2]
+	var state: RunStateScript = _raised_uses_state()
+	while state.use_card(2):
+		pass
+	_check(not Events.choose(state, 0, hero), "契約切れの英霊は増やせない")
+	state.free()
 
 
 ## 蝋の祭壇の節点に入った局面のランで、デッキが斬火 (最大使用回数が上限)・守りの風・雷槍の英霊・盾の英霊のもの

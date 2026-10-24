@@ -28,9 +28,9 @@ const COST_FONT_SIZE: int = 17
 ## 押せないカード (契約切れでないもの) と、マウスを載せたカードの明るさ
 const DISABLED_TONE: float = 0.58
 const HOVER_TONE: float = 1.14
-## 補足の文: 残り 1 回と契約切れ
+## 補足の文: 残り 1 回と契約切れ (契約切れのカードは回数を戻せない。NodeRules.can_restore())
 const LAST_USE_NOTE: String = "最後の 1 回"
-const EXHAUSTED_NOTE: String = "契約切れ"
+const EXHAUSTED_NOTE: String = "契約切れ・戻せない"
 
 ## 見せているカードの ID と、残り使用回数
 var card_id: String = ""

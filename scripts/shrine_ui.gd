@@ -53,7 +53,7 @@ func show_mode(next_mode: Mode) -> void:
 		Mode.OPTIONS:
 			_build_options()
 		Mode.RENEW:
-			UiKit.add_label(content, "更新する契約を選ぶ (残り使用回数が最大まで戻る)")
+			UiKit.add_label(content, "更新する契約を選ぶ (残り使用回数が最大まで戻る。契約切れは戻せない)")
 			deck_grid = UiKit.add_deck_grid(
 				content,
 				run_state,

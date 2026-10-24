@@ -83,7 +83,7 @@ const CONTRACTORS: Dictionary = {
 			"twin_flame",
 			"guard",
 			"guard",
-			"soot_wall",
+			"guard",
 			"hero_strike",
 			"hero_wall",
 		],

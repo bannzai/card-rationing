@@ -39,8 +39,8 @@ WINDOWED_LOG_NOISE := -e 'Could not set V-Sync mode' -e 'IMKCFRunLoopWakeUpRelia
 # 数秒あれば足り、CI の録画時間と artifact のサイズを抑えるため
 MOVIE_FRAMES ?= 150
 # simulate target の上限 (フレーム数)。scripts/dev/simulate.gd は 1 ランごとに 1 フレーム進めるので、正常なら
-# 契約者 3 人 × 3 つの戦略 × 200 ラン = 1800 フレームと数フレームで終わる。その 5 倍 (契約者を 4 人に増やしても
-# 2400 フレームで収まる)。途中の実行時エラーで止まった後は 1 フレームが数 ms の空回りになり、上限まで数十秒で
+# 契約者 3 人 × 3 つの戦略 × 600 ラン = 5400 フレームと数フレームで終わる。契約者を 4 人に増やした 7200 フレームも
+# 収まる値。途中の実行時エラーで止まった後は 1 フレームが数 ms の空回りになり、上限まで数十秒で
 # 終わる。フレームの数は実行時間を縛らない (1 ランが長くなっても 1 フレーム) ので、実行時間は CI の simulate job の
 # timeout-minutes で縛る
 SIMULATE_FRAME_LIMIT ?= 9000
@@ -104,7 +104,7 @@ lint:
 # screenshot / movie / playtest と、数値を集計する simulate は含まない)
 test: lint check selfcheck integration
 
-# 戦略 bot の自動テストプレイ (headless)。契約者ごとに、3 つの戦略に同じシードの 1 幕を各 200 ラン遊ばせ、踏破率などを
+# 戦略 bot の自動テストプレイ (headless)。契約者ごとに、3 つの戦略に同じシードの 1 幕を各 600 ラン遊ばせ、踏破率などを
 # tmp/simulate.json に書く (中身は scripts/dev/simulate.gd)。数値は documents/DIRECTION.md の判定基準に照らして
 # 判定日に読み、ここではしきい値で失敗にしない
 simulate: import

@@ -27,7 +27,7 @@
 | 人の操作なしで終わる検査・テスト・ビルドの一括実行 (test → build-all) | `make verify` | exit 0 |
 | スクリーンショット (代表画面。headless の検証では見た目の崩れを検出できない) | `make screenshot` | exit 0 かつ `tmp/screenshot.log` に `screenshot OK` が出力され、WARNING / ERROR 行がなく、`tmp/screenshot-*.png` が生成される |
 | 起動の録画 (操作なしの起動〜メインシーンの表示。起動直後の描画崩れ・真っ黒を検出する) | `make movie` | exit 0 かつ `tmp/movie.mp4` が生成され、末尾のフレームの輝度平均が基準以上 (ffmpeg が必要) |
-| 戦略 bot の自動テストプレイ (headless。契約者ごとに、3 つの戦略に同じシードの 1 幕を各 200 ラン遊ばせ、踏破率などを集計する。数値は `documents/DIRECTION.md` の判定基準に照らして読み、しきい値では失敗にしない。CI は artifact `card-rationing-simulate` に 30 日残す) | `make simulate` | exit 0 かつ `tmp/simulate.log` に `simulate OK` が出力され、WARNING / ERROR 行がなく、`tmp/simulate.json` が生成される |
+| 戦略 bot の自動テストプレイ (headless。契約者ごとに、3 つの戦略に同じシードの 1 幕を各 600 ラン遊ばせ、踏破率などを集計する。数値は `documents/DIRECTION.md` の判定基準に照らして読み、しきい値では失敗にしない。CI は artifact `card-rationing-simulate` に 30 日残す) | `make simulate` | exit 0 かつ `tmp/simulate.log` に `simulate OK` が出力され、WARNING / ERROR 行がなく、`tmp/simulate.json` が生成される |
 | テストプレイの録画 (「状況で使い分ける」戦略 bot が画面を通して 1 幕を遊ぶ。踏破できずに敗北しても成功で、到達した所までを録画する。CI は artifact `card-rationing-screenshot-and-movie` に入れる) | `make playtest` | exit 0 かつ `tmp/playtest.log` に `playtest OK` が出力され、WARNING / ERROR 行がなく、`tmp/playtest.mp4` と `tmp/playtest-*.png` が生成される (ffmpeg が必要) |
 | ゲームをエディタなしで起動 (人が遊んで確かめる。アセットのインポートを含む)。引数なしの `make` の実行対象 | `make run` (= `make`) | ウィンドウが開きメインシーンが表示される |
 | デスクトップエクスポート | `make build-macos` / `make build-windows` / `make build-linux` / `make build-all` | exit 0 で `build/<platform>/` に成果物が生成される |

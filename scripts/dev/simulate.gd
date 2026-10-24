@@ -13,8 +13,8 @@ const Contractors := preload("res://scripts/contractors.gd")
 const RunStateScript := preload("res://scripts/run_state.gd")
 
 ## 契約者と戦略の組ごとに遊ぶランの数と、最初のシード (シードは FIRST_SEED から SEED_COUNT 個の連番で、すべての組で
-## 同じ)。ランの数は documents/DIRECTION.md の判定基準の「各 200 ラン」
-const SEED_COUNT: int = 200
+## 同じ)。ランの数は documents/DIRECTION.md の判定基準の「各 600 ラン」
+const SEED_COUNT: int = 600
 const FIRST_SEED: int = 1
 ## 集計の JSON の書き出し先 (CI の artifact card-rationing-simulate に入る)
 const OUTPUT_PATH: String = "res://tmp/simulate.json"

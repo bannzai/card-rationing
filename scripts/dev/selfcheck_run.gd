@@ -277,9 +277,9 @@ func _check_shrine() -> void:
 	var state: RunStateScript = _state_at(ActMap.Kind.SHRINE, 11)
 	var gold_before: int = state.gold
 	_check(not NodeRules.shrine_renew(state, 0), "減っていないカードは更新しない")
-	while state.use_card(1):
+	while state.use_card(2):
 		pass
-	_check(not NodeRules.shrine_renew(state, 1), "契約切れのカードは更新できない")
+	_check(not NodeRules.shrine_renew(state, 2), "契約切れのカードは更新できない")
 	_check(not state.visit.has("shrine_done"), "更新できなかった時は祠の 1 回を使わない")
 	state.use_card(0)
 	state.use_card(0)

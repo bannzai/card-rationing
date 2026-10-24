@@ -23,7 +23,7 @@ const REMOVE_PRICE: int = 50
 const RELIC_PRICE: int = 80
 ## 候補の比較用 (#60)。EXPIRED_LOCKED = 契約切れは戻せない、RENEW_USES = 最大まで戻す経路で戻す回数 (負は最大まで)
 const EXPIRED_LOCKED: bool = false
-const RENEW_USES: int = -1
+const RENEW_USES: int = 2
 ## 契約を破棄する・外す時に残すデッキの最少の枚数 (空のデッキで戦闘に入らないため)
 const MIN_DECK_SIZE: int = 1
 ## 品揃えの乱数を、同じ節点の所持金の乱数とずらす値 (同じシードの乱数列にしないためで、0 以外なら値に意味は無い)

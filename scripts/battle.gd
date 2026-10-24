@@ -25,7 +25,7 @@ const HAND_SIZE: int = 5
 const STRUGGLE_COST: int = 1
 const STRUGGLE_DAMAGE: int = 2
 ## 候補の比較用 (#60)。ターンの終わりに手札に残った契約切れのカード 1 枚ごとに受けるダメージ
-const EXPIRED_BURN: int = 2
+const EXPIRED_BURN: int = 0
 
 ## ラン単位の状態 (RunState)。残り使用回数と巡礼者の体力はここから読み書きする
 var run_state: RunStateScript = null

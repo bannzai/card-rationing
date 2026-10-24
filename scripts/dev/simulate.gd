@@ -13,8 +13,8 @@ const Contractors := preload("res://scripts/contractors.gd")
 const RunStateScript := preload("res://scripts/run_state.gd")
 
 ## 契約者と戦略の組ごとに遊ぶランの数と、最初のシード (シードは FIRST_SEED から SEED_COUNT 個の連番で、すべての組で
-## 同じ)。ランの数は documents/DIRECTION.md の判定基準の「各 200 ラン」
-const SEED_COUNT: int = 200
+## 同じ)。ランの数は documents/DIRECTION.md の判定基準の「各 600 ラン」
+const SEED_COUNT: int = 600
 const FIRST_SEED: int = 1
 ## 集計の JSON の書き出し先 (CI の artifact card-rationing-simulate に入る)
 const OUTPUT_PATH: String = "res://tmp/simulate.json"
@@ -95,6 +95,8 @@ func _run() -> void:
 ## 戦ったターンに占める割合 (%), "struggle_rate": もがいた回数の、使ったカードともがいた回数の合計に占める割合 (%),
 ## "attackless_struggle_rate": 手札に攻撃カードが無かった時にもがいた回数の、使ったカードともがいた回数の合計に
 ## 占める割合 (%。struggle_rate の内訳で、温存のためのもがくを除く),
+## "expired_hand_turn_rate": 手札の半分以上が契約切れのまま始まったターンの、戦ったターンに占める割合 (%),
+## "attack_reward_rate": 並んだ 3 枚に攻撃カードがあった戦闘の報酬の、戦闘の報酬に占める割合 (%),
 ## "average_struggles": 1 ランでもがいた回数の平均, "attack_out_runs": 攻撃が尽きたランの数,
 ## "average_attack_out_floor": 攻撃が尽きたランで、初めて尽きた戦闘の階層の平均 (尽きたランが無ければ -1),
 ## "cleared_seeds": 踏破したシードの並び, "reached_floors": シードの順 (FIRST_SEED から) に並べた到達階層}。
@@ -142,6 +144,8 @@ func _simulate(state: RunStateScript, strategy: int, contractor_id: String) -> D
 		"attackless_turn_rate": _percent(counts["attackless_turns"], counts["turns"]),
 		"struggle_rate": _percent(counts["struggles"], moves),
 		"attackless_struggle_rate": _percent(counts["attackless_struggles"], moves),
+		"expired_hand_turn_rate": _percent(counts["expired_hand_turns"], counts["turns"]),
+		"attack_reward_rate": _percent(counts["attack_rewards"], counts["rewards"]),
 		"average_struggles": snappedf(float(counts["struggles"]) / SEED_COUNT, 0.01),
 		"attack_out_runs": attack_out_runs,
 		"average_attack_out_floor":
@@ -173,7 +177,8 @@ func _simulate(state: RunStateScript, strategy: int, contractor_id: String) -> D
 		(
 			(
 				"simulate: %s 攻撃が尽きて始まった戦闘 %.1f%% 手札に攻撃が無いターン %.1f%% "
-				+ "もがく %.1f%% (手札に攻撃が無かった時 %.1f%%) 攻撃が尽きたラン %d (初めて尽きた階層の平均 %.2f)"
+				+ "もがく %.1f%% (手札に攻撃が無かった時 %.1f%%) 攻撃が尽きたラン %d (初めて尽きた階層の平均 %.2f) "
+				+ "手札の半分以上が契約切れのターン %.1f%% 報酬に攻撃カードが並んだ %.1f%%"
 			)
 			% [
 				label,
@@ -183,6 +188,8 @@ func _simulate(state: RunStateScript, strategy: int, contractor_id: String) -> D
 				stats["attackless_struggle_rate"],
 				stats["attack_out_runs"],
 				stats["average_attack_out_floor"],
+				stats["expired_hand_turn_rate"],
+				stats["attack_reward_rate"],
 			]
 		)
 	)

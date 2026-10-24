@@ -124,13 +124,13 @@ const ENEMIES: Dictionary = {
 	{
 		"name": "灯喰らいの司祭",
 		"rank": Rank.BOSS,
-		"hp": 66,
+		"hp": 80,
 		"in_order": true,
 		"moves":
 		[
 			{"move": Move.ATTACK, "value": 6, "hits": 2},
-			{"move": Move.GUARD, "value": 8},
-			{"move": Move.ATTACK, "value": 18},
+			{"move": Move.GUARD, "value": 10},
+			{"move": Move.ATTACK, "value": 20},
 			{"move": Move.ATTACK, "value": 4, "hits": 3},
 		],
 		"talk":

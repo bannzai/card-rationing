@@ -98,7 +98,7 @@ jobs:
             build/card-rationing-linux.tar.gz
           retention-days: 7
 
-  # 戦略 bot の自動テストプレイ。契約者ごとに 3 つの戦略に 1 幕を各 200 ラン遊ばせた集計 (tmp/simulate.json) を
+  # 戦略 bot の自動テストプレイ。契約者ごとに 3 つの戦略に 1 幕を各 600 ラン遊ばせた集計 (tmp/simulate.json) を
   # artifact に残す。
   # 数値は documents/DIRECTION.md の判定基準に照らして判定日に読むので、しきい値では失敗にしない。判定日
   # (DIRECTION.md の cycle_days: 14) に読めるよう、この artifact だけ 30 日残す

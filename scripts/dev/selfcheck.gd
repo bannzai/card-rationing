@@ -980,6 +980,7 @@ func _check_strategy_bots() -> void:
 			"護符を手に入れるランも同じシードなら同じ結果 (シード %d)" % relic_seed
 		)
 	_check_bot_powers(state, battle)
+	_check_bot_metrics(state, battle)
 	state.free()
 	_remove_user_file(SELFCHECK_SAVE_PATH)
 

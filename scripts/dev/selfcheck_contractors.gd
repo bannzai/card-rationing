@@ -67,7 +67,7 @@ func _check_trait_battle(state: RunStateScript, contractor_id: String, label: St
 	_check(battle.hand.size() == hand, "%s: 引く枚数に個性が効く (%s)" % [label, contractor_id])
 
 
-## 勝つたびに回数を戻す個性 (NodeRules.win_restore()): 通常の戦闘と強敵に勝つと、精霊のうち減っている回数が
+## 勝つたびに回数を戻す個性 (NodeRules.win_restore()): 通常の戦闘と強敵に勝つと、契約切れでない精霊のうち減っている回数が
 ## 最も多い 1 枚 (同じならデッキの先) だけが個性の回数戻り、最大を超えない。英霊・ボス・個性の無い契約者では戻らない
 ## (残り使用回数を増やす経路の検証。.claude/rules/card-uses-persist-across-run.md)
 func _check_win_restore() -> void:
@@ -118,6 +118,16 @@ func _check_win_restore() -> void:
 		"減っているのが英霊だけなら戻さない"
 	)
 	hero_only.free()
+	var expired: RunStateScript = _trait_state_at(restorer, deck, ActMap.Kind.BATTLE)
+	while expired.use_card(0):
+		pass
+	expired.use_card(1)
+	RunFlow.finish_battle(expired, true)
+	_check(
+		expired.visit.get("win_restored", -1) == 1 and expired.uses_left(0) == 0,
+		"契約切れの精霊は戻さず、契約切れでない精霊のうち最も減った 1 枚を戻す"
+	)
+	expired.free()
 	var boss: RunStateScript = _trait_state_at(restorer, deck, ActMap.Kind.BOSS)
 	boss.use_card(0)
 	RunFlow.finish_battle(boss, true)

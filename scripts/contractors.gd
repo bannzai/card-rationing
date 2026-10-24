@@ -4,8 +4,8 @@ extends RefCounted
 ## max_hp が巡礼の始まりの体力と最大体力。巡礼の開始で契約者の選択画面 (scripts/character_select_ui.gd) から選ぶ。
 ## 個性 (常に効く固有の効果) は trait_name (画面に出す名前) と、次のキーの値で表す (省略は 0。画面に出す説明は
 ## trait_lines() が値から作る)。hand_bonus (毎ターン引く枚数に足す数)・energy_bonus (毎ターンのエネルギーに
-## 足す数)・win_restore (通常の戦闘と強敵に勝つたびに、精霊のうち減っている回数が最も多い 1 枚の残り使用回数を
-## 戻す回数)。個性はラン単位の状態 (scripts/run_state.gd) の契約者 ID から決まり、保存データには契約者 ID だけを
+## 足す数)・win_restore (通常の戦闘と強敵に勝つたびに、契約切れでない精霊のうち減っている回数が最も多い 1 枚の
+## 残り使用回数を戻す回数)。個性はラン単位の状態 (scripts/run_state.gd) の契約者 ID から決まり、保存データには契約者 ID だけを
 ## 持つ。契約者の一覧・個性・決めた理由は documents/DIRECTION.md「決めたこと」。
 
 ## 契約者 ID → 定義
@@ -26,11 +26,11 @@ const CONTRACTORS: Dictionary = {
 			"slash",
 			"slash",
 			"slash",
-			"slash",
+			"ash_fang",
 			"guard",
 			"guard",
 			"guard",
-			"spirit_arrow",
+			"ash_fang",
 			"breath",
 			"hero_strike",
 			"hero_wall",
@@ -70,7 +70,7 @@ const CONTRACTORS: Dictionary = {
 			"祠の火を絶やさぬよう熾火を担いで歩く火守り。"
 			+ "火の気で精霊を急き立てて多く命じるが、そのぶん契約も早く尽きる。"
 		),
-		"max_hp": 34,
+		"max_hp": 22,
 		"trait_name": "熾火",
 		"energy_bonus": 1,
 		"starter_deck":
@@ -78,12 +78,12 @@ const CONTRACTORS: Dictionary = {
 			"slash",
 			"slash",
 			"slash",
+			"slash",
+			"slash",
 			"twin_flame",
-			"ash_fang",
 			"guard",
 			"guard",
 			"soot_wall",
-			"spirit_arrow",
 			"hero_strike",
 			"hero_wall",
 		],
@@ -116,5 +116,5 @@ static func trait_lines(contractor_id: String) -> Array[String]:
 		lines.append("毎ターンのエネルギー +%d" % energy_bonus)
 	var win_restore: int = trait_value(contractor_id, "win_restore")
 	if win_restore > 0:
-		lines.append("戦闘に勝つたび (ボスを除く) 最も回数の減った精霊 1 枚の残りを %d 回戻す" % win_restore)
+		lines.append("戦闘に勝つたび (ボスを除く) 契約切れでない精霊で最も減った 1 枚の残りを %d 回戻す" % win_restore)
 	return lines

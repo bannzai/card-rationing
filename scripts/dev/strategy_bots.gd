@@ -71,12 +71,14 @@ const SHOP_PURCHASE_LIMIT: int = NodeRules.OFFER_COUNT + 2
 ## 効果のあるカードが無ければ、エネルギーが残る間はもがき、尽きたらターンを終える
 static func battle_move(strategy: int, battle: Battle, state: RunStateScript) -> Dictionary:
 	var spends_low: bool = _spends_low_uses(strategy, battle, state)
+	var spends_until_last: bool = _spends_until_last_use(strategy, state)
 	var best: Dictionary = {}
 	for hand_index: int in range(battle.hand.size()):
 		var deck_index: int = battle.hand[hand_index]
 		if not battle.can_play(hand_index):
 			continue
-		if state.uses_left(deck_index) <= LOW_USES and not spends_low:
+		var uses: int = state.uses_left(deck_index)
+		if uses <= LOW_USES and not spends_low and not (spends_until_last and uses > 1):
 			continue
 		var play: Dictionary = _play_value(battle, state, deck_index)
 		play["hand_index"] = hand_index
@@ -398,8 +400,13 @@ static func _spends_low_uses(strategy: int, battle: Battle, state: RunStateScrip
 		kind == ActMap.Kind.ELITE
 		or kind == ActMap.Kind.BOSS
 		or state.hp <= state.max_hp * HEAVY_HP_RATE
-		or shrine_distance(state) <= SHRINE_NEAR_STEPS
 	)
+
+
+## strategy の戦略が、契約の祠が近いので回数の少ないカードを最後の 1 回の手前まで使うか (契約切れのカードは祠で
+## 戻せないため、最後の 1 回は残す)
+static func _spends_until_last_use(strategy: int, state: RunStateScript) -> bool:
+	return strategy == Strategy.ADAPT and shrine_distance(state) <= SHRINE_NEAR_STEPS
 
 
 ## デッキの deck_index 番目のカードを今使った時の効果の点数と、狙う敵。{"value": 点数, "target": 敵の index
@@ -548,8 +555,11 @@ static func _contract_gain(card_id: String) -> float:
 	return Cards.strength(card_id) * Cards.CARDS[card_id]["max_uses"]
 
 
-## デッキの index 番目のカードの残り使用回数を amount 回 (負なら最大まで) 戻して取り戻す強さの合計 (強さ × 戻る回数)
+## デッキの index 番目のカードの残り使用回数を amount 回 (負なら最大まで) 戻して取り戻す強さの合計 (強さ × 戻る回数。
+## 戻せないカード (NodeRules.can_restore()) は 0)
 static func _restore_gain(state: RunStateScript, index: int, amount: int = -1) -> float:
+	if not NodeRules.can_restore(state, index):
+		return 0.0
 	var missing: int = Cards.deck_max_uses(state.deck[index]) - state.uses_left(index)
 	if amount >= 0:
 		missing = mini(missing, amount)

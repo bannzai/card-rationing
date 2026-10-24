@@ -179,15 +179,15 @@ func _check_seal_dice(main: MainScript) -> void:
 		)
 
 
-## 出来事「蝋の祭壇」で体力を払って契約切れの英霊を選ぶと、最大と残りの使用回数が 1 増え (精霊と、増やしきった
-## 英霊は選べない)、回数の回復の効果音が鳴って地図へ戻る。契約の一覧の封蝋の印が増えた最大の数だけ並び、増えた
-## 最大は「続きから」の後も保たれる。以後の検証はこの巡礼で続ける
+## 出来事「蝋の祭壇」で体力を払って使いかけの英霊を選ぶと、最大と残りの使用回数が 1 増え (精霊と、増やしきった
+## 英霊と、契約切れの英霊は選べない)、回数の回復の効果音が鳴って地図へ戻る。契約の一覧の封蝋の印が増えた最大の
+## 数だけ並び、増えた最大は「続きから」の後も保たれる。以後の検証はこの巡礼で続ける
 func _check_wax_altar(main: MainScript) -> void:
 	if not _start_run_at_event("wax_altar"):
 		return
-	_set_deck(["slash", "hero_strike", "hero_wall", "guard"])
-	while run_state.use_card(1):
-		pass
+	_set_deck(["slash", "hero_strike", "hero_wall", "guard", "flame_king"])
+	run_state.use_card(1)
+	run_state.use_card(4)
 	Events.raise_max_uses(run_state, 2)
 	main.show_run_phase()
 	await _settle()
@@ -204,13 +204,14 @@ func _check_wax_altar(main: MainScript) -> void:
 		"英霊を増やす選択肢では、まだ増やせる精霊 (守りの風) も選べない"
 	)
 	_check((event_ui.deck_grid.get_child(2) as Button).disabled, "最大使用回数を増やしきった英霊は選べない")
+	_check((event_ui.deck_grid.get_child(4) as Button).disabled, "契約切れの英霊は選べない")
 	var max_before: int = Cards.deck_max_uses(run_state.deck[1])
 	var hp_before: int = run_state.hp
 	await _click(event_ui.deck_grid.get_child(1) as Button)
 	_stop_se()
 	await _click(event_ui.confirm_button)
 	_check(
-		Cards.deck_max_uses(run_state.deck[1]) == max_before + 1 and run_state.uses_left(1) == 1,
+		Cards.deck_max_uses(run_state.deck[1]) == max_before + 1 and run_state.uses_left(1) == max_before,
 		"蝋の祭壇で英霊の最大と残りの使用回数が 1 増える"
 	)
 	_check(run_state.hp == hp_before - Events.RAISE_HERO_PRICE, "蝋の祭壇で体力を払う")
@@ -222,13 +223,13 @@ func _check_wax_altar(main: MainScript) -> void:
 		if view.card_id == "hero_strike":
 			raised = view
 	_check(
-		raised != null and _seal_counts(raised) == Vector2i(1, max_before),
+		raised != null and _seal_counts(raised) == Vector2i(max_before, 1),
 		"契約の一覧で、増えた最大の数だけ封蝋の印が並ぶ"
 	)
 	await _press_key(KEY_ESCAPE)
 	await _quit_and_continue(main)
 	_check(
-		Cards.deck_max_uses(run_state.deck[1]) == max_before + 1 and run_state.uses_left(1) == 1,
+		Cards.deck_max_uses(run_state.deck[1]) == max_before + 1 and run_state.uses_left(1) == max_before,
 		"増えた最大使用回数が「続きから」の後も保たれる"
 	)
 

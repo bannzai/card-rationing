@@ -18,6 +18,7 @@ const EventUiScript := preload("res://scripts/event_ui.gd")
 const Events := preload("res://scripts/events.gd")
 const HeadlessCheck := preload("res://scripts/dev/headless_check.gd")
 const MainScript := preload("res://scripts/main.gd")
+const NodeRules := preload("res://scripts/node_rules.gd")
 const Relics := preload("res://scripts/relics.gd")
 const RunFlow := preload("res://scripts/run_flow.gd")
 const RunStateScript := preload("res://scripts/run_state.gd")
@@ -115,6 +116,7 @@ func _capture_scenes() -> bool:
 		[_show_reward, "reward"],
 		[_show_shrine, "shrine"],
 		[_show_shrine_renew, "shrine-renew"],
+		[_show_shrine_renew_expired, "shrine-renew-expired"],
 		[_show_shop, "shop"],
 	])
 	# 出来事は全種を撮る (絵・文・選択肢の配置を見る)
@@ -299,6 +301,14 @@ func _show_shrine_renew() -> bool:
 	run_state.use_card(1)
 	(main.screen as ShrineUiScript).show_mode(ShrineUiScript.Mode.RENEW)
 	return true
+
+
+## 契約の祠で更新するカードを選ぶところに、契約切れのカードが混ざったところ (契約切れは押せず、戻せないと書く)
+func _show_shrine_renew_expired() -> bool:
+	while run_state.use_card(2):
+		pass
+	(main.screen as ShrineUiScript).show_mode(ShrineUiScript.Mode.RENEW)
+	return not NodeRules.can_restore(run_state, 2)
 
 
 ## 商人 (所持金 120 で、買えるものと買えないものが並ぶ)

@@ -59,7 +59,10 @@ func show_mode(next_mode: Mode) -> void:
 		Mode.RESTORE:
 			UiKit.add_label(
 				content,
-				"残り使用回数を最大まで戻すカードを選ぶ (値段 %d)" % NodeRules.restore_price(run_state)
+				(
+					"残り使用回数を最大まで戻すカードを選ぶ (値段 %d。契約切れは戻せない)"
+					% NodeRules.restore_price(run_state)
+				)
 			)
 			deck_grid = UiKit.add_deck_grid(
 				content,
@@ -137,7 +140,7 @@ func _build_goods() -> void:
 		"1 枚の残り使用回数を最大まで戻す (値段 %d)" % restore_price,
 		show_mode.bind(Mode.RESTORE)
 	)
-	# 戻せるカード (残りの減ったカード) が無ければ押せない (契約の祠の更新と同じ)
+	# 戻せるカード (残りの減った、契約切れでないカード) が無ければ押せない (契約の祠の更新と同じ)
 	restore_button.disabled = (
 		run_state.visit.has("restored")
 		or run_state.gold < restore_price

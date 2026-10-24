@@ -24,6 +24,8 @@ const HAND_SIZE: int = 5
 ## 契約切れだらけのデッキが弱いという結果を残す
 const STRUGGLE_COST: int = 1
 const STRUGGLE_DAMAGE: int = 2
+## 候補の比較用 (#60)。ターンの終わりに手札に残った契約切れのカード 1 枚ごとに受けるダメージ
+const EXPIRED_BURN: int = 0
 
 ## ラン単位の状態 (RunState)。残り使用回数と巡礼者の体力はここから読み書きする
 var run_state: RunStateScript = null
@@ -226,6 +228,12 @@ func power_total(key: String) -> int:
 ## 巡礼者の体力が 0 になったら敗北で止まる
 func end_turn() -> void:
 	if outcome != Outcome.NONE:
+		return
+	for deck_index: int in hand:
+		if not run_state.can_use(deck_index):
+			run_state.take_damage(EXPIRED_BURN)
+	if run_state.hp <= 0:
+		outcome = Outcome.LOSE
 		return
 	discard_pile.append_array(hand)
 	hand = []

@@ -309,7 +309,8 @@ static func can_pick(state: RunStateScript, effect: Effect, index: int, slot: in
 			return state.card(index)["bond"] == Cards.Bond.SPIRIT
 	if RAISE_BONDS.has(effect):
 		return (
-			state.card(index)["bond"] == RAISE_BONDS[effect]
+			(not NodeRules.EXPIRED_LOCKED or state.can_use(index))
+			and state.card(index)["bond"] == RAISE_BONDS[effect]
 			and Cards.deck_max_uses(state.deck[index]) < Cards.uses_limit(state.deck[index]["id"])
 		)
 	return true
@@ -358,7 +359,7 @@ static func choose(state: RunStateScript, option_index: int, picks: Array[int]) 
 			state.add_card(gained_card(effect, state))
 		Effect.BLOOD_RESTORE:
 			state.take_damage(BLOOD_PRICE)
-			state.restore_uses(picks[0])
+			state.restore_uses(picks[0], NodeRules.RENEW_USES)
 		Effect.SPIRIT:
 			state.add_card(gained_card(effect, state))
 		Effect.GOLD:
@@ -378,11 +379,11 @@ static func choose(state: RunStateScript, option_index: int, picks: Array[int]) 
 		Effect.BURN_RESTORE:
 			# 戻してから手放す (手放すと後ろのカードの index がずれるため)
 			for slot: int in range(1, picks.size()):
-				state.restore_uses(picks[slot])
+				state.restore_uses(picks[slot], NodeRules.RENEW_USES)
 			state.remove_card(picks[0])
 		Effect.GAMBLE:
 			if gamble_wins(seed_value):
-				state.restore_uses(picks[0])
+				state.restore_uses(picks[0], NodeRules.RENEW_USES)
 			else:
 				state.remove_card(picks[0])
 		Effect.COPY_SPIRIT:

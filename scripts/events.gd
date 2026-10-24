@@ -292,9 +292,9 @@ static func can_pay(state: RunStateScript, effect: Effect) -> bool:
 
 
 ## effect の選択肢で、slot 番目 (0 始まり) に選ぶカードとしてデッキの index 番目のカードを選べるか。血の泉・
-## 灯売りの行商と、灰の炉の 2 番目からは残りの減ったカード、封蝋の骰子は残りが 1 以上で減ったカード、蝋の祭壇は
-## その区分の最大使用回数をまだ増やせるカード、写し手の机は精霊。契約の入れ替え・灰の炉の最初 (手放す 1 枚)・
-## 影の質屋はどのカードも選べる
+## 灯売りの行商・封蝋の骰子と、灰の炉の 2 番目からは残りの減った契約切れでないカード (NodeRules.can_restore())、
+## 蝋の祭壇はその区分の最大使用回数をまだ増やせる契約切れでないカード、写し手の机は精霊。契約の入れ替え・灰の炉の
+## 最初 (手放す 1 枚)・影の質屋はどのカードも選べる
 static func can_pick(state: RunStateScript, effect: Effect, index: int, slot: int = 0) -> bool:
 	if index < 0 or index >= state.deck.size():
 		return false
@@ -304,12 +304,12 @@ static func can_pick(state: RunStateScript, effect: Effect, index: int, slot: in
 		Effect.BURN_RESTORE:
 			return slot == 0 or NodeRules.can_restore(state, index)
 		Effect.GAMBLE:
-			return state.can_use(index) and NodeRules.can_restore(state, index)
+			return NodeRules.can_restore(state, index)
 		Effect.COPY_SPIRIT:
 			return state.card(index)["bond"] == Cards.Bond.SPIRIT
 	if RAISE_BONDS.has(effect):
 		return (
-			(not NodeRules.EXPIRED_LOCKED or state.can_use(index))
+			state.can_use(index)
 			and state.card(index)["bond"] == RAISE_BONDS[effect]
 			and Cards.deck_max_uses(state.deck[index]) < Cards.uses_limit(state.deck[index]["id"])
 		)
@@ -359,7 +359,7 @@ static func choose(state: RunStateScript, option_index: int, picks: Array[int]) 
 			state.add_card(gained_card(effect, state))
 		Effect.BLOOD_RESTORE:
 			state.take_damage(BLOOD_PRICE)
-			state.restore_uses(picks[0], NodeRules.RENEW_USES)
+			state.restore_uses(picks[0])
 		Effect.SPIRIT:
 			state.add_card(gained_card(effect, state))
 		Effect.GOLD:
@@ -379,11 +379,11 @@ static func choose(state: RunStateScript, option_index: int, picks: Array[int]) 
 		Effect.BURN_RESTORE:
 			# 戻してから手放す (手放すと後ろのカードの index がずれるため)
 			for slot: int in range(1, picks.size()):
-				state.restore_uses(picks[slot], NodeRules.RENEW_USES)
+				state.restore_uses(picks[slot])
 			state.remove_card(picks[0])
 		Effect.GAMBLE:
 			if gamble_wins(seed_value):
-				state.restore_uses(picks[0], NodeRules.RENEW_USES)
+				state.restore_uses(picks[0])
 			else:
 				state.remove_card(picks[0])
 		Effect.COPY_SPIRIT:

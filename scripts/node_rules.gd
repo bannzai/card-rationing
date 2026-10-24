@@ -21,9 +21,6 @@ const CARD_PRICES: Dictionary = {Cards.Bond.SPIRIT: 40, Cards.Bond.HERO: 75}
 const RESTORE_PRICE: int = 35
 const REMOVE_PRICE: int = 50
 const RELIC_PRICE: int = 80
-## 候補の比較用 (#60)。EXPIRED_LOCKED = 契約切れは戻せない、RENEW_USES = 最大まで戻す経路で戻す回数 (負は最大まで)
-const EXPIRED_LOCKED: bool = true
-const RENEW_USES: int = -1
 ## 契約を破棄する・外す時に残すデッキの最少の枚数 (空のデッキで戦闘に入らないため)
 const MIN_DECK_SIZE: int = 1
 ## 品揃えの乱数を、同じ節点の所持金の乱数とずらす値 (同じシードの乱数列にしないためで、0 以外なら値に意味は無い)
@@ -189,7 +186,7 @@ static func win_restore(state: RunStateScript) -> int:
 static func shrine_renew(state: RunStateScript, index: int) -> bool:
 	if state.visit.has("shrine_done") or not can_restore(state, index):
 		return false
-	state.restore_uses(index, RENEW_USES)
+	state.restore_uses(index)
 	state.visit["shrine_done"] = true
 	return true
 
@@ -233,7 +230,7 @@ static func buy_restore(state: RunStateScript, index: int) -> bool:
 	if state.gold < restore_price(state):
 		return false
 	state.gold -= restore_price(state)
-	state.restore_uses(index, RENEW_USES)
+	state.restore_uses(index)
 	state.visit["restored"] = true
 	return true
 
@@ -250,12 +247,13 @@ static func buy_removal(state: RunStateScript, index: int) -> bool:
 	return true
 
 
-## デッキの index 番目のカードの残り使用回数を戻す意味があるか (出来事で増やした後の最大より減っている)
+## デッキの index 番目のカードの残り使用回数を戻せるか (出来事で増やした後の最大より減っていて、契約切れでない。
+## 契約切れのカードはどの経路でも戻せない。理由は documents/DIRECTION.md「決めたこと」の #60 の行)
 static func can_restore(state: RunStateScript, index: int) -> bool:
 	return (
 		_is_deck_index(state, index)
 		and state.uses_left(index) < Cards.deck_max_uses(state.deck[index])
-		and (not EXPIRED_LOCKED or state.can_use(index))
+		and state.can_use(index)
 	)
 
 

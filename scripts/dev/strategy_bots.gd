@@ -555,10 +555,9 @@ static func _contract_gain(card_id: String) -> float:
 	return Cards.strength(card_id) * Cards.CARDS[card_id]["max_uses"]
 
 
-## デッキの index 番目のカードの残り使用回数を amount 回 (負なら最大まで) 戻して取り戻す強さの合計 (強さ × 戻る回数)
-static func _restore_gain(
-	state: RunStateScript, index: int, amount: int = NodeRules.RENEW_USES
-) -> float:
+## デッキの index 番目のカードの残り使用回数を amount 回 (負なら最大まで) 戻して取り戻す強さの合計 (強さ × 戻る回数。
+## 戻せないカード (NodeRules.can_restore()) は 0)
+static func _restore_gain(state: RunStateScript, index: int, amount: int = -1) -> float:
 	if not NodeRules.can_restore(state, index):
 		return 0.0
 	var missing: int = Cards.deck_max_uses(state.deck[index]) - state.uses_left(index)
